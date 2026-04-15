@@ -27,11 +27,11 @@ export default function PlatformLayout() {
   const isSuperAdmin = profile?.role === 'super_admin'
   const { tenants, loading } = useTenants(isSuperAdmin)
   const { licenses } = useTenantLicenses(isSuperAdmin)
-  const selectedLicense = licenses.find(l => l.tenant_id === selectedOrganizationId)
   const [searchParams, setSearchParams] = useSearchParams()
 
   const selectedOrganizationId = searchParams.get('orgId') ?? undefined
   const selectedOrganization = tenants.find(entry => entry.id === selectedOrganizationId)
+  const selectedLicense = licenses.find(l => l.tenant_id === selectedOrganizationId)
 
   useEffect(() => {
     if (!isSuperAdmin) return
