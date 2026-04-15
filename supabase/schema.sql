@@ -213,7 +213,34 @@ CREATE POLICY "rooms_insert_admin" ON rooms
       JOIN sites s ON u.site_id = s.id
       WHERE s.tenant_id = current_tenant_id()
     )
-    AND current_user_role() IN ('tenant_admin', 'site_manager', 'charge_nurse')
+    AND current_user_role() IN ('tenant_admin', 'site_manager', 'charge_nurse', 'nurse_manager')
+  );
+
+CREATE POLICY "rooms_update_staff" ON rooms
+  FOR UPDATE USING (
+    unit_id IN (
+      SELECT u.id FROM units u
+      JOIN sites s ON u.site_id = s.id
+      WHERE s.tenant_id = current_tenant_id()
+    )
+    AND current_user_role() IN ('tenant_admin', 'site_manager', 'charge_nurse', 'nurse_manager')
+  )
+  WITH CHECK (
+    unit_id IN (
+      SELECT u.id FROM units u
+      JOIN sites s ON u.site_id = s.id
+      WHERE s.tenant_id = current_tenant_id()
+    )
+  );
+
+CREATE POLICY "rooms_delete_admin" ON rooms
+  FOR DELETE USING (
+    unit_id IN (
+      SELECT u.id FROM units u
+      JOIN sites s ON u.site_id = s.id
+      WHERE s.tenant_id = current_tenant_id()
+    )
+    AND current_user_role() IN ('tenant_admin', 'site_manager', 'charge_nurse', 'nurse_manager')
   );
 
 -- ── Requests: public INSERT (patients), tenant-scoped SELECT ──────────────────
