@@ -154,15 +154,39 @@ export default function PatientPage() {
     setCancelingRequest(true)
     setSubmitError(null)
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('requests')
       .delete()
-      .eq('id', live.id)
       .eq('room_id', room.id)
+      .eq('type', activeRequest.type)
       .eq('status', 'pending')
+      .select('id, type')
 
     if (error) {
       setSubmitError(error.message)
+      setCancelingRequest(false)
+      return
+    }
+
+    const deletedRows = (data ?? []) as Pick<ActiveRequestRow, 'id' | 'type'>[]
+    if (deletedRows.length === 0) {
+      const { data: refreshed } = await supabase
+        .from('requests')
+        .select('id, type, status, created_at')
+        .eq('room_id', room.id)
+        .in('status', ['pending', 'acknowledged'])
+        .order('created_at', { ascending: false })
+
+      const rows = (refreshed ?? []) as ActiveRequestRow[]
+      const nextByType: Record<string, ActiveRequestRow> = {}
+      for (const row of rows) {
+        if (!nextByType[row.type]) nextByType[row.type] = row
+      }
+
+      setActiveRequestsByType(nextByType)
+      setActiveTypeSet(new Set(Object.keys(nextByType)))
+      if (!nextByType.nurse) setCallPressed(false)
+      setSubmitError('This request is already being handled and can no longer be cancelled here.')
       setCancelingRequest(false)
       return
     }
