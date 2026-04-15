@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-
-type MaybeArray<T> = T | T[] | null | undefined
-
-function getSingle<T>(value: MaybeArray<T>): T | undefined {
-  if (Array.isArray(value)) return value[0]
-  return value ?? undefined
-}
+import { getSingle, type MaybeArray } from '@/lib/utils'
 
 interface RequestReportRow {
   id: string

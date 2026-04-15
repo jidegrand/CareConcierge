@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx plugins:*)",
+      "Bash(vercel --version)",
+      "Bash(vercel link:*)",
+      "Bash(vercel login:*)",
+      "Bash(vercel ls:*)",
+      "Bash(vercel env:*)",
+      "Bash(vercel domains:*)",
+      "Bash(vercel)",
+      "Bash(vercel whoami:*)",
+      "Bash(vercel --prod)",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "Bash(npx tsc:*)",
+      "Bash(vercel git *)",
+      "Bash(vercel project *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__list_edge_functions"
+    ]
+  }
+}

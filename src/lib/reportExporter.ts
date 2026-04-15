@@ -7,6 +7,8 @@ import {
 import { supabase } from '@/lib/supabase'
 import { DEFAULT_REQUEST_TYPES, buildRequestTypeMap } from '@/lib/constants'
 import { PRODUCT_FILE_PREFIX, PRODUCT_NAME, SYSTEM_LAYER_NAME } from '@/lib/brand'
+import { buildCSV, downloadBlob, safeFilenamePart } from '@/lib/export'
+import { getSingle, type MaybeArray } from '@/lib/utils'
 import type { RequestTypeConfig } from '@/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -42,8 +44,6 @@ export interface ReportData {
   requestTypeMap: Record<string, RequestTypeConfig>
 }
 
-type MaybeArray<T> = T | T[] | null | undefined
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-CA', {
@@ -75,34 +75,10 @@ function responseTime(req: ReportRequest): number | null {
   )
 }
 
-function getSingle<T>(value: MaybeArray<T>): T | undefined {
-  if (Array.isArray(value)) return value[0]
-  return value ?? undefined
-}
-
-function buildCSV(headers: string[], rows: Array<Array<string | number>>) {
-  return [headers, ...rows]
-    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\n')
-}
-
-function safeFilenamePart(value: string) {
-  return value.replace(/\s+/g, '_')
-}
-
 function reportRangeToken(data: ReportData) {
   return data.rangeStart === data.rangeEnd
     ? data.rangeStart
     : `${data.rangeStart}_to_${data.rangeEnd}`
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const a   = document.createElement('a')
-  a.href     = url
-  a.download = filename
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 // ── Data fetcher ──────────────────────────────────────────────────────────────

@@ -1,14 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { REQUEST_TYPES } from '@/lib/constants'
+import { getSingle, type MaybeArray } from '@/lib/utils'
 import type { RequestTypeConfig } from '@/types'
-
-type MaybeArray<T> = T | T[] | null | undefined
-
-function getSingle<T>(value: MaybeArray<T>): T | undefined {
-  if (Array.isArray(value)) return value[0]
-  return value ?? undefined
-}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface HourlyVolume {

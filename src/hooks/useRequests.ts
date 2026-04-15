@@ -1,14 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { playNewRequest, playUrgentAlert, playResolve } from '@/lib/sounds'
+import { getSingle, type MaybeArray } from '@/lib/utils'
 import type { Request, RequestStatus } from '@/types'
-
-type MaybeArray<T> = T | T[] | null | undefined
-
-function getSingle<T>(value: MaybeArray<T>): T | undefined {
-  if (Array.isArray(value)) return value[0]
-  return value ?? undefined
-}
 
 type ScopedRequestRow = Request & {
   room?: {
