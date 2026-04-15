@@ -146,7 +146,7 @@ export default function PatientPage() {
     if (!room || !activeRequest) return
 
     const live = activeRequestsByType[activeRequest.type]
-    if (!live || live.status !== 'pending') {
+    if (!live || !['pending', 'acknowledged'].includes(live.status)) {
       setActiveRequest(null)
       return
     }
@@ -159,8 +159,8 @@ export default function PatientPage() {
       .delete()
       .eq('room_id', room.id)
       .eq('type', activeRequest.type)
-      .eq('status', 'pending')
-      .select('id, type')
+      .in('status', ['pending', 'acknowledged'])
+      .select('id, type, status')
 
     if (error) {
       setSubmitError(error.message)
@@ -186,7 +186,7 @@ export default function PatientPage() {
       setActiveRequestsByType(nextByType)
       setActiveTypeSet(new Set(Object.keys(nextByType)))
       if (!nextByType.nurse) setCallPressed(false)
-      setSubmitError('This request is already being handled and can no longer be cancelled here.')
+      setSubmitError('This request is no longer available to cancel.')
       setCancelingRequest(false)
       return
     }
@@ -450,7 +450,8 @@ function RequestStatusModal({
   onCancel: () => void
 }) {
   const { label } = request
-  const canCancel = status === 'pending'
+  const canCancel = status === 'pending' || status === 'acknowledged'
+  const acknowledgementNote = status === 'acknowledged'
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0f172a]/35 p-4 backdrop-blur-[2px]">
@@ -483,12 +484,9 @@ function RequestStatusModal({
             </p>
             {canCancel && (
               <p className="mt-2 text-xs font-medium text-[#7A8DA3]">
-                You can cancel this request until a staff member starts handling it.
-              </p>
-            )}
-            {!canCancel && (
-              <p className="mt-2 text-xs font-medium text-[#7A8DA3]">
-                This request is already being handled and can no longer be cancelled here.
+                {acknowledgementNote
+                  ? 'The care team has seen this request, and you can still cancel it if you no longer need help.'
+                  : 'You can cancel this request if you no longer need help.'}
               </p>
             )}
           </div>
