@@ -66,3 +66,13 @@ export function playResolve(): void {
     // Audio not available — silent fail
   }
 }
+
+// Short confirmation beep for patient-side request receipts
+export function playPatientReceipt(): void {
+  try {
+    playTone(1040, 0.12, 0.18, 'sine', 0)
+    playTone(1320, 0.12, 0.14, 'sine', 0.12)
+  } catch (_) {
+    // Audio not available — silent fail
+  }
+}

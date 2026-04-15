@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useRoom } from '@/hooks/useRoom'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
 import { supabase } from '@/lib/supabase'
+import { playPatientReceipt } from '@/lib/sounds'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
 import { PRODUCT_NAME } from '@/lib/brand'
 
@@ -15,18 +16,9 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
 ]
 
 interface ActiveRequest {
-  id:     string
-  type:   string
-  label:  string
-  time:   Date
-  status: 'pending' | 'acknowledged' | 'resolved'
-}
-
-interface LiveRequestRow {
-  id: string
-  room_id: string
-  type: string
-  status: ActiveRequest['status']
+  type:  string
+  label: string
+  time:  Date
 }
 
 export default function PatientPage() {
@@ -37,7 +29,6 @@ export default function PatientPage() {
   const [activeTab,    setActiveTab]    = useState<TabId>('requests')
   const [submitting,   setSubmitting]   = useState(false)
   const [activeRequest, setActiveRequest] = useState<ActiveRequest | null>(null)
-  const [progress,     setProgress]     = useState(0)
   const [callPressed,  setCallPressed]  = useState(false)
   const [submitError,  setSubmitError]  = useState<string | null>(null)
   // Set of request type IDs that already have a pending/acknowledged request for this room
@@ -47,25 +38,15 @@ export default function PatientPage() {
   useEffect(() => {
     if (!room) return
 
-    const applyLiveRows = (rows: LiveRequestRow[]) => {
-      setActiveTypeSet(new Set(rows.map(r => r.type)))
-      setActiveRequest(prev => {
-        if (!prev) return prev
-        const match = rows.find(r => r.id === prev.id)
-        const live = (match?.status ?? 'resolved') as ActiveRequest['status']
-        return live !== prev.status ? { ...prev, status: live } : prev
-      })
-    }
-
     const loadActiveTypes = async () => {
       const { data } = await supabase
         .from('requests')
-        .select('id, type, status')
+        .select('type')
         .eq('room_id', room.id)
         .in('status', ['pending', 'acknowledged'])
 
-      const rows = (data ?? []) as LiveRequestRow[]
-      applyLiveRows(rows)
+      const rows = (data ?? []) as { type: string }[]
+      setActiveTypeSet(new Set(rows.map(r => r.type)))
     }
 
     loadActiveTypes()
@@ -74,74 +55,31 @@ export default function PatientPage() {
       .channel(`patient-room-active:${room.id}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'requests', filter: `room_id=eq.${room.id}` },
-        (payload) => {
-          const nextRow = payload.new as Partial<LiveRequestRow>
-          const prevRow = payload.old as Partial<LiveRequestRow>
-          const changedId = nextRow.id ?? prevRow.id
-          const changedType = nextRow.type ?? prevRow.type
-          const changedStatus = nextRow.status as ActiveRequest['status'] | undefined
-
-          // Apply the live status immediately for the active request so the modal
-          // flips state as soon as the nurse acknowledges or resolves.
-          if (changedId) {
-            setActiveRequest(prev => {
-              if (!prev || prev.id !== changedId || !changedStatus) return prev
-              return prev.status === changedStatus ? prev : { ...prev, status: changedStatus }
-            })
-          }
-
-          // Keep the dedupe set responsive between refreshes.
-          if (changedType) {
-            if (changedStatus === 'pending' || changedStatus === 'acknowledged') {
-              setActiveTypeSet(prev => new Set(prev).add(changedType))
-            } else if (changedStatus === 'resolved') {
-              setActiveTypeSet(prev => {
-                const next = new Set(prev)
-                next.delete(changedType)
-                return next
-              })
-            }
-          }
-
-          // Re-sync from the database in case multiple requests changed at once.
-          loadActiveTypes()
-        }
+        () => loadActiveTypes()
       )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [room])
 
-  // Animate progress bar on active request
-  useEffect(() => {
-    if (!activeRequest) return
-    setProgress(0)
-    const interval = setInterval(() => {
-      setProgress(p => {
-        if (p >= 100) { clearInterval(interval); return 100 }
-        return p + 2
-      })
-    }, 160) // ~8 seconds to fill
-    return () => clearInterval(interval)
-  }, [activeRequest])
-
   const submitRequest = async (typeId: string, label: string, urgent: boolean) => {
     if (!room || submitting || activeTypeSet.has(typeId)) return
     setSubmitting(true)
     setSubmitError(null)
-    const { data, error } = await supabase.from('requests').insert({
+    const { error } = await supabase.from('requests').insert({
       room_id:   room.id,
       type:      typeId,
       is_urgent: urgent,
       status:    'pending',
-    }).select('id').single()
+    })
     if (error) {
       setSubmitError(error.message)
       setSubmitting(false)
       return
     }
     setActiveTypeSet(prev => new Set(prev).add(typeId))
-    setActiveRequest({ id: data.id, type: typeId, label, time: new Date(), status: 'pending' })
+    playPatientReceipt()
+    setActiveRequest({ type: typeId, label, time: new Date() })
     setSubmitting(false)
   }
 
@@ -149,19 +87,20 @@ export default function PatientPage() {
     if (!room || callPressed || activeTypeSet.has('nurse')) return
     setCallPressed(true)
     setSubmitError(null)
-    const { data, error } = await supabase.from('requests').insert({
+    const { error } = await supabase.from('requests').insert({
       room_id:   room.id,
       type:      'nurse',
       is_urgent: true,
       status:    'pending',
-    }).select('id').single()
+    })
     if (error) {
       setSubmitError(error.message)
       setCallPressed(false)
       return
     }
     setActiveTypeSet(prev => new Set(prev).add('nurse'))
-    setActiveRequest({ id: data.id, type: 'nurse', label: 'Call Nurse', time: new Date(), status: 'pending' })
+    playPatientReceipt()
+    setActiveRequest({ type: 'nurse', label: 'Call Nurse', time: new Date() })
   }
 
   const dismiss = () => {
@@ -374,7 +313,6 @@ export default function PatientPage() {
         {activeRequest && (
           <RequestStatusModal
             request={activeRequest}
-            progress={progress}
             onDismiss={dismiss}
           />
         )}
@@ -383,104 +321,45 @@ export default function PatientPage() {
   )
 }
 
-// ── Request status modal ──────────────────────────────────────────────────────
-// Shows live status of the patient's most recent request.
-// Status transitions: pending → acknowledged → resolved
+// ── Request receipt modal ─────────────────────────────────────────────────────
+// Shows a simple submission confirmation after a patient sends a request.
 function RequestStatusModal({
   request,
-  progress,
   onDismiss,
 }: {
   request: ActiveRequest
-  progress: number
   onDismiss: () => void
 }) {
-  const { status, label } = request
-
-  const cfg = {
-    pending: {
-      bg:        'linear-gradient(180deg, #FFFFFF 0%, #EEF7FF 100%)',
-      border:    '#D8E6F3',
-      iconBg:    '#DDEEFF',
-      iconColor: '#1D6FA8',
-      badge:     { bg: '#DCEEFF', text: '#1D6FA8', label: 'Waiting' },
-      heading:   'Your request has been received',
-      body:      'A nurse will be with you shortly. Please stay comfortable.',
-      btnBg:     '#1D6FA8',
-      showBar:   true,
-    },
-    acknowledged: {
-      bg:        'linear-gradient(180deg, #FFFFFF 0%, #FFFBEB 100%)',
-      border:    '#FDE68A',
-      iconBg:    '#FEF3C7',
-      iconColor: '#D97706',
-      badge:     { bg: '#FEF3C7', text: '#92400E', label: 'On the way' },
-      heading:   'A nurse is on their way',
-      body:      'Your request has been acknowledged. Help is coming to your bay.',
-      btnBg:     '#D97706',
-      showBar:   false,
-    },
-    resolved: {
-      bg:        'linear-gradient(180deg, #FFFFFF 0%, #F0FDF4 100%)',
-      border:    '#BBF7D0',
-      iconBg:    '#D1FAE5',
-      iconColor: '#059669',
-      badge:     { bg: '#D1FAE5', text: '#065F46', label: 'Completed' },
-      heading:   'Request completed — thank you!',
-      body:      'Your nurse has attended to your request. Tap Close if you need anything else.',
-      btnBg:     '#059669',
-      showBar:   false,
-    },
-  }[status]
+  const { label } = request
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0f172a]/35 p-4 backdrop-blur-[2px]">
       <div className="w-full max-w-md rounded-[28px] border p-5 shadow-2xl md:p-6 transition-all"
-        style={{ background: cfg.bg, borderColor: cfg.border }}>
+        style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #F5FBFF 100%)', borderColor: '#D8E6F3' }}>
 
         {/* Icon + text */}
         <div className="mb-4 flex items-start gap-3">
           <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center"
-            style={{ background: cfg.iconBg }}>
-            {status === 'pending' && (
-              // Spinner
-              <svg className="animate-spin" width="22" height="22" viewBox="0 0 24 24" fill="none"
-                stroke={cfg.iconColor} strokeWidth="2.5" strokeLinecap="round">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-              </svg>
-            )}
-            {status === 'acknowledged' && (
-              // Walking person / nurse
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={cfg.iconColor}
-                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="5" r="2"/>
-                <path d="M12 7l-3 5h6l-3-5z"/>
-                <path d="M9 12l-2 6m8-6l2 6"/>
-                <path d="M9 18l1-3m5-1l-1 4"/>
-              </svg>
-            )}
-            {status === 'resolved' && (
-              // Checkmark
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={cfg.iconColor}
-                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            )}
+            style={{ background: '#D1FAE5' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669"
+              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
           </div>
 
           <div className="flex-1">
             <div className="mb-1 flex items-center gap-2 flex-wrap">
               <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-                style={{ background: cfg.badge.bg, color: cfg.badge.text }}>
-                {cfg.badge.label}
+                style={{ background: '#DCEEFF', color: '#1D6FA8' }}>
+                Received
               </span>
               <span className="text-xs text-[#6B7C93]">{label}</span>
             </div>
             <p className="text-base font-bold leading-tight text-[#16324F] md:text-lg">
-              {cfg.heading}
+              Your request has been received
             </p>
             <p className="mt-1 text-sm leading-relaxed text-[#4C6178]">
-              {cfg.body}
+              A nurse will be with you shortly. Please stay comfortable.
             </p>
           </div>
 
@@ -492,40 +371,24 @@ function RequestStatusModal({
           </button>
         </div>
 
-        {/* Status step track */}
-        <div className="mb-5 flex items-center gap-2">
-          {(['pending', 'acknowledged', 'resolved'] as const).map((s, i) => {
-            const done    = ['pending', 'acknowledged', 'resolved'].indexOf(status) >= i
-            const current = status === s
-            const labels  = ['Received', 'Acknowledged', 'Resolved']
-            return (
-              <div key={s} className="flex-1 flex flex-col items-center gap-1">
-                <div className={`w-full h-1.5 rounded-full transition-all duration-500 ${
-                  done ? 'opacity-100' : 'opacity-20'
-                }`}
-                  style={{ background: current ? cfg.iconColor : done ? cfg.iconColor : '#CBD5E1' }} />
-                <span className="text-[10px] font-semibold"
-                  style={{ color: done ? cfg.iconColor : '#94A3B8' }}>
-                  {labels[i]}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Pending: animated progress bar */}
-        {cfg.showBar && (
-          <div className="mb-5 w-full overflow-hidden rounded-full bg-[#D8E6F3]">
-            <div className="h-1.5 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%`, background: cfg.iconColor }} />
+        <div className="mb-5 rounded-2xl border border-[#D1FAE5] bg-[#F0FDF4] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-[#22C55E] flex items-center justify-center flex-shrink-0">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </span>
+            <p className="text-sm font-medium text-[#166534]">
+              We have received your request and alerted the care team.
+            </p>
           </div>
-        )}
+        </div>
 
         <button
           onClick={onDismiss}
           className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98]"
-          style={{ background: cfg.btnBg }}>
-          {status === 'resolved' ? 'Close' : 'Dismiss'}
+          style={{ background: '#1D6FA8' }}>
+          Dismiss
         </button>
       </div>
     </div>
