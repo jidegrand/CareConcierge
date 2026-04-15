@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { usePlatformAccess, useSites, type PlatformAccessUser } from '@/hooks/useAdminData'
+import { usePlatformAccess, useSites, useTenants, type PlatformAccessUser } from '@/hooks/useAdminData'
 import { usePlatformContext } from '@/pages/platform/usePlatformContext'
 
 const ACCESS_ROLES = [
@@ -11,13 +11,20 @@ const ACCESS_ROLES = [
 
 export default function PlatformAccessControlPage() {
   const { selectedOrganizationId } = usePlatformContext()
-  const { users, loading, error, updateAccess } = usePlatformAccess(true)
+  const { users, loading, error, updateAccess, inviteSuperAdmin } = usePlatformAccess(true)
   const { sites } = useSites(selectedOrganizationId)
+  const { tenants } = useTenants(true)
   const [roleFilter, setRoleFilter] = useState<'all' | string>('all')
   const [editUser, setEditUser] = useState<PlatformAccessUser | null>(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [showAddSuperAdmin, setShowAddSuperAdmin] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteTenantId, setInviteTenantId] = useState('')
+  const [inviteSent, setInviteSent] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [inviting, setInviting] = useState(false)
 
   const filteredUsers = useMemo(() => users.filter(user => (
     (!selectedOrganizationId || user.tenant_id === selectedOrganizationId) &&
@@ -54,11 +61,40 @@ export default function PlatformAccessControlPage() {
     setSaving(false)
   }
 
+  const handleInviteSuperAdmin = async () => {
+    if (!inviteEmail.trim() || !inviteTenantId) return
+    setInviting(true)
+    setInviteError(null)
+    try {
+      await inviteSuperAdmin(inviteEmail.trim(), inviteTenantId)
+      setInviteSent(true)
+    } catch (err: unknown) {
+      setInviteError(err instanceof Error ? err.message : 'Invite failed')
+    }
+    setInviting(false)
+  }
+
+  const openAddSuperAdmin = () => {
+    setInviteEmail('')
+    setInviteTenantId(tenants[0]?.id ?? '')
+    setInviteSent(false)
+    setInviteError(null)
+    setShowAddSuperAdmin(true)
+  }
+
   return (
     <div>
-      <div className="mb-5">
-        <h3 className="text-base font-bold text-[var(--text-primary)]">Access Control</h3>
-        <p className="text-xs text-[var(--text-muted)] mt-0.5">Manage platform administrators and organization access roles</p>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h3 className="text-base font-bold text-[var(--text-primary)]">Access Control</h3>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">Manage platform administrators and organization access roles</p>
+        </div>
+        <button
+          onClick={openAddSuperAdmin}
+          className="px-3.5 py-2 rounded-xl bg-[#5B21B6] text-white text-sm font-medium hover:bg-[#4C1D95] transition-colors"
+        >
+          + Add Super Admin
+        </button>
       </div>
 
       <div className="grid grid-cols-4 gap-4 mb-6">
@@ -122,6 +158,75 @@ export default function PlatformAccessControlPage() {
           </table>
         )}
       </div>
+
+      {showAddSuperAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
+          <div className="bg-white rounded-2xl shadow-lift w-full max-w-md animate-bounce-in">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">Add Super Admin</h3>
+              <button onClick={() => setShowAddSuperAdmin(false)} className="w-7 h-7 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)]">✕</button>
+            </div>
+
+            {inviteSent ? (
+              <div className="px-5 py-8 text-center">
+                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B21B6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                <p className="font-semibold text-[var(--text-primary)] mb-1">Invite sent!</p>
+                <p className="text-sm text-[var(--text-muted)]">
+                  A sign-in link was sent to <strong>{inviteEmail}</strong>. They'll have Super Admin access on first login.
+                </p>
+                <button onClick={() => setShowAddSuperAdmin(false)}
+                  className="mt-4 px-4 py-2 rounded-xl bg-[#5B21B6] text-white text-sm font-medium hover:bg-[#4C1D95] transition-colors">
+                  Done
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="px-5 py-4 space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Email address</label>
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={e => setInviteEmail(e.target.value)}
+                      placeholder="admin@example.com"
+                      className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#5B21B6] focus:ring-2 focus:ring-[#5B21B6]/10 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Associated organization</label>
+                    <select
+                      value={inviteTenantId}
+                      onChange={e => setInviteTenantId(e.target.value)}
+                      className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#5B21B6] transition-all"
+                    >
+                      <option value="">Select organization…</option>
+                      {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                  {inviteError && <Banner tone="error" message={inviteError} />}
+                </div>
+                <div className="flex justify-end gap-2 px-5 py-4 border-t border-[var(--border)]">
+                  <button onClick={() => setShowAddSuperAdmin(false)}
+                    className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleInviteSuperAdmin}
+                    disabled={inviting || !inviteEmail.trim() || !inviteTenantId}
+                    className="px-4 py-2 rounded-xl bg-[#5B21B6] text-white text-sm font-medium disabled:opacity-50 hover:bg-[#4C1D95] transition-colors"
+                  >
+                    {inviting ? 'Sending…' : 'Send invite'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {editUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>

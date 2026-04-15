@@ -342,12 +342,28 @@ export function usePlatformAccess(enabled = true) {
     await fetch()
   }
 
+  const inviteSuperAdmin = async (email: string, tenantId: string) => {
+    const { error: inviteErr } = await supabase
+      .from('pending_invites')
+      .insert({ email: email.trim().toLowerCase(), tenant_id: tenantId, role: 'super_admin', unit_id: null })
+    if (inviteErr) throw new Error(inviteErr.message)
+
+    const { error: otpErr } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/dashboard') },
+    })
+    if (otpErr) throw new Error(otpErr.message)
+
+    await fetch()
+  }
+
   return {
     users,
     loading,
     error,
     refresh: fetch,
     updateAccess,
+    inviteSuperAdmin,
   }
 }
 
