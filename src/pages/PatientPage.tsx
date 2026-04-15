@@ -422,6 +422,7 @@ export default function PatientPage() {
             request={activeRequest}
             status={activeRequestsByType[activeRequest.type]?.status ?? 'pending'}
             canceling={cancelingRequest}
+            error={submitError}
             onDismiss={dismiss}
             onCancel={cancelRequest}
           />
@@ -437,12 +438,14 @@ function RequestStatusModal({
   request,
   status,
   canceling,
+  error,
   onDismiss,
   onCancel,
 }: {
   request: ActiveRequest
   status: 'pending' | 'acknowledged'
   canceling: boolean
+  error: string | null
   onDismiss: () => void
   onCancel: () => void
 }) {
@@ -511,9 +514,16 @@ function RequestStatusModal({
           </div>
         </div>
 
+        {error && (
+          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
         <div className="flex flex-col gap-3">
           {canCancel && (
             <button
+              type="button"
               onClick={onCancel}
               disabled={canceling}
               className="w-full rounded-2xl px-4 py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-70"
@@ -522,6 +532,7 @@ function RequestStatusModal({
             </button>
           )}
           <button
+            type="button"
             onClick={onDismiss}
             className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98]"
             style={{ background: '#1D6FA8' }}>
