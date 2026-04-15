@@ -230,6 +230,12 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
         fetchRequests()
         fetchStaffEvents()
       })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'requests' }, (payload) => {
+        const deletedId = (payload.old as { id?: string }).id
+        if (deletedId) knownIds.current.delete(deletedId)
+        fetchRequests()
+        fetchStaffEvents()
+      })
       .subscribe(status => setConnected(status === 'SUBSCRIBED'))
 
     const heartbeat = setInterval(() => {

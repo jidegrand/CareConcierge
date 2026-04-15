@@ -16,9 +16,17 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
 ]
 
 interface ActiveRequest {
+  id:    string
   type:  string
   label: string
   time:  Date
+}
+
+interface ActiveRequestRow {
+  id:         string
+  type:       string
+  status:     'pending' | 'acknowledged'
+  created_at: string
 }
 
 export default function PatientPage() {
@@ -29,6 +37,8 @@ export default function PatientPage() {
   const [activeTab,    setActiveTab]    = useState<TabId>('requests')
   const [submitting,   setSubmitting]   = useState(false)
   const [activeRequest, setActiveRequest] = useState<ActiveRequest | null>(null)
+  const [activeRequestsByType, setActiveRequestsByType] = useState<Record<string, ActiveRequestRow>>({})
+  const [cancelingRequest, setCancelingRequest] = useState(false)
   const [callPressed,  setCallPressed]  = useState(false)
   const [submitError,  setSubmitError]  = useState<string | null>(null)
   // Set of request type IDs that already have a pending/acknowledged request for this room
@@ -41,12 +51,25 @@ export default function PatientPage() {
     const loadActiveTypes = async () => {
       const { data } = await supabase
         .from('requests')
-        .select('type')
+        .select('id, type, status, created_at')
         .eq('room_id', room.id)
         .in('status', ['pending', 'acknowledged'])
+        .order('created_at', { ascending: false })
 
-      const rows = (data ?? []) as { type: string }[]
-      setActiveTypeSet(new Set(rows.map(r => r.type)))
+      const rows = (data ?? []) as ActiveRequestRow[]
+      const nextByType: Record<string, ActiveRequestRow> = {}
+      for (const row of rows) {
+        if (!nextByType[row.type]) nextByType[row.type] = row
+      }
+
+      setActiveRequestsByType(nextByType)
+      setActiveTypeSet(new Set(Object.keys(nextByType)))
+      setActiveRequest(prev => {
+        if (!prev) return prev
+        const live = nextByType[prev.type]
+        return live ? { ...prev, id: live.id } : null
+      })
+      if (!nextByType.nurse) setCallPressed(false)
     }
 
     loadActiveTypes()
@@ -62,45 +85,101 @@ export default function PatientPage() {
     return () => { supabase.removeChannel(channel) }
   }, [room])
 
+  const openActiveRequest = (type: string, label: string) => {
+    const live = activeRequestsByType[type]
+    if (!live) return
+    setSubmitError(null)
+    setActiveRequest({
+      id: live.id,
+      type,
+      label,
+      time: new Date(live.created_at),
+    })
+  }
+
   const submitRequest = async (typeId: string, label: string, urgent: boolean) => {
-    if (!room || submitting || activeTypeSet.has(typeId)) return
+    if (!room || submitting || cancelingRequest || activeTypeSet.has(typeId)) return
     setSubmitting(true)
     setSubmitError(null)
-    const { error } = await supabase.from('requests').insert({
+    const { data, error } = await supabase.from('requests').insert({
       room_id:   room.id,
       type:      typeId,
       is_urgent: urgent,
       status:    'pending',
-    })
+    }).select('id, type, status, created_at').single()
     if (error) {
       setSubmitError(error.message)
       setSubmitting(false)
       return
     }
+    const live = data as ActiveRequestRow
+    setActiveRequestsByType(prev => ({ ...prev, [typeId]: live }))
     setActiveTypeSet(prev => new Set(prev).add(typeId))
     playPatientReceipt()
-    setActiveRequest({ type: typeId, label, time: new Date() })
+    setActiveRequest({ id: live.id, type: typeId, label, time: new Date(live.created_at) })
     setSubmitting(false)
   }
 
   const handleCallNurse = async () => {
-    if (!room || callPressed || activeTypeSet.has('nurse')) return
+    if (!room || callPressed || cancelingRequest || activeTypeSet.has('nurse')) return
     setCallPressed(true)
     setSubmitError(null)
-    const { error } = await supabase.from('requests').insert({
+    const { data, error } = await supabase.from('requests').insert({
       room_id:   room.id,
       type:      'nurse',
       is_urgent: true,
       status:    'pending',
-    })
+    }).select('id, type, status, created_at').single()
     if (error) {
       setSubmitError(error.message)
       setCallPressed(false)
       return
     }
+    const live = data as ActiveRequestRow
+    setActiveRequestsByType(prev => ({ ...prev, nurse: live }))
     setActiveTypeSet(prev => new Set(prev).add('nurse'))
     playPatientReceipt()
-    setActiveRequest({ type: 'nurse', label: 'Call Nurse', time: new Date() })
+    setActiveRequest({ id: live.id, type: 'nurse', label: 'Call Nurse', time: new Date(live.created_at) })
+  }
+
+  const cancelRequest = async () => {
+    if (!room || !activeRequest) return
+
+    const live = activeRequestsByType[activeRequest.type]
+    if (!live || live.status !== 'pending') {
+      setActiveRequest(null)
+      return
+    }
+
+    setCancelingRequest(true)
+    setSubmitError(null)
+
+    const { error } = await supabase
+      .from('requests')
+      .delete()
+      .eq('id', live.id)
+      .eq('room_id', room.id)
+      .eq('status', 'pending')
+
+    if (error) {
+      setSubmitError(error.message)
+      setCancelingRequest(false)
+      return
+    }
+
+    setActiveRequestsByType(prev => {
+      const next = { ...prev }
+      delete next[activeRequest.type]
+      return next
+    })
+    setActiveTypeSet(prev => {
+      const next = new Set(prev)
+      next.delete(activeRequest.type)
+      return next
+    })
+    if (activeRequest.type === 'nurse') setCallPressed(false)
+    setActiveRequest(null)
+    setCancelingRequest(false)
   }
 
   const dismiss = () => {
@@ -168,8 +247,10 @@ export default function PatientPage() {
                     For urgent assistance or pain relief
                   </p>
                   <button
-                    onClick={handleCallNurse}
-                    disabled={callPressed || submitting || activeTypeSet.has('nurse')}
+                    onClick={() => activeTypeSet.has('nurse')
+                      ? openActiveRequest('nurse', 'Call Nurse')
+                      : handleCallNurse()}
+                    disabled={callPressed || submitting || cancelingRequest}
                     className="px-10 py-3.5 rounded-full font-bold text-base transition-all active:scale-95 disabled:opacity-70"
                     style={{ background: 'white', color: '#C0392B' }}>
                     {activeTypeSet.has('nurse') ? 'Nurse Notified ✓' : callPressed ? 'Notifying…' : 'Press Now'}
@@ -189,8 +270,10 @@ export default function PatientPage() {
                   return (
                     <button
                       key={req.id}
-                      onClick={() => submitRequest(req.id, req.label, req.urgent)}
-                      disabled={submitting || alreadyActive}
+                      onClick={() => alreadyActive
+                        ? openActiveRequest(req.id, req.label)
+                        : submitRequest(req.id, req.label, req.urgent)}
+                      disabled={submitting || cancelingRequest}
                       className="rounded-2xl p-5 flex flex-col items-center justify-center gap-3 shadow-sm border active:scale-[0.97] transition-all relative overflow-hidden"
                       style={{
                         minHeight: '140px',
@@ -313,7 +396,10 @@ export default function PatientPage() {
         {activeRequest && (
           <RequestStatusModal
             request={activeRequest}
+            status={activeRequestsByType[activeRequest.type]?.status ?? 'pending'}
+            canceling={cancelingRequest}
             onDismiss={dismiss}
+            onCancel={cancelRequest}
           />
         )}
       </div>
@@ -325,12 +411,19 @@ export default function PatientPage() {
 // Shows a simple submission confirmation after a patient sends a request.
 function RequestStatusModal({
   request,
+  status,
+  canceling,
   onDismiss,
+  onCancel,
 }: {
   request: ActiveRequest
+  status: 'pending' | 'acknowledged'
+  canceling: boolean
   onDismiss: () => void
+  onCancel: () => void
 }) {
   const { label } = request
+  const canCancel = status === 'pending'
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0f172a]/35 p-4 backdrop-blur-[2px]">
@@ -361,6 +454,16 @@ function RequestStatusModal({
             <p className="mt-1 text-sm leading-relaxed text-[#4C6178]">
               A nurse will be with you shortly. Please stay comfortable.
             </p>
+            {canCancel && (
+              <p className="mt-2 text-xs font-medium text-[#7A8DA3]">
+                You can cancel this request until a staff member starts handling it.
+              </p>
+            )}
+            {!canCancel && (
+              <p className="mt-2 text-xs font-medium text-[#7A8DA3]">
+                This request is already being handled and can no longer be cancelled here.
+              </p>
+            )}
           </div>
 
           <button onClick={onDismiss} className="mt-0.5 text-[#7A8DA3] transition-colors hover:text-[#16324F]">
@@ -384,12 +487,23 @@ function RequestStatusModal({
           </div>
         </div>
 
-        <button
-          onClick={onDismiss}
-          className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98]"
-          style={{ background: '#1D6FA8' }}>
-          Dismiss
-        </button>
+        <div className="flex flex-col gap-3">
+          {canCancel && (
+            <button
+              onClick={onCancel}
+              disabled={canceling}
+              className="w-full rounded-2xl px-4 py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-70"
+              style={{ background: '#FEE2E2', color: '#B91C1C' }}>
+              {canceling ? 'Cancelling…' : 'Cancel request'}
+            </button>
+          )}
+          <button
+            onClick={onDismiss}
+            className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98]"
+            style={{ background: '#1D6FA8' }}>
+            Dismiss
+          </button>
+        </div>
       </div>
     </div>
   )

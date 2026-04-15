@@ -32,8 +32,8 @@ Two-layer deduplication: (1) Patient page — on load, fetches pending/acknowled
 **7. ~~Real-time status visible to patient~~ ✅ DONE**
 `ActiveRequest` extended with `id` and `status` fields. Insert now uses `.select('id').single()` to capture the row ID. The existing room-level realtime subscription (from gap #6) now also updates `activeRequest.status` — pending/acknowledged rows are matched by ID; absence from the result means resolved. Static modal replaced with `RequestStatusModal`: three visual states (blue spinner "Received" → amber nurse-icon "On the way" → green checkmark "Completed") with a 3-step progress track across the top. Patient sees live status transitions without page refresh.
 
-**8. Request cancellation by patient**
-A patient cannot cancel a request they submitted (e.g. they got up themselves). A cancel button on the active-request modal would reduce noise in the nurse queue.
+**8. ~~Request cancellation by patient~~ ✅ DONE**
+Patients can now cancel a request from the active-request modal while it is still `pending`. The patient page tracks the live request row ID/status, shows a "Cancel request" action only while the request is still pending, removes the request from the room's active set after a successful delete, and hides cancellation once staff has acknowledged it. Supabase RLS now includes a public delete policy limited to pending requests on active rooms so the rule is enforced server-side as well.
 
 **9. Patient satisfaction capture**
 After a request is resolved, the QR page could show a brief "How did we do?" prompt (thumbs up/down or 1–5 stars). This data would feed a CSAT metric into the reports page.

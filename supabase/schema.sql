@@ -174,6 +174,8 @@ CREATE POLICY "rooms_insert_admin" ON rooms
 -- Patients (unauthenticated) can insert requests for any active room.
 -- Patients also need SELECT on active-room requests so the QR page can
 -- de-duplicate requests and show live status transitions after insert.
+-- Patients can also delete still-pending requests for their active room if
+-- they no longer need the request before staff has acknowledged it.
 -- Nurses can only read requests belonging to their tenant (+ optionally their unit).
 CREATE POLICY "requests_public_insert" ON requests
   FOR INSERT WITH CHECK (
@@ -183,6 +185,12 @@ CREATE POLICY "requests_public_insert" ON requests
 CREATE POLICY "requests_public_select" ON requests
   FOR SELECT USING (
     room_id IN (SELECT id FROM rooms WHERE active = true)
+  );
+
+CREATE POLICY "requests_public_delete" ON requests
+  FOR DELETE USING (
+    status = 'pending'
+    AND room_id IN (SELECT id FROM rooms WHERE active = true)
   );
 
 CREATE POLICY "requests_nurse_select" ON requests
