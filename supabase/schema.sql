@@ -172,9 +172,16 @@ CREATE POLICY "rooms_insert_admin" ON rooms
 
 -- ── Requests: public INSERT (patients), tenant-scoped SELECT ──────────────────
 -- Patients (unauthenticated) can insert requests for any active room.
+-- Patients also need SELECT on active-room requests so the QR page can
+-- de-duplicate requests and show live status transitions after insert.
 -- Nurses can only read requests belonging to their tenant (+ optionally their unit).
 CREATE POLICY "requests_public_insert" ON requests
   FOR INSERT WITH CHECK (
+    room_id IN (SELECT id FROM rooms WHERE active = true)
+  );
+
+CREATE POLICY "requests_public_select" ON requests
+  FOR SELECT USING (
     room_id IN (SELECT id FROM rooms WHERE active = true)
   );
 
