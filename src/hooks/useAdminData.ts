@@ -350,7 +350,7 @@ export function usePlatformAccess(enabled = true) {
 
     const { error: otpErr } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/dashboard') },
+      options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/set-password') },
     })
     if (otpErr) throw new Error(otpErr.message)
 
@@ -543,10 +543,10 @@ export function useUsers(tenantId: string | undefined) {
       .insert({ email: email.trim().toLowerCase(), tenant_id: tenantId, role, unit_id: unitId || null })
     if (inviteErr) throw new Error(inviteErr.message)
 
-    // Send the magic link
+    // Send the magic link — redirect to set-password so new users create a password on first login
     const { error: otpErr } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/dashboard') },
+      options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/set-password') },
     })
     if (otpErr) throw new Error(otpErr.message)
 

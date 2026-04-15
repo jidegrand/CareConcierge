@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthContext, useAuthProvider, useAuth } from '@/hooks/useAuth'
 import LoginPage       from '@/pages/LoginPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
+import SetPasswordPage from '@/pages/SetPasswordPage'
 import PatientPage     from '@/pages/PatientPage'
 import NurseDashboard  from '@/pages/NurseDashboard'
 import PatientFeedPage from '@/pages/PatientFeedPage'
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="/r/:roomId"  element={<PatientPage />} />
           <Route path="/login"      element={<LoginPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/set-password"   element={<SetPasswordPage />} />
           <Route path="/dashboard"  element={<ProtectedRoute><NurseDashboard  /></ProtectedRoute>} />
           <Route path="/feed"       element={<ProtectedRoute><PatientFeedPage /></ProtectedRoute>} />
           <Route path="/bay-map"    element={<ProtectedRoute><BayMapPage      /></ProtectedRoute>} />
