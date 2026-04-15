@@ -1,11 +1,39 @@
 import { useNavigate } from 'react-router-dom'
-import { useAdminStats } from '@/hooks/useAdminData'
+import { useAdminStats, useTenantLicenses } from '@/hooks/useAdminData'
 import { usePlatformContext } from '@/pages/platform/usePlatformContext'
+
+function expiryState(expiresAt: string | null) {
+  if (!expiresAt) return 'none'
+  const ms = new Date(expiresAt).getTime() - Date.now()
+  if (ms < 0) return 'expired'
+  if (ms < 30 * 24 * 60 * 60 * 1000) return 'warning'
+  return 'ok'
+}
+
+function fmtDate(iso: string | null) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 export default function PlatformOverviewPage() {
   const navigate = useNavigate()
   const { organizations, selectedOrganization, selectedOrganizationId, loadingOrganizations } = usePlatformContext()
   const { stats, loading } = useAdminStats(selectedOrganizationId)
+  const { licenses } = useTenantLicenses(true)
+
+  const attentionItems = licenses.flatMap((license) => {
+    const items: { kind: 'error' | 'warning'; label: string; detail: string }[] = []
+    if (license.status === 'suspended') {
+      items.push({ kind: 'error', label: license.organizationName, detail: 'License suspended' })
+    }
+    const state = expiryState(license.expires_at)
+    if (state === 'expired') {
+      items.push({ kind: 'error', label: license.organizationName, detail: `Expired ${fmtDate(license.expires_at)}` })
+    } else if (state === 'warning') {
+      items.push({ kind: 'warning', label: license.organizationName, detail: `Expires ${fmtDate(license.expires_at)}` })
+    }
+    return items
+  })
 
   const totals = organizations.reduce((acc, org) => ({
     siteCount: acc.siteCount + org.siteCount,
@@ -44,6 +72,27 @@ export default function PlatformOverviewPage() {
           </div>
         ))}
       </div>
+
+      {attentionItems.length > 0 && (
+        <div className="mb-4 bg-[var(--surface)] rounded-2xl border border-amber-200 p-5">
+          <p className="text-sm font-bold text-[var(--text-primary)] mb-3">Needs Attention</p>
+          <div className="space-y-2">
+            {attentionItems.map((item, index) => (
+              <div key={index} className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm ${item.kind === 'error' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.kind === 'error' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                <span className={`font-semibold flex-shrink-0 ${item.kind === 'error' ? 'text-red-800' : 'text-amber-800'}`}>{item.label}</span>
+                <span className={item.kind === 'error' ? 'text-red-600' : 'text-amber-600'}>{item.detail}</span>
+                <button
+                  onClick={() => navigate('/platform/licensing')}
+                  className={`ml-auto text-xs font-medium ${item.kind === 'error' ? 'text-red-700 hover:underline' : 'text-amber-700 hover:underline'}`}
+                >
+                  View license →
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-[1.35fr,1fr] gap-4">
         <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5">

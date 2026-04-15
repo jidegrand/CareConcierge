@@ -5,6 +5,19 @@ import { usePlatformContext } from '@/pages/platform/usePlatformContext'
 type LicenseStatus = TenantLicenseRecord['status']
 type LicensePlan = TenantLicenseRecord['plan']
 
+function fmtDate(iso: string | null) {
+  if (!iso) return 'Open-ended'
+  return new Date(iso).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function expiryState(expiresAt: string | null): 'none' | 'expired' | 'warning' | 'ok' {
+  if (!expiresAt) return 'none'
+  const ms = new Date(expiresAt).getTime() - Date.now()
+  if (ms < 0) return 'expired'
+  if (ms < 30 * 24 * 60 * 60 * 1000) return 'warning'
+  return 'ok'
+}
+
 export default function PlatformLicensingPage() {
   const { selectedOrganizationId, setSelectedOrganizationId } = usePlatformContext()
   const { licenses, loading, error, saveLicense, deleteLicense } = useTenantLicenses(true)
@@ -15,6 +28,7 @@ export default function PlatformLicensingPage() {
     trial: licenses.filter(entry => entry.status === 'trial').length,
     suspended: licenses.filter(entry => entry.status === 'suspended').length,
     archived: licenses.filter(entry => entry.status === 'archived').length,
+    expiringSoon: licenses.filter(entry => expiryState(entry.expires_at) === 'warning').length,
   }), [licenses])
 
   return (
@@ -24,10 +38,11 @@ export default function PlatformLicensingPage() {
         <p className="text-xs text-[var(--text-muted)] mt-0.5">Manage activation status, plans, capacity limits, and organization entitlements</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-5 gap-4 mb-6">
         <StatCard label="Active" value={counts.active} color="#059669" />
         <StatCard label="Trial" value={counts.trial} color="#1D6FA8" />
         <StatCard label="Suspended" value={counts.suspended} color="#DC2626" />
+        <StatCard label="Expiring Soon" value={counts.expiringSoon} color="#D97706" />
         <StatCard label="Archived" value={counts.archived} color="#6B7280" />
       </div>
 
@@ -57,14 +72,25 @@ export default function PlatformLicensingPage() {
                     onClick={() => setSelectedOrganizationId(license.tenant_id)}
                   >
                     <td className="px-4 py-3.5">
-                      <p className="text-sm font-semibold text-[var(--text-primary)]">{license.organizationName}</p>
-                      <p className="text-xs text-[var(--text-muted)]">{license.organizationSlug}</p>
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">{license.organizationName}</p>
+                          <p className="text-xs text-[var(--text-muted)]">{license.organizationSlug}</p>
+                        </div>
+                        {!license.exists && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase tracking-wider flex-shrink-0">
+                            Default
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3.5 text-sm text-[var(--text-secondary)] capitalize">{license.plan}</td>
                     <td className="px-4 py-3.5">
                       <StatusPill status={license.status} />
                     </td>
-                    <td className="px-4 py-3.5 text-sm text-[var(--text-secondary)]">{license.expires_at ?? 'Open-ended'}</td>
+                    <td className="px-4 py-3.5">
+                      <ExpiryCell expiresAt={license.expires_at} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -158,10 +184,31 @@ function LicenseEditor({
     setSaving(false)
   }
 
+  const expiry = expiryState(license.expires_at)
+
   return (
     <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5">
-      <p className="text-sm font-bold text-[var(--text-primary)] mb-1">{license.organizationName}</p>
-      <p className="text-xs text-[var(--text-muted)] mb-4">Organization slug: {license.organizationSlug}</p>
+      <div className="flex items-start justify-between gap-2 mb-4">
+        <div>
+          <p className="text-sm font-bold text-[var(--text-primary)]">{license.organizationName}</p>
+          <p className="text-xs text-[var(--text-muted)]">Slug: {license.organizationSlug}</p>
+        </div>
+        {!license.exists && (
+          <span className="text-[9px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 uppercase tracking-wider flex-shrink-0 mt-0.5">
+            No stored license — defaults apply
+          </span>
+        )}
+      </div>
+      {expiry === 'expired' && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold text-red-700">
+          License expired on {fmtDate(license.expires_at)}. Renew to restore full access.
+        </div>
+      )}
+      {expiry === 'warning' && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-700">
+          License expires {fmtDate(license.expires_at)}. Renew before it lapses.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <SelectField label="Plan" value={form.plan} onChange={value => setForm(prev => ({ ...prev, plan: value as LicensePlan }))}>
@@ -261,6 +308,22 @@ function numberOrNull(value: string) {
   if (!trimmed) return null
   const parsed = Number(trimmed)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+function ExpiryCell({ expiresAt }: { expiresAt: string | null }) {
+  const state = expiryState(expiresAt)
+  if (state === 'none') return <span className="text-sm text-[var(--text-muted)]">Open-ended</span>
+  return (
+    <div>
+      <p className="text-sm text-[var(--text-secondary)]">{fmtDate(expiresAt)}</p>
+      {state === 'expired' && (
+        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 uppercase tracking-wider">Expired</span>
+      )}
+      {state === 'warning' && (
+        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase tracking-wider">Expiring soon</span>
+      )}
+    </div>
+  )
 }
 
 function StatusPill({ status }: { status: LicenseStatus }) {

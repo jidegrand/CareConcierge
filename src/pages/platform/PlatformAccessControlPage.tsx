@@ -2,12 +2,23 @@ import { useMemo, useState } from 'react'
 import { usePlatformAccess, useSites, useTenants, type PlatformAccessUser } from '@/hooks/useAdminData'
 import { usePlatformContext } from '@/pages/platform/usePlatformContext'
 
-const ACCESS_ROLES = [
-  { value: 'super_admin', label: 'Super Admin' },
-  { value: 'nurse_manager', label: 'Organization Manager' },
-  { value: 'nurse', label: 'Nurse' },
-  { value: 'volunteer', label: 'Volunteer' },
+const ALL_ROLES = [
+  { value: 'super_admin',   label: 'Super Admin' },
+  { value: 'tenant_admin',  label: 'Tenant Admin' },
+  { value: 'nurse_manager', label: 'Nurse Manager' },
+  { value: 'site_manager',  label: 'Site Manager' },
+  { value: 'charge_nurse',  label: 'Charge Nurse' },
+  { value: 'nurse',         label: 'Nurse' },
+  { value: 'volunteer',     label: 'Volunteer' },
+  { value: 'viewer',        label: 'Viewer' },
 ] as const
+
+// Roles available to assign in the edit modal (excludes super_admin — use invite flow)
+const EDIT_ROLES = ALL_ROLES.filter(r => r.value !== 'super_admin')
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
+}
 
 export default function PlatformAccessControlPage() {
   const { selectedOrganizationId } = usePlatformContext()
@@ -15,6 +26,7 @@ export default function PlatformAccessControlPage() {
   const { sites } = useSites(selectedOrganizationId)
   const { tenants } = useTenants(true)
   const [roleFilter, setRoleFilter] = useState<'all' | string>('all')
+  const [search, setSearch] = useState('')
   const [editUser, setEditUser] = useState<PlatformAccessUser | null>(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -26,16 +38,20 @@ export default function PlatformAccessControlPage() {
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviting, setInviting] = useState(false)
 
-  const filteredUsers = useMemo(() => users.filter(user => (
-    (!selectedOrganizationId || user.tenant_id === selectedOrganizationId) &&
-    (roleFilter === 'all' || user.role === roleFilter)
-  )), [users, selectedOrganizationId, roleFilter])
+  const filteredUsers = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return users.filter(user => (
+      (!selectedOrganizationId || user.tenant_id === selectedOrganizationId) &&
+      (roleFilter === 'all' || user.role === roleFilter) &&
+      (!query || (user.full_name ?? '').toLowerCase().includes(query) || user.organizationName.toLowerCase().includes(query))
+    ))
+  }, [users, selectedOrganizationId, roleFilter, search])
 
   const counts = useMemo(() => ({
     superAdmins: users.filter(user => user.role === 'super_admin').length,
-    orgManagers: users.filter(user => user.role === 'nurse_manager').length,
-    clinicians: users.filter(user => user.role === 'nurse').length,
-    volunteers: users.filter(user => user.role === 'volunteer').length,
+    admins: users.filter(user => user.role === 'tenant_admin' || user.role === 'nurse_manager' || user.role === 'site_manager').length,
+    clinicians: users.filter(user => user.role === 'charge_nurse' || user.role === 'nurse').length,
+    support: users.filter(user => user.role === 'volunteer' || user.role === 'viewer').length,
   }), [users])
 
   const unitOptions = sites.flatMap(site => (site.units ?? []).map(unit => ({
@@ -100,24 +116,31 @@ export default function PlatformAccessControlPage() {
 
       <div className="grid grid-cols-4 gap-4 mb-6">
         <AccessStat label="Super Admins" value={counts.superAdmins} color="#5B21B6" />
-        <AccessStat label="Org Managers" value={counts.orgManagers} color="#1D4ED8" />
-        <AccessStat label="Nurses" value={counts.clinicians} color="#059669" />
-        <AccessStat label="Volunteers" value={counts.volunteers} color="#D97706" />
+        <AccessStat label="Admins" value={counts.admins} color="#1D4ED8" />
+        <AccessStat label="Clinicians" value={counts.clinicians} color="#059669" />
+        <AccessStat label="Support" value={counts.support} color="#D97706" />
       </div>
 
       <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 mb-4 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold text-[var(--text-primary)]">Role filters</p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">The organization selector already scopes this roster by organization.</p>
+        <div className="flex items-center gap-3 flex-1">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by name or organization…"
+            className="w-full max-w-xs border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
+          />
         </div>
-        <select
-          value={roleFilter}
-          onChange={(event) => setRoleFilter(event.target.value)}
-          className="min-w-[220px] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
-        >
-          <option value="all">All roles</option>
-          {ACCESS_ROLES.map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
-        </select>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-xs text-[var(--text-muted)]">Role</span>
+          <select
+            value={roleFilter}
+            onChange={(event) => setRoleFilter(event.target.value)}
+            className="min-w-[180px] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
+          >
+            <option value="all">All roles</option>
+            {ALL_ROLES.map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
+          </select>
+        </div>
       </div>
 
       {error && <Banner tone="error" message={error} />}
@@ -130,7 +153,7 @@ export default function PlatformAccessControlPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-[var(--page-bg)] border-b border-[var(--border)]">
-                {['User', 'Role', 'Organization', 'Unit', 'Actions'].map((header) => (
+                {['User', 'Role', 'Organization', 'Unit', 'Joined', 'Actions'].map((header) => (
                   <th key={header} className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{header}</th>
                 ))}
               </tr>
@@ -145,6 +168,7 @@ export default function PlatformAccessControlPage() {
                   <td className="px-4 py-3.5"><RolePill role={user.role} /></td>
                   <td className="px-4 py-3.5 text-sm text-[var(--text-secondary)]">{user.organizationName}</td>
                   <td className="px-4 py-3.5 text-sm text-[var(--text-secondary)]">{user.unitName ?? 'All units'}</td>
+                  <td className="px-4 py-3.5 text-xs text-[var(--text-muted)]">{fmtDate(user.created_at)}</td>
                   <td className="px-4 py-3.5">
                     <button
                       onClick={() => { setEditUser({ ...user }); setSaveError(null) }}
@@ -245,13 +269,22 @@ export default function PlatformAccessControlPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Role</label>
-                <select
-                  value={editUser.role}
-                  onChange={(event) => setEditUser(current => current ? { ...current, role: event.target.value } : current)}
-                  className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
-                >
-                  {ACCESS_ROLES.map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
-                </select>
+                {editUser.role === 'super_admin' ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] px-3.5 py-2.5 text-sm text-[var(--text-secondary)]">
+                      Super Admin
+                    </div>
+                    <span className="text-xs text-[var(--text-muted)]">Use invite flow to change</span>
+                  </div>
+                ) : (
+                  <select
+                    value={editUser.role}
+                    onChange={(event) => setEditUser(current => current ? { ...current, role: event.target.value } : current)}
+                    className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
+                  >
+                    {EDIT_ROLES.map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Unit scope</label>
@@ -295,10 +328,14 @@ function AccessStat({ label, value, color }: { label: string; value: number; col
 
 function RolePill({ role }: { role: string }) {
   const labels: Record<string, { bg: string; text: string; label: string }> = {
-    super_admin: { bg: '#EDE9FE', text: '#5B21B6', label: 'Super Admin' },
-    nurse_manager: { bg: '#DBEAFE', text: '#1D4ED8', label: 'Organization Manager' },
-    nurse: { bg: '#ECFDF5', text: '#065F46', label: 'Nurse' },
-    volunteer: { bg: '#FEF3C7', text: '#92400E', label: 'Volunteer' },
+    super_admin:  { bg: '#EDE9FE', text: '#5B21B6', label: 'Super Admin' },
+    tenant_admin: { bg: '#EDE9FE', text: '#5B21B6', label: 'Tenant Admin' },
+    nurse_manager:{ bg: '#DBEAFE', text: '#1D4ED8', label: 'Nurse Manager' },
+    site_manager: { bg: '#DBEAFE', text: '#1D4ED8', label: 'Site Manager' },
+    charge_nurse: { bg: '#ECFDF5', text: '#065F46', label: 'Charge Nurse' },
+    nurse:        { bg: '#ECFDF5', text: '#065F46', label: 'Nurse' },
+    volunteer:    { bg: '#FEF3C7', text: '#92400E', label: 'Volunteer' },
+    viewer:       { bg: '#E5E7EB', text: '#374151', label: 'Viewer' },
   }
   const config = labels[role] ?? { bg: '#E5E7EB', text: '#374151', label: role }
   return <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: config.bg, color: config.text }}>{config.label}</span>

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import PlatformShell from '@/components/PlatformShell'
 import { useAuth } from '@/hooks/useAuth'
-import { useTenants, type OrganizationWithStats } from '@/hooks/useAdminData'
+import { useTenants, useTenantLicenses, type OrganizationWithStats } from '@/hooks/useAdminData'
 
 const PLATFORM_NAV = [
   { label: 'Overview', path: '/platform/overview' },
@@ -26,6 +26,8 @@ export default function PlatformLayout() {
   const { profile } = useAuth()
   const isSuperAdmin = profile?.role === 'super_admin'
   const { tenants, loading } = useTenants(isSuperAdmin)
+  const { licenses } = useTenantLicenses(isSuperAdmin)
+  const selectedLicense = licenses.find(l => l.tenant_id === selectedOrganizationId)
   const [searchParams, setSearchParams] = useSearchParams()
 
   const selectedOrganizationId = searchParams.get('orgId') ?? undefined
@@ -100,7 +102,15 @@ export default function PlatformLayout() {
 
           <div className="px-4 pt-4 border-t border-[var(--border)]">
             <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-1">Selected organization</p>
-            <p className="text-sm font-semibold text-[var(--text-primary)]">{selectedOrganization?.name ?? 'None selected'}</p>
+            <div className="flex items-center gap-2 flex-wrap mt-1">
+              <p className="text-sm font-semibold text-[var(--text-primary)]">{selectedOrganization?.name ?? 'None selected'}</p>
+              {selectedLicense && (
+                <LicenseStatusBadge status={selectedLicense.status} />
+              )}
+            </div>
+            {selectedLicense && (
+              <p className="text-[10px] text-[var(--text-muted)] mt-0.5 capitalize">{selectedLicense.plan} plan</p>
+            )}
             <p className="font-mono text-[10px] text-[var(--text-muted)] break-all mt-1">{selectedOrganizationId ?? 'Create an organization to begin'}</p>
             {selectedOrganizationId && (
               <button
@@ -149,5 +159,20 @@ export default function PlatformLayout() {
         </main>
       </div>
     </PlatformShell>
+  )
+}
+
+function LicenseStatusBadge({ status }: { status: string }) {
+  const styles: Record<string, { bg: string; text: string }> = {
+    active:    { bg: '#DCFCE7', text: '#166534' },
+    trial:     { bg: '#DBEAFE', text: '#1D4ED8' },
+    suspended: { bg: '#FEE2E2', text: '#B91C1C' },
+    archived:  { bg: '#E5E7EB', text: '#374151' },
+  }
+  const s = styles[status] ?? { bg: '#E5E7EB', text: '#374151' }
+  return (
+    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider" style={{ background: s.bg, color: s.text }}>
+      {status}
+    </span>
   )
 }
