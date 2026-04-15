@@ -22,8 +22,8 @@ No free-text note can be attached to a request. Staff sometimes need to record w
 **5. ~~Shift handover report~~ ✅ DONE**
 Added `HandoverReportModal` component. A "Handover Report" button in the dashboard right panel opens a full-screen modal with: summary stats banner (pending / in-progress / resolved counts), open-requests table (sorted oldest-first, shows bay, type, status badge, age, assignee), resolved-this-shift table (resolver name, time, wait duration), and staff activity log. "Print" calls `window.print()` with a CSS rule that isolates the report for clean printing. "Copy text" writes a plain-text version to the clipboard for pasting into handover notes.
 
-**6. Request deduplication / patient linking**
-If a patient submits the same request twice, two independent requests are created with no linkage. Rooms with multiple active requests of the same type should either deduplicate or group them.
+**6. ~~Request deduplication / patient linking~~ ✅ DONE**
+Two-layer deduplication: (1) Patient page — on load, fetches pending/acknowledged requests for the room; realtime subscription keeps the set live; buttons for already-active types go into a "Request sent ✓" green state and are disabled. (2) Nurse dashboard — `pendingDupeCounts` map groups pending requests by `room_id:type`; `PendingCard` shows a purple `×N` badge when N > 1; "Acknowledge all ×N" button batch-acknowledges all sibling duplicates via a single update. This prevents queue flooding from patients who tap a request type multiple times.
 
 ---
 

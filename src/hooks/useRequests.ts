@@ -251,6 +251,23 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
       update.acknowledged_at = new Date().toISOString()
       const { data: { user } } = await supabase.auth.getUser()
       if (user) update.acknowledged_by = user.id
+
+      // Batch-acknowledge any duplicate pending requests of the same type
+      // from the same room (deduplicate at acknowledge time)
+      const target = requests.find(r => r.id === id)
+      if (target) {
+        const dupeIds = requests
+          .filter(r =>
+            r.id !== id &&
+            r.room_id === target.room_id &&
+            r.type === target.type &&
+            r.status === 'pending'
+          )
+          .map(r => r.id)
+        if (dupeIds.length > 0) {
+          await supabase.from('requests').update(update).in('id', dupeIds)
+        }
+      }
     }
 
     if (status === 'resolved') {

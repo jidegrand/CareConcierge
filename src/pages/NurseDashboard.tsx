@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import NurseShell from '@/components/NurseShell'
 import { useRequests } from '@/hooks/useRequests'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
@@ -155,6 +155,16 @@ export default function NurseDashboard() {
   const pending      = requests.filter(r => r.status === 'pending')
   const acknowledged = requests.filter(r => r.status === 'acknowledged')
   const resolved     = requests.filter(r => r.status === 'resolved')
+
+  // Count duplicates per room+type so PendingCard can show a ×N badge
+  const pendingDupeCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const r of pending) {
+      const key = `${r.room_id}:${r.type}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return counts
+  }, [pending])
   const unitName     = requests[0]?.room?.unit?.name ?? (unitId ? 'Assigned Unit' : `${tenantName ?? 'Tenant'} · All Units`)
 
   if (!tenantId) {
@@ -226,6 +236,7 @@ export default function NurseDashboard() {
                         typeMap={requestTypeMap}
                         isOverdue={overdueIds.has(r.id)}
                         responseTargetSec={prefs.responseTarget * 60}
+                        duplicateCount={pendingDupeCounts.get(`${r.room_id}:${r.type}`) ?? 1}
                         onAcknowledge={() => updateStatus(r.id, 'acknowledged')} />
                     ))}
                   </div>
@@ -484,12 +495,14 @@ function PendingCard({
   typeMap,
   isOverdue,
   responseTargetSec,
+  duplicateCount,
   onAcknowledge,
 }: {
   request: Request
   typeMap: Record<string, RequestTypeConfig>
   isOverdue: boolean
   responseTargetSec: number
+  duplicateCount: number
   onAcknowledge: () => void
 }) {
   const config     = typeMap[request.type]
@@ -515,6 +528,15 @@ function PendingCard({
             style={{ background: '#DBEAFE', color: '#1D4ED8' }}>
             {bayLabel}
           </span>
+
+          {/* Duplicate count badge */}
+          {duplicateCount > 1 && (
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+              style={{ background: '#F3E8FF', color: '#7C3AED' }}
+              title={`${duplicateCount} identical requests from this bay — acknowledging will clear all`}>
+              ×{duplicateCount}
+            </span>
+          )}
 
           {/* Overdue badge — highest priority */}
           {isOverdue && (
@@ -557,7 +579,7 @@ function PendingCard({
         <button onClick={onAcknowledge}
           className="w-full py-2 rounded-xl text-white text-xs font-bold transition-colors"
           style={{ background: btnColor }}>
-          Acknowledge
+          {duplicateCount > 1 ? `Acknowledge all ×${duplicateCount}` : 'Acknowledge'}
         </button>
       </div>
     </div>

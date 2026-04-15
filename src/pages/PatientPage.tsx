@@ -31,6 +31,34 @@ export default function PatientPage() {
   const [progress,     setProgress]     = useState(0)
   const [callPressed,  setCallPressed]  = useState(false)
   const [submitError,  setSubmitError]  = useState<string | null>(null)
+  // Set of request type IDs that already have a pending/acknowledged request for this room
+  const [activeTypeSet, setActiveTypeSet] = useState<Set<string>>(new Set())
+
+  // Load active types for this room + subscribe to realtime changes
+  useEffect(() => {
+    if (!room) return
+
+    const loadActiveTypes = async () => {
+      const { data } = await supabase
+        .from('requests')
+        .select('type')
+        .eq('room_id', room.id)
+        .in('status', ['pending', 'acknowledged'])
+      setActiveTypeSet(new Set((data ?? []).map((r: { type: string }) => r.type)))
+    }
+
+    loadActiveTypes()
+
+    const channel = supabase
+      .channel(`patient-room-active:${room.id}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'requests', filter: `room_id=eq.${room.id}` },
+        () => loadActiveTypes()
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [room])
 
   // Animate progress bar on active request
   useEffect(() => {
@@ -46,7 +74,7 @@ export default function PatientPage() {
   }, [activeRequest])
 
   const submitRequest = async (id: string, label: string, urgent: boolean) => {
-    if (!room || submitting) return
+    if (!room || submitting || activeTypeSet.has(id)) return
     setSubmitting(true)
     setSubmitError(null)
     const { error } = await supabase.from('requests').insert({
@@ -60,12 +88,14 @@ export default function PatientPage() {
       setSubmitting(false)
       return
     }
+    // Optimistically mark this type as active so the button disables immediately
+    setActiveTypeSet(prev => new Set(prev).add(id))
     setActiveRequest({ type: id, label, time: new Date() })
     setSubmitting(false)
   }
 
   const handleCallNurse = async () => {
-    if (!room || callPressed) return
+    if (!room || callPressed || activeTypeSet.has('nurse')) return
     setCallPressed(true)
     setSubmitError(null)
     const { error } = await supabase.from('requests').insert({
@@ -79,12 +109,14 @@ export default function PatientPage() {
       setCallPressed(false)
       return
     }
+    setActiveTypeSet(prev => new Set(prev).add('nurse'))
     setActiveRequest({ type: 'nurse', label: 'Call Nurse', time: new Date() })
   }
 
   const dismiss = () => {
     setActiveRequest(null)
     setCallPressed(false)
+    // Don't clear activeTypeSet — it reflects real DB state and will update via realtime
   }
 
   const orgName = room?.unit?.site?.tenant?.name ?? PRODUCT_NAME
@@ -147,10 +179,10 @@ export default function PatientPage() {
                   </p>
                   <button
                     onClick={handleCallNurse}
-                    disabled={callPressed || submitting}
+                    disabled={callPressed || submitting || activeTypeSet.has('nurse')}
                     className="px-10 py-3.5 rounded-full font-bold text-base transition-all active:scale-95 disabled:opacity-70"
                     style={{ background: 'white', color: '#C0392B' }}>
-                    {callPressed ? 'Notifying…' : 'Press Now'}
+                    {activeTypeSet.has('nurse') ? 'Nurse Notified ✓' : callPressed ? 'Notifying…' : 'Press Now'}
                   </button>
                 </div>
               </div>
@@ -162,29 +194,53 @@ export default function PatientPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 mb-5 md:grid-cols-3">
-                {commonRequests.map(req => (
-                  <button
-                    key={req.id}
-                    onClick={() => submitRequest(req.id, req.label, req.urgent)}
-                    disabled={submitting}
-                    className="rounded-2xl p-5 flex flex-col items-center justify-center gap-3 shadow-sm border border-[#DCE8F3] active:scale-[0.97] transition-all disabled:opacity-50"
-                    style={{
-                      minHeight: '140px',
-                      background: 'linear-gradient(180deg, #FFFFFF 0%, #F7FBFF 100%)',
-                    }}>
-                    <div
-                      className="flex h-14 w-14 items-center justify-center rounded-2xl border text-[28px]"
-                      style={{ background: `${req.color}14`, borderColor: `${req.color}33` }}>
-                      <RequestTypeIcon
-                        icon={req.icon}
-                        label={req.label}
-                        className="text-[28px]"
-                        imageClassName="h-8 w-8 object-contain"
-                      />
-                    </div>
-                    <span className="text-[15px] font-semibold text-[#1A1A2E]">{req.label}</span>
-                  </button>
-                ))}
+                {commonRequests.map(req => {
+                  const alreadyActive = activeTypeSet.has(req.id)
+                  return (
+                    <button
+                      key={req.id}
+                      onClick={() => submitRequest(req.id, req.label, req.urgent)}
+                      disabled={submitting || alreadyActive}
+                      className="rounded-2xl p-5 flex flex-col items-center justify-center gap-3 shadow-sm border active:scale-[0.97] transition-all relative overflow-hidden"
+                      style={{
+                        minHeight: '140px',
+                        background: alreadyActive
+                          ? 'linear-gradient(180deg, #F0FDF4 0%, #DCFCE7 100%)'
+                          : 'linear-gradient(180deg, #FFFFFF 0%, #F7FBFF 100%)',
+                        borderColor: alreadyActive ? '#86EFAC' : '#DCE8F3',
+                        opacity: alreadyActive ? 1 : submitting ? 0.5 : 1,
+                      }}>
+                      {alreadyActive && (
+                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        </div>
+                      )}
+                      <div
+                        className="flex h-14 w-14 items-center justify-center rounded-2xl border text-[28px]"
+                        style={{
+                          background: alreadyActive ? '#D1FAE514' : `${req.color}14`,
+                          borderColor: alreadyActive ? '#6EE7B7' : `${req.color}33`,
+                        }}>
+                        <RequestTypeIcon
+                          icon={req.icon}
+                          label={req.label}
+                          className="text-[28px]"
+                          imageClassName="h-8 w-8 object-contain"
+                        />
+                      </div>
+                      <div className="text-center">
+                        <span className="text-[15px] font-semibold" style={{ color: alreadyActive ? '#065F46' : '#1A1A2E' }}>
+                          {req.label}
+                        </span>
+                        {alreadyActive && (
+                          <p className="text-[11px] font-medium text-green-600 mt-0.5">Request sent</p>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
 
               {submitError && (
