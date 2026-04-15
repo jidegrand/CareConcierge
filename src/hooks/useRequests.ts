@@ -71,6 +71,11 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
   const [soundEnabled, setSoundEnabled] = useState(true)
   const knownIds = useRef<Set<string>>(new Set())
 
+  const removeRequestLocally = useCallback((requestId: string) => {
+    knownIds.current.delete(requestId)
+    setRequests(prev => prev.filter(r => r.id !== requestId))
+  }, [])
+
   // ── Fetch requests ────────────────────────────────────────────────────────
   const fetchRequests = useCallback(async () => {
     if (!tenantId && !unitId) {
@@ -232,7 +237,7 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'requests' }, (payload) => {
         const deletedId = (payload.old as { id?: string }).id
-        if (deletedId) knownIds.current.delete(deletedId)
+        if (deletedId) removeRequestLocally(deletedId)
         fetchRequests()
         fetchStaffEvents()
       })
@@ -247,7 +252,7 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
       supabase.removeChannel(channel)
       setConnected(false)
     }
-  }, [tenantId, unitId, soundEnabled, fetchRequests, fetchStaffEvents])
+  }, [tenantId, unitId, soundEnabled, fetchRequests, fetchStaffEvents, removeRequestLocally])
 
   // ── Update status — write acknowledged_by / resolved_by ──────────────────
   const updateStatus = async (id: string, status: RequestStatus) => {
