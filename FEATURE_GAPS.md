@@ -13,8 +13,8 @@ Added `acknowledged_by uuid` column to `requests` (migration 012) with FK to `us
 **2. ~~Request escalation / overdue alerts~~ ✅ DONE**
 Added `usePrefs` hook (shared localStorage-backed prefs, reactive across components). Added `useOverdueAlerts` hook that synchronously derives a `Set<string>` of overdue IDs for rendering and fires sound/browser-notification alerts the first time each request crosses the configured `overdueThreshold`. `PendingCard` now has three visual escalation states: normal (red) → approaching (amber "Waiting" badge at `responseTarget`) → overdue (pulsing orange border + "Overdue" badge). `InProgressCard` now shows a pulsing "Long Wait" badge when a request has been active longer than `overdueThreshold × 2`. `SettingsPage` updated to import from the shared `usePrefs` module.
 
-**3. Request reassignment**
-Once a nurse acknowledges a request there is no way to hand it off. A "Reassign to…" action would allow charge nurses to redistribute load mid-shift.
+**3. ~~Request reassignment~~ ✅ DONE**
+Added `reassign(requestId, newUserId, newUserName?)` to `useRequests` — updates `acknowledged_by` without touching status or timestamps. Added `useAssignableStaff` hook that fetches nurse/charge_nurse/volunteer/site_manager profiles in scope. `InProgressCard` now shows a "Reassign →" button that opens an inline staff picker dropdown; selecting a name hands off the request and updates the card's assignee display immediately.
 
 **4. Clinical notes on requests**
 No free-text note can be attached to a request. Staff sometimes need to record what was done (e.g. "gave 500ml water, patient comfortable"). A notes field — write on resolve, visible in history — would complete the resolution record.

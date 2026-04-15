@@ -51,6 +51,7 @@ interface UseRequestsResult {
   soundEnabled: boolean
   setSoundEnabled: (v: boolean) => void
   updateStatus: (id: string, status: RequestStatus) => Promise<void>
+  reassign:     (requestId: string, newUserId: string, newUserName?: string) => Promise<void>
   clearResolved: () => void
 }
 
@@ -270,6 +271,26 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
     }
   }
 
+  // ── Reassign — change acknowledged_by without touching status or timestamps ──
+  const reassign = async (requestId: string, newUserId: string, newUserName?: string) => {
+    await supabase
+      .from('requests')
+      .update({ acknowledged_by: newUserId })
+      .eq('id', requestId)
+
+    setRequests(prev => prev.map(r =>
+      r.id === requestId
+        ? {
+            ...r,
+            acknowledged_by: newUserId,
+            acknowledger: { id: newUserId, full_name: newUserName ?? null },
+          }
+        : r
+    ))
+
+    setTimeout(fetchStaffEvents, 500)
+  }
+
   const clearResolved = () =>
     setRequests(prev => prev.filter(r => r.status !== 'resolved'))
 
@@ -289,6 +310,6 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
   return {
     requests, loading, connected, staffEvents,
     stats: { pendingCount, inProgressCount, resolvedTodayCount, avgAckSeconds },
-    soundEnabled, setSoundEnabled, updateStatus, clearResolved,
+    soundEnabled, setSoundEnabled, updateStatus, reassign, clearResolved,
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import NurseShell from '@/components/NurseShell'
 import { useRequests } from '@/hooks/useRequests'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
@@ -82,6 +82,52 @@ function useShiftManager(unitId: string | undefined, tenantId: string | undefine
   return manager
 }
 
+// ── Assignable staff fetcher ──────────────────────────────────────────────────
+interface AssignableStaffMember {
+  id:       string
+  fullName: string
+  initials: string
+  role:     string
+}
+
+const ASSIGNABLE_ROLES = ['nurse', 'charge_nurse', 'volunteer', 'site_manager']
+
+function useAssignableStaff(unitId: string | undefined, tenantId: string | undefined) {
+  const [staff, setStaff] = useState<AssignableStaffMember[]>([])
+
+  useEffect(() => {
+    if (!tenantId && !unitId) { setStaff([]); return }
+
+    let query = supabase
+      .from('user_profiles')
+      .select('id, full_name, role')
+      .in('role', ASSIGNABLE_ROLES)
+
+    if (unitId) {
+      query = query.or(`unit_id.eq.${unitId},unit_id.is.null`)
+    } else if (tenantId) {
+      query = query.eq('tenant_id', tenantId)
+    }
+
+    query.order('role').then(({ data }) => {
+      if (!data) return
+      setStaff(
+        (data as { id: string; full_name: string | null; role: string }[]).map(p => {
+          const name = p.full_name ?? `User ${p.id.slice(0, 6)}`
+          return {
+            id:       p.id,
+            fullName: name,
+            initials: name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2),
+            role:     p.role,
+          }
+        })
+      )
+    })
+  }, [tenantId, unitId])
+
+  return staff
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function NurseDashboard() {
   const { tenantId, tenantName, unitId } = useTenantContext()
@@ -90,10 +136,11 @@ export default function NurseDashboard() {
     requests, loading, connected, stats,
     staffEvents,
     soundEnabled, setSoundEnabled,
-    updateStatus, clearResolved,
+    updateStatus, reassign, clearResolved,
   } = useRequests(unitId, tenantId)
 
-  const shiftManager = useShiftManager(unitId, tenantId)
+  const shiftManager    = useShiftManager(unitId, tenantId)
+  const assignableStaff = useAssignableStaff(unitId, tenantId)
   const prefs = usePrefs()
   const overdueIds = useOverdueAlerts(
     requests,
@@ -192,7 +239,9 @@ export default function NurseDashboard() {
                       <InProgressCard key={r.id} request={r}
                         typeMap={requestTypeMap}
                         overdueThresholdSec={prefs.overdueThreshold * 60 * 2}
-                        onResolve={() => updateStatus(r.id, 'resolved')} />
+                        assignableStaff={assignableStaff}
+                        onResolve={() => updateStatus(r.id, 'resolved')}
+                        onReassign={(newUserId, newUserName) => reassign(r.id, newUserId, newUserName)} />
                     ))}
                   </div>
                 </div>
@@ -479,27 +528,51 @@ function PendingCard({
 
 /* ── In Progress card ───────────────────────────────────────────────────────── */
 // Visual escalation:
-//   normal   → blue border + "In Progress" badge
+//   normal    → blue border + "In Progress" badge
 //   long wait → amber tint + pulsing "Long Wait" badge  (elapsed ≥ overdueThresholdSec)
+// Actions: Resolve | Reassign → (inline staff picker)
 function InProgressCard({
   request,
   typeMap,
   overdueThresholdSec,
+  assignableStaff,
   onResolve,
+  onReassign,
 }: {
   request: Request
   typeMap: Record<string, RequestTypeConfig>
   overdueThresholdSec: number
+  assignableStaff: AssignableStaffMember[]
   onResolve: () => void
+  onReassign: (newUserId: string, newUserName: string) => void
 }) {
   const config   = typeMap[request.type]
   const bayLabel = request.room?.name?.toUpperCase() ?? 'BAY —'
+  const [showPicker, setShowPicker] = useState(false)
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  // Close picker when clicking outside
+  useEffect(() => {
+    if (!showPicker) return
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showPicker])
 
   // Measure elapsed from acknowledged_at if available, otherwise created_at
   const startMs    = new Date(request.acknowledged_at ?? request.created_at).getTime()
   const elapsedSec = (Date.now() - startMs) / 1000
   const elapsedMin = Math.floor(elapsedSec / 60)
   const isLongWait = elapsedSec >= overdueThresholdSec
+
+  // Current assignee name from joined data
+  const assigneeName = (request as Request & {
+    acknowledger?: { full_name: string | null }
+  }).acknowledger?.full_name
 
   const cardStyle = isLongWait
     ? { background: '#FFFBEB', borderColor: '#FDE68A', borderLeft: '4px solid #D97706' }
@@ -527,17 +600,75 @@ function InProgressCard({
             </span>
           )}
         </div>
+
         <p className="text-sm font-bold mb-1.5" style={{ color: '#111827' }}>
           {config?.label ?? request.type}
         </p>
-        <p className="flex items-center gap-1 text-xs" style={{ color: isLongWait ? '#D97706' : STATUS_COLORS.inProgress.text }}>
+
+        <p className="flex items-center gap-1 text-xs mb-1" style={{ color: isLongWait ? '#D97706' : STATUS_COLORS.inProgress.text }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
           </svg>
           {elapsedMin}m active
         </p>
+
+        {/* Assignee name */}
+        {assigneeName && (
+          <p className="text-[11px] truncate" style={{ color: '#6B7280' }}>
+            ↳ {assigneeName}
+          </p>
+        )}
       </div>
-      <div className="px-4 pb-3 flex justify-end">
+
+      <div className="px-4 pb-3 flex items-center justify-between relative" ref={pickerRef}>
+        {/* Reassign button + picker */}
+        <div className="relative">
+          <button
+            onClick={() => setShowPicker(v => !v)}
+            className="text-xs font-medium flex items-center gap-1 transition-colors"
+            style={{ color: '#6B7280' }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 3l5 5-5 5"/><path d="M21 8H10a7 7 0 0 0 0 14h1"/>
+            </svg>
+            Reassign
+          </button>
+
+          {showPicker && (
+            <div className="absolute bottom-full left-0 mb-1 z-50 w-48 rounded-xl border bg-white shadow-lg overflow-hidden"
+              style={{ borderColor: '#E5E7EB' }}>
+              <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider"
+                style={{ color: '#9CA3AF', borderBottom: '1px solid #F3F4F6' }}>
+                Hand off to…
+              </p>
+              {assignableStaff.length === 0 ? (
+                <p className="px-3 py-2 text-xs italic" style={{ color: '#9CA3AF' }}>No staff found</p>
+              ) : (
+                <ul>
+                  {assignableStaff.map(s => (
+                    <li key={s.id}>
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[#F9FAFB] transition-colors"
+                        onClick={() => {
+                          onReassign(s.id, s.fullName)
+                          setShowPicker(false)
+                        }}>
+                        <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white"
+                          style={{ background: '#3B82F6' }}>
+                          {s.initials}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold truncate" style={{ color: '#111827' }}>{s.fullName}</p>
+                          <p className="text-[10px] capitalize" style={{ color: '#9CA3AF' }}>{s.role.replace('_', ' ')}</p>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
         <button onClick={onResolve} className="text-xs font-bold transition-colors"
           style={{ color: isLongWait ? '#D97706' : STATUS_COLORS.inProgress.text }}>
           Resolve
