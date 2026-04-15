@@ -49,6 +49,10 @@ export default function PatientPage() {
   const [submitError,  setSubmitError]  = useState<string | null>(null)
   // Set of request type IDs that already have a pending/acknowledged request for this room
   const [activeTypeSet, setActiveTypeSet] = useState<Set<string>>(new Set())
+  const getRequestLabel = (type: string) => {
+    if (type === 'nurse') return 'Call Nurse'
+    return requestTypes.find(item => item.id === type)?.label ?? 'Request'
+  }
 
   // Load active types for this room + subscribe to realtime changes
   useEffect(() => {
@@ -86,12 +90,34 @@ export default function PatientPage() {
       .channel(`patient-room-active:${room.id}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'requests', filter: `room_id=eq.${room.id}` },
-        () => loadActiveTypes()
+        payload => {
+          if (payload.eventType === 'UPDATE') {
+            const nextStatus = typeof payload.new.status === 'string' ? payload.new.status : null
+            const nextType = typeof payload.new.type === 'string' ? payload.new.type : null
+            const nextId = typeof payload.new.id === 'string' ? payload.new.id : null
+            const createdAt = typeof payload.new.created_at === 'string' ? payload.new.created_at : null
+
+            if (nextStatus === 'resolved' && nextType && nextId) {
+              setActiveRequest(prev => {
+                if (prev && prev.type !== nextType && prev.status !== 'resolved') return prev
+                return {
+                  id: nextId,
+                  type: nextType,
+                  label: prev?.label ?? getRequestLabel(nextType),
+                  time: createdAt ? new Date(createdAt) : prev?.time ?? new Date(),
+                  status: 'resolved',
+                }
+              })
+            }
+          }
+
+          void loadActiveTypes()
+        }
       )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [room])
+  }, [room, requestTypes])
 
   useEffect(() => {
     setFeedbackError(null)
