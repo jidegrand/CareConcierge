@@ -20,18 +20,22 @@ export interface StaffMember {
   role:       StaffRole
   unitId:     string | null
   unitName:   string | null
-  // Workload derived from resolved_by
-  resolvedToday:  number
-  avgResolveSec:  number | null   // avg time from created → resolved today
-  lastActivityAt: string | null   // ISO
-  isActive:       boolean         // resolved something in last 60 min
+  // Workload
+  resolvedToday:     number
+  acknowledgedToday: number       // requests acknowledged (picked up) today
+  avgResolveSec:     number | null   // avg time from created → resolved today
+  avgAckSec:         number | null   // avg time from created → acknowledged today
+  lastActivityAt:    string | null   // ISO
+  isActive:          boolean         // activity in last 60 min
 }
 
 export interface StaffingSummary {
-  totalStaff:     number
-  activeNow:      number          // active in last 60 min
-  resolvedToday:  number
-  avgResolveSec:  number | null
+  totalStaff:        number
+  activeNow:         number          // active in last 60 min
+  resolvedToday:     number
+  acknowledgedToday: number
+  avgResolveSec:     number | null
+  avgAckSec:         number | null
 }
 
 interface UseStaffingResult {
@@ -98,10 +102,20 @@ export function useStaffing(tenantId: string | undefined, unitId: string | undef
       .gte('created_at', today.toISOString())
       .not('resolved_at', 'is', null)
 
-    // Index by resolver
+    // 3. Load today's acknowledged requests grouped by acknowledged_by
+    const { data: acknowledgedReqs } = await supabase
+      .from('requests')
+      .select('id, acknowledged_by, created_at, acknowledged_at')
+      .in('acknowledged_by', profileIds)
+      .gte('created_at', today.toISOString())
+      .not('acknowledged_at', 'is', null)
+
+    // Index resolved workload by resolver
     const workloadMap: Record<string, {
-      count: number
-      times: number[]
+      resolvedCount: number
+      resolveTimes: number[]
+      acknowledgedCount: number
+      ackTimes: number[]
       lastAt: string | null
     }> = {}
 
@@ -112,16 +126,37 @@ export function useStaffing(tenantId: string | undefined, unitId: string | undef
       resolved_at: string
     }[]) {
       if (!workloadMap[r.resolved_by]) {
-        workloadMap[r.resolved_by] = { count: 0, times: [], lastAt: null }
+        workloadMap[r.resolved_by] = { resolvedCount: 0, resolveTimes: [], acknowledgedCount: 0, ackTimes: [], lastAt: null }
       }
-      workloadMap[r.resolved_by].count++
+      workloadMap[r.resolved_by].resolvedCount++
 
       const resolveSec = (new Date(r.resolved_at).getTime() - new Date(r.created_at).getTime()) / 1000
-      workloadMap[r.resolved_by].times.push(resolveSec)
+      workloadMap[r.resolved_by].resolveTimes.push(resolveSec)
 
       if (!workloadMap[r.resolved_by].lastAt ||
           r.resolved_at > workloadMap[r.resolved_by].lastAt!) {
         workloadMap[r.resolved_by].lastAt = r.resolved_at
+      }
+    }
+
+    // Index acknowledged workload by acknowledger
+    for (const r of (acknowledgedReqs ?? []) as {
+      id: string
+      acknowledged_by: string
+      created_at: string
+      acknowledged_at: string
+    }[]) {
+      if (!workloadMap[r.acknowledged_by]) {
+        workloadMap[r.acknowledged_by] = { resolvedCount: 0, resolveTimes: [], acknowledgedCount: 0, ackTimes: [], lastAt: null }
+      }
+      workloadMap[r.acknowledged_by].acknowledgedCount++
+
+      const ackSec = (new Date(r.acknowledged_at).getTime() - new Date(r.created_at).getTime()) / 1000
+      workloadMap[r.acknowledged_by].ackTimes.push(ackSec)
+
+      if (!workloadMap[r.acknowledged_by].lastAt ||
+          r.acknowledged_at > workloadMap[r.acknowledged_by].lastAt!) {
+        workloadMap[r.acknowledged_by].lastAt = r.acknowledged_at
       }
     }
 
@@ -139,8 +174,12 @@ export function useStaffing(tenantId: string | undefined, unitId: string | undef
         const wl       = workloadMap[p.id]
         const unit     = getSingle(p.unit)
 
-        const avgResolveSec = wl && wl.times.length > 0
-          ? Math.round(wl.times.reduce((a, b) => a + b, 0) / wl.times.length)
+        const avgResolveSec = wl && wl.resolveTimes.length > 0
+          ? Math.round(wl.resolveTimes.reduce((a, b) => a + b, 0) / wl.resolveTimes.length)
+          : null
+
+        const avgAckSec = wl && wl.ackTimes.length > 0
+          ? Math.round(wl.ackTimes.reduce((a, b) => a + b, 0) / wl.ackTimes.length)
           : null
 
         const lastActivityAt = wl?.lastAt ?? null
@@ -149,14 +188,16 @@ export function useStaffing(tenantId: string | undefined, unitId: string | undef
           : false
 
         return {
-          id:            p.id,
-          fullName:      name,
+          id:                p.id,
+          fullName:          name,
           initials,
-          role:          p.role,
-          unitId:        p.unit_id,
-          unitName:      unit?.name ?? null,
-          resolvedToday: wl?.count ?? 0,
+          role:              p.role,
+          unitId:            p.unit_id,
+          unitName:          unit?.name ?? null,
+          resolvedToday:     wl?.resolvedCount ?? 0,
+          acknowledgedToday: wl?.acknowledgedCount ?? 0,
           avgResolveSec,
+          avgAckSec,
           lastActivityAt,
           isActive,
         }
@@ -172,16 +213,19 @@ export function useStaffing(tenantId: string | undefined, unitId: string | undef
 
   useEffect(() => { fetch() }, [fetch])
 
-  const allTimes = staff
-    .filter(s => s.avgResolveSec !== null)
-    .map(s => s.avgResolveSec!)
+  const allResolveTimes = staff.filter(s => s.avgResolveSec !== null).map(s => s.avgResolveSec!)
+  const allAckTimes     = staff.filter(s => s.avgAckSec !== null).map(s => s.avgAckSec!)
 
   const summary: StaffingSummary = {
-    totalStaff:    staff.length,
-    activeNow:     staff.filter(s => s.isActive).length,
-    resolvedToday: staff.reduce((a, s) => a + s.resolvedToday, 0),
-    avgResolveSec: allTimes.length
-      ? Math.round(allTimes.reduce((a, b) => a + b, 0) / allTimes.length)
+    totalStaff:        staff.length,
+    activeNow:         staff.filter(s => s.isActive).length,
+    resolvedToday:     staff.reduce((a, s) => a + s.resolvedToday, 0),
+    acknowledgedToday: staff.reduce((a, s) => a + s.acknowledgedToday, 0),
+    avgResolveSec: allResolveTimes.length
+      ? Math.round(allResolveTimes.reduce((a, b) => a + b, 0) / allResolveTimes.length)
+      : null,
+    avgAckSec: allAckTimes.length
+      ? Math.round(allAckTimes.reduce((a, b) => a + b, 0) / allAckTimes.length)
       : null,
   }
 

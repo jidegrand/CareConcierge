@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { REQUEST_TYPE_MAP } from '@/lib/constants'
+import { getSingle, type MaybeArray } from '@/lib/utils'
 import type { RequestTypeConfig } from '@/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -52,37 +53,34 @@ interface FeedRequestRow {
   created_at: string
   acknowledged_at: string | null
   resolved_at: string | null
-  room?: {
+  room?: MaybeArray<{
     id?: string
     name?: string
-    unit?: { id?: string } | { id?: string }[]
-  }
+    unit?: MaybeArray<{ id?: string }>
+  }>
+  acknowledger?: MaybeArray<{ id: string; full_name: string | null }>
+  resolver?: MaybeArray<{ id: string; full_name: string | null }>
 }
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 function buildEvents(
-  requests: Record<string, unknown>[],
+  requests: FeedRequestRow[],
   typeMap: Record<string, RequestTypeConfig>
 ): FeedEvent[] {
   const events: FeedEvent[] = []
 
-  for (const r of requests) {
-    const req = r as {
-      id: string
-      type: string
-      is_urgent: boolean
-      created_at: string
-      acknowledged_at: string | null
-      resolved_at: string | null
-      room?: { id: string; name: string }
-    }
-
+  for (const req of requests) {
     const config  = typeMap[req.type]
-    const bay     = req.room?.name ?? 'Unknown'
-    const roomId  = req.room?.id   ?? req.id
+    const room    = getSingle(req.room)
+    const bay     = room?.name ?? 'Unknown'
+    const roomId  = room?.id   ?? req.id
     const label   = config?.label  ?? req.type
     const icon    = config?.icon   ?? '📋'
 
+    const acknowledgerName = getSingle(req.acknowledger)?.full_name ?? null
+    const resolverName     = getSingle(req.resolver)?.full_name     ?? null
+
+    // Submitted event
     events.push({
       id:         `${req.id}-submitted`,
       requestId:  req.id,
@@ -94,6 +92,7 @@ function buildEvents(
       elapsed:    0,
     })
 
+    // Acknowledged event
     if (req.acknowledged_at) {
       const elapsed = Math.round(
         (new Date(req.acknowledged_at).getTime() - new Date(req.created_at).getTime()) / 1000
@@ -104,12 +103,13 @@ function buildEvents(
         kind:       'acknowledged',
         bay, roomId, type: req.type, label, icon,
         isUrgent:   req.is_urgent,
-        actorName:  null,
+        actorName:  acknowledgerName,
         timestamp:  req.acknowledged_at,
         elapsed,
       })
     }
 
+    // Resolved event
     if (req.resolved_at) {
       const base    = req.acknowledged_at ?? req.created_at
       const elapsed = Math.round(
@@ -121,7 +121,7 @@ function buildEvents(
         kind:       'resolved',
         bay, roomId, type: req.type, label, icon,
         isUrgent:   req.is_urgent,
-        actorName:  null,
+        actorName:  resolverName,
         timestamp:  req.resolved_at,
         elapsed,
       })
@@ -146,20 +146,19 @@ export function useFeed(
   })
   const [loading,   setLoading]   = useState(true)
   const [connected, setConnected] = useState(false)
-  const rawRequests = useRef<Record<string, unknown>[]>([])
+  const rawRequests = useRef<FeedRequestRow[]>([])
 
-  const process = useCallback((requests: Record<string, unknown>[]) => {
+  const process = useCallback((requests: FeedRequestRow[]) => {
     rawRequests.current = requests
     const built = buildEvents(requests, typeMap)
     setEvents(built)
 
     // Active bays
     const bayMap: Record<string, ActiveBay> = {}
-    for (const r of requests as {
-      status: string; room?: { id: string; name: string }
-    }[]) {
-      const name = r.room?.name ?? 'Unknown'
-      const id   = r.room?.id   ?? ''
+    for (const r of requests) {
+      const room = getSingle(r.room)
+      const name = room?.name ?? 'Unknown'
+      const id   = room?.id   ?? ''
       if (!bayMap[name]) bayMap[name] = { name, roomId: id, pendingCount: 0, inProgressCount: 0 }
       if (r.status === 'pending')      bayMap[name].pendingCount++
       if (r.status === 'acknowledged') bayMap[name].inProgressCount++
@@ -167,12 +166,11 @@ export function useFeed(
     setActiveBays(Object.values(bayMap).filter(b => b.pendingCount + b.inProgressCount > 0))
 
     // Summary
-    const reqs = requests as { status: string; is_urgent: boolean }[]
     setSummary({
       totalEvents:   built.length,
-      baysActive:    new Set(reqs.map((r, _i) => (r as { room?: { name: string } } & typeof r).room?.name)).size,
-      urgentOpen:    reqs.filter(r => r.is_urgent && r.status !== 'resolved').length,
-      resolvedCount: reqs.filter(r => r.status === 'resolved').length,
+      baysActive:    new Set(requests.map(r => getSingle(r.room)?.name)).size,
+      urgentOpen:    requests.filter(r => r.is_urgent && r.status !== 'resolved').length,
+      resolvedCount: requests.filter(r => r.status === 'resolved').length,
     })
   }, [typeMap])
 
@@ -185,7 +183,9 @@ export function useFeed(
       .select(`
         id, type, status, is_urgent,
         created_at, acknowledged_at, resolved_at,
-        room:rooms (id, name, unit:units(id))
+        room:rooms (id, name, unit:units(id)),
+        acknowledger:user_profiles!requests_acknowledged_by_profile_fkey (id, full_name),
+        resolver:user_profiles!requests_resolved_by_profile_fkey (id, full_name)
       `)
       .gte('created_at', today.toISOString())
       .order('created_at', { ascending: false })
@@ -193,10 +193,11 @@ export function useFeed(
     if (data) {
       const rows = data as FeedRequestRow[]
       const filtered = rows.filter(r => {
-        const unit = Array.isArray(r.room?.unit) ? r.room?.unit[0] : r.room?.unit
+        const room = getSingle(r.room)
+        const unit = getSingle(room?.unit)
         return unit?.id === unitId
       })
-      process(filtered as unknown as Record<string, unknown>[])
+      process(filtered)
     }
     setLoading(false)
   }, [unitId, process])

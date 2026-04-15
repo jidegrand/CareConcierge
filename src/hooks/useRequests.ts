@@ -21,6 +21,7 @@ type StaffEventRow = Request & {
       site?: MaybeArray<{ tenant_id?: string }>
     }>
   }
+  acknowledger?: MaybeArray<{ id: string; full_name: string | null }>
   resolver?: MaybeArray<{ id: string; full_name: string | null }>
 }
 
@@ -89,6 +90,9 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
             site:sites (tenant_id)
           )
         ),
+        acknowledger:user_profiles!requests_acknowledged_by_profile_fkey (
+          id, full_name
+        ),
         resolver:user_profiles!requests_resolved_by_profile_fkey (
           id, full_name
         )
@@ -118,11 +122,10 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
     }
     const today = new Date(); today.setHours(0, 0, 0, 0)
 
-    // Get recently acknowledged or resolved requests with resolver info
     const { data } = await supabase
       .from('requests')
       .select(`
-        id, type, status, acknowledged_at, resolved_at, resolved_by,
+        id, type, status, acknowledged_at, resolved_at, acknowledged_by, resolved_by,
         room:rooms (
           name,
           unit:units (
@@ -130,26 +133,26 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
             site:sites (tenant_id)
           )
         ),
+        acknowledger:user_profiles!requests_acknowledged_by_profile_fkey (id, full_name),
         resolver:user_profiles!requests_resolved_by_profile_fkey (id, full_name)
       `)
       .gte('created_at', today.toISOString())
       .or('acknowledged_at.not.is.null,resolved_at.not.is.null')
       .order('resolved_at', { ascending: false, nullsFirst: false })
-      .limit(10)
+      .limit(20)
 
     if (!data) return
 
     const scoped = (data as unknown as StaffEventRow[]).filter(r => inScope(r, unitId, tenantId))
 
-    // Build a deduped list of staff events, newest first
     const seen = new Set<string>()
     const events: StaffEvent[] = []
+    const now = Date.now()
 
     for (const r of scoped) {
       const bayName = r.room?.name ?? 'a bay'
-      const now = Date.now()
 
-      // Resolved event
+      // Resolved event — show resolver
       const resolver = getSingle(r.resolver)
       if (r.resolved_at && resolver) {
         const key = `${r.id}-resolved`
@@ -169,10 +172,29 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
         }
       }
 
-      // Acknowledged event — we don't store who ack'd yet (no acknowledged_by column)
-      // so we skip those for now and only show resolver events
+      // Acknowledged event — now we have acknowledged_by
+      const acknowledger = getSingle(r.acknowledger)
+      if (r.acknowledged_at && acknowledger) {
+        const key = `${r.id}-acknowledged`
+        if (!seen.has(key)) {
+          seen.add(key)
+          const name     = acknowledger.full_name ?? `User ${acknowledger.id.slice(0, 6)}`
+          const initials = name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
+          const ageMin   = Math.floor((now - new Date(r.acknowledged_at).getTime()) / 60000)
+          events.push({
+            userId:    acknowledger.id,
+            initials,
+            name,
+            action:    `Acknowledged ${bayName}`,
+            timestamp: r.acknowledged_at,
+            online:    ageMin < 30,
+          })
+        }
+      }
     }
 
+    // Sort newest first, cap at 5
+    events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     setStaffEvents(events.slice(0, 5))
   }, [tenantId, unitId])
 
@@ -220,22 +242,20 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
     }
   }, [tenantId, unitId, soundEnabled, fetchRequests, fetchStaffEvents])
 
-  // ── Update status — write resolved_by ────────────────────────────────────
+  // ── Update status — write acknowledged_by / resolved_by ──────────────────
   const updateStatus = async (id: string, status: RequestStatus) => {
     const update: Record<string, unknown> = { status }
 
     if (status === 'acknowledged') {
       update.acknowledged_at = new Date().toISOString()
-      // acknowledged_by not in schema yet — add in a future migration
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) update.acknowledged_by = user.id
     }
 
     if (status === 'resolved') {
       update.resolved_at = new Date().toISOString()
-
-      // Write the current user's ID into resolved_by
       const { data: { user } } = await supabase.auth.getUser()
       if (user) update.resolved_by = user.id
-
       if (soundEnabled) playResolve()
     }
 
@@ -245,8 +265,7 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
       prev.map(r => r.id === id ? { ...r, ...update } : r)
     )
 
-    // Refresh staff events after a resolve
-    if (status === 'resolved') {
+    if (status === 'acknowledged' || status === 'resolved') {
       setTimeout(fetchStaffEvents, 500)
     }
   }

@@ -63,10 +63,13 @@ export interface Request {
   is_urgent: boolean
   created_at: string
   acknowledged_at: string | null
+  acknowledged_by: string | null
   resolved_at: string | null
   resolved_by: string | null
   // Joined
   room?: Room
+  acknowledger?: { id: string; full_name: string | null }
+  resolver?: { id: string; full_name: string | null }
 }
 
 // ─── UI config types ──────────────────────────────────────────────────────────
