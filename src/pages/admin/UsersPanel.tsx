@@ -1,29 +1,31 @@
 import { useState } from 'react'
-import { useUsers } from '@/hooks/useAdminData'
-import { useSites } from '@/hooks/useAdminData'
-import type { UserWithMeta } from '@/hooks/useAdminData'
+import { useUsers, useSites } from '@/hooks/useAdminData'
+import type { UserWithMeta, PendingInvite } from '@/hooks/useAdminData'
+import { ROLE_CFG } from '@/lib/roles'
 
-const ROLES = ['super_admin', 'nurse_manager', 'nurse', 'volunteer'] as const
+const ROLES = [
+  'tenant_admin',
+  'site_manager',
+  'nurse_manager',
+  'charge_nurse',
+  'nurse',
+  'volunteer',
+  'viewer',
+] as const
 type Role = typeof ROLES[number]
 
-const ROLE_LABELS: Record<string, string> = {
-  super_admin:   'Super Admin',
-  nurse_manager: 'Nurse Manager',
-  nurse:         'Nurse',
-  volunteer:     'Volunteer',
-}
+const ROLE_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(ROLE_CFG).map(([k, v]) => [k, v.label])
+)
 
-const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
-  super_admin:   { bg: '#EDE9FE', text: '#5B21B6' },
-  nurse_manager: { bg: '#DBEAFE', text: '#1D4ED8' },
-  nurse:         { bg: '#ECFDF5', text: '#065F46' },
-  volunteer:     { bg: '#FEF3C7', text: '#92400E' },
-}
+const ROLE_COLORS: Record<string, { bg: string; text: string }> = Object.fromEntries(
+  Object.entries(ROLE_CFG).map(([k, v]) => [k, { bg: v.bg, text: v.color }])
+)
 
 interface Props { tenantId: string }
 
 export default function UsersPanel({ tenantId }: Props) {
-  const { users, loading, inviteUser, updateRole, removeUser } = useUsers(tenantId)
+  const { users, pendingInvites, loading, inviteUser, cancelInvite, updateRole, removeUser } = useUsers(tenantId)
   const { sites } = useSites(tenantId)
 
   const [showInvite,  setShowInvite]  = useState(false)
@@ -77,7 +79,7 @@ export default function UsersPanel({ tenantId }: Props) {
         <div>
           <h3 className="text-base font-bold text-[var(--text-primary)]">Users</h3>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            {users.length} user{users.length !== 1 ? 's' : ''} in this tenant
+            {users.length} active{pendingInvites.length > 0 ? `, ${pendingInvites.length} pending` : ''}
           </p>
         </div>
         <button onClick={() => { setShowInvite(true); setInviteSent(false); setInviteEmail('') }}
@@ -87,7 +89,7 @@ export default function UsersPanel({ tenantId }: Props) {
       </div>
 
       {/* User table */}
-      {users.length === 0 ? (
+      {users.length === 0 && pendingInvites.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-[var(--border)]">
           <p className="text-3xl mb-3">👥</p>
           <p className="font-medium text-[var(--text-secondary)]">No users yet</p>
@@ -106,8 +108,49 @@ export default function UsersPanel({ tenantId }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
+              {/* Pending invites */}
+              {pendingInvites.map((inv: PendingInvite) => {
+                const rc = ROLE_COLORS[inv.role] ?? ROLE_COLORS.nurse
+                return (
+                  <tr key={inv.id} className="bg-amber-50/60 hover:bg-amber-50 transition-colors">
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center text-amber-700 text-xs font-bold flex-shrink-0">
+                          {inv.email.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">{inv.email}</p>
+                          <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase tracking-wide">
+                            Awaiting signup
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                        style={{ background: rc.bg, color: rc.text }}>
+                        {ROLE_LABELS[inv.role] ?? inv.role}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        {inv.unit_name ?? <span className="text-[var(--text-muted)] italic">All units</span>}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <button
+                        onClick={() => { if (confirm(`Cancel invite for ${inv.email}?`)) cancelInvite(inv.id) }}
+                        className="text-xs font-medium text-red-500 hover:underline">
+                        Cancel invite
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+
+              {/* Active users */}
               {users.map(u => {
-                const rc = ROLE_COLORS[u.role] ?? ROLE_COLORS.viewer
+                const rc = ROLE_COLORS[u.role] ?? ROLE_COLORS.nurse
                 return (
                   <tr key={u.id} className="hover:bg-[var(--page-bg)] transition-colors">
                     <td className="px-4 py-3.5">

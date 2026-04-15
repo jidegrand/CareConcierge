@@ -461,47 +461,87 @@ export function useSites(tenantId: string | undefined) {
 }
 
 // ── Users hook ────────────────────────────────────────────────────────────────
+export interface PendingInvite {
+  id:         string
+  email:      string
+  tenant_id:  string
+  role:       string
+  unit_id:    string | null
+  unit_name?: string
+  created_at: string
+  pending:    true
+}
+
 export function useUsers(tenantId: string | undefined) {
-  const [users,   setUsers]   = useState<UserWithMeta[]>([])
-  const [loading, setLoading] = useState(true)
+  const [users,          setUsers]          = useState<UserWithMeta[]>([])
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([])
+  const [loading,        setLoading]        = useState(true)
 
   const fetch = useCallback(async () => {
     if (!tenantId) {
       setUsers([])
+      setPendingInvites([])
       setLoading(false)
       return
     }
     setLoading(true)
-    const { data } = await supabase
-      .from('user_profiles')
-      .select(`*, unit:units(name)`)
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false })
 
-    const mapped = (data ?? []).map((u: UserProfile & { unit?: { name: string } }) => ({
+    const [profilesRes, invitesRes] = await Promise.all([
+      supabase
+        .from('user_profiles')
+        .select(`*, unit:units(name)`)
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('pending_invites')
+        .select(`*, unit:units(name)`)
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false }),
+    ])
+
+    const mapped = (profilesRes.data ?? []).map((u: UserProfile & { unit?: { name: string } }) => ({
       ...u,
-      email:     u.id,   // placeholder — real email comes from auth.users (service role only)
+      email:     u.id,
       unit_name: u.unit?.name ?? null,
     })) as UserWithMeta[]
 
+    const invites = (invitesRes.data ?? []).map((inv: PendingInvite & { unit?: { name: string } }) => ({
+      ...inv,
+      unit_name: inv.unit?.name ?? undefined,
+      pending: true as const,
+    }))
+
     setUsers(mapped)
+    setPendingInvites(invites)
     setLoading(false)
   }, [tenantId])
 
   useEffect(() => { fetch() }, [fetch])
 
   const inviteUser = async (email: string, role: string, unitId: string | null) => {
-    // Step 1: send magic link / OTP (creates auth.users entry on first login)
-    const { data: otpData, error: otpErr } = await supabase.auth.signInWithOtp({
+    if (!tenantId) throw new Error('No tenant')
+
+    // Store the invite so it shows in the list and gets applied on first login
+    const { error: inviteErr } = await supabase
+      .from('pending_invites')
+      .insert({ email: email.trim().toLowerCase(), tenant_id: tenantId, role, unit_id: unitId || null })
+    if (inviteErr) throw new Error(inviteErr.message)
+
+    // Send the magic link
+    const { error: otpErr } = await supabase.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/dashboard') },
     })
     if (otpErr) throw new Error(otpErr.message)
 
-    // Step 2: we can't insert user_profile until they log in (FK constraint).
-    // Store a pending invite record in a separate table or just note it.
-    // We return the invite details so the caller can share or audit the invite.
-    return { email, role, unitId, otpData }
+    await fetch()
+  }
+
+  const cancelInvite = async (inviteId: string) => {
+    const { error: err } = await supabase
+      .from('pending_invites').delete().eq('id', inviteId)
+    if (err) throw new Error(err.message)
+    await fetch()
   }
 
   const updateRole = async (userId: string, role: string, unitId: string | null) => {
@@ -520,7 +560,7 @@ export function useUsers(tenantId: string | undefined) {
     await fetch()
   }
 
-  return { users, loading, refresh: fetch, inviteUser, updateRole, removeUser }
+  return { users, pendingInvites, loading, refresh: fetch, inviteUser, cancelInvite, updateRole, removeUser }
 }
 
 // ── Admin stats ───────────────────────────────────────────────────────────────

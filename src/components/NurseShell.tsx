@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { can, canAny, NAV_ITEMS, ROLE_CFG, type UserRole } from '@/lib/roles'
@@ -30,6 +30,18 @@ export default function NurseShell({
   const [now, setNow]       = useState(new Date())
   const [shiftStart]        = useState(new Date())
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
@@ -105,18 +117,75 @@ export default function NurseShell({
           <button className="w-9 h-9 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)] transition-colors">
             <HelpIcon />
           </button>
-          {/* Role badge + avatar */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full hidden sm:block"
-              style={{ background: roleCfg?.bg ?? '#ECFDF5', color: roleCfg?.color ?? '#065F46' }}>
-              {roleCfg?.label ?? role}
-            </span>
-            <button onClick={async () => { await signOut(); navigate('/login') }}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold"
-              style={{ background: 'var(--clinical-blue)' }}
-              title={`${nurseName} — Sign out`}>
-              {initials}
+          {/* Profile dropdown */}
+          <div className="relative" ref={profileRef}>
+            <button
+              onClick={() => setProfileOpen(o => !o)}
+              className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-[var(--page-bg)] transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
+                style={{ background: 'var(--clinical-blue)' }}>
+                {initials}
+              </div>
+              <div className="hidden sm:block text-left">
+                <p className="text-xs font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{nurseName}</p>
+                <p className="text-[10px] capitalize leading-tight" style={{ color: 'var(--text-muted)' }}>{roleCfg?.label ?? role}</p>
+              </div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}
+                className={`hidden sm:block transition-transform ${profileOpen ? 'rotate-180' : ''}`}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
             </button>
+
+            {profileOpen && (
+              <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-lg z-50 overflow-hidden">
+                {/* User info */}
+                <div className="px-4 py-3 border-b border-[var(--border)]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
+                      style={{ background: 'var(--clinical-blue)' }}>
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{nurseName}</p>
+                      <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{user?.email}</p>
+                      <span className="inline-block mt-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: roleCfg?.bg ?? '#ECFDF5', color: roleCfg?.color ?? '#065F46' }}>
+                        {roleCfg?.label ?? role}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Menu items */}
+                <div className="py-1">
+                  <button onClick={() => { navigate('/settings'); setProfileOpen(false) }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--page-bg)] transition-colors text-left"
+                    style={{ color: 'var(--text-secondary)' }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                    Settings
+                  </button>
+                </div>
+
+                {/* Sign out */}
+                <div className="border-t border-[var(--border)] py-1">
+                  <button
+                    onClick={async () => { setProfileOpen(false); await signOut(); navigate('/login') }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                      <polyline points="16 17 21 12 16 7"/>
+                      <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -158,10 +227,10 @@ export default function NurseShell({
             </button>
           </div>
 
-          {/* Stat cards — only for managers and above */}
-          {sidebarOpen && canAny(role, 'page.reports') && (
-            <div className="px-3 py-3 border-b border-[var(--border)] space-y-1.5">
-              {sidebarOpen && <p className="text-[10px] font-medium uppercase tracking-wider px-1 mb-2" style={{ color: 'var(--text-muted)' }}>Today</p>}
+          {/* Stat cards */}
+          {sidebarOpen && (
+            <div className="flex-shrink-0 px-3 py-3 border-b border-[var(--border)] space-y-1.5">
+              <p className="text-[10px] font-medium uppercase tracking-wider px-1 mb-2" style={{ color: 'var(--text-muted)' }}>Today</p>
               <StatCard label="Pending"      value={String(stats.pendingCount)}       color="danger"  />
               <StatCard label="In Progress"  value={String(stats.inProgressCount)}    color="warning" />
               <StatCard label="Resolved"     value={String(stats.resolvedTodayCount)} color="success" />
@@ -170,7 +239,7 @@ export default function NurseShell({
           )}
 
           {/* Main nav */}
-          <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+          <nav className="flex-1 min-h-0 px-2 py-3 space-y-0.5 overflow-y-auto">
             {mainNav.map(item => {
               const active = location.pathname === item.path
               return (
@@ -232,7 +301,7 @@ export default function NurseShell({
           </nav>
 
           {/* Bottom: unit performance + nurse info */}
-          <div className="border-t border-[var(--border)] px-3 py-3 space-y-3">
+          <div className="flex-shrink-0 border-t border-[var(--border)] px-3 py-3 space-y-3">
 
             {/* Clock */}
             {sidebarOpen && (

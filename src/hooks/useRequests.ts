@@ -185,6 +185,16 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
   useEffect(() => { fetchRequests() }, [fetchRequests])
   useEffect(() => { fetchStaffEvents() }, [fetchStaffEvents])
 
+  // Polling fallback — catches any realtime events that were missed
+  useEffect(() => {
+    if (!tenantId && !unitId) return
+    const interval = setInterval(() => {
+      fetchRequests()
+      fetchStaffEvents()
+    }, 10_000)
+    return () => clearInterval(interval)
+  }, [tenantId, unitId, fetchRequests, fetchStaffEvents])
+
   // ── Real-time subscription ────────────────────────────────────────────────
   useEffect(() => {
     if (!tenantId && !unitId) return

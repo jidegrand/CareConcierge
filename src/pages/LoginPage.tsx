@@ -26,6 +26,7 @@ export default function LoginPage() {
     if (mode === 'password') {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password })
       if (err) setError(err.message)
+      else navigate('/dashboard', { replace: true })
     } else {
       const { error: err } = await supabase.auth.signInWithOtp({
         email,

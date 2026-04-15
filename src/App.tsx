@@ -1,6 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthContext, useAuthProvider } from '@/hooks/useAuth'
+import { AuthContext, useAuthProvider, useAuth } from '@/hooks/useAuth'
 import LoginPage       from '@/pages/LoginPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
 import PatientPage     from '@/pages/PatientPage'
@@ -22,7 +22,7 @@ const PlatformGlobalReportsPage = lazy(() => import('@/pages/platform/PlatformGl
 const PlatformAuditLogsPage = lazy(() => import('@/pages/platform/PlatformAuditLogsPage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuthProvider()
+  const { session, loading } = useAuth()
   if (loading) return (
     <div className="min-h-screen bg-[var(--page-bg)] flex items-center justify-center">
       <div className="w-6 h-6 border-2 border-[var(--clinical-blue)] border-t-transparent rounded-full animate-spin" />
