@@ -35,8 +35,8 @@ Two-layer deduplication: (1) Patient page — on load, fetches pending/acknowled
 **8. ~~Request cancellation by patient~~ ✅ DONE**
 Patients can now cancel a request from the active-request modal while it is still active (`pending` or `acknowledged`). The patient page tracks the live request row ID/status, keeps the cancel action available after acknowledgment, removes the request from the room's active set after a successful delete, and refreshes live state if the request is no longer cancellable. Supabase RLS now includes a public delete policy limited to active requests on active rooms so the rule is enforced server-side as well.
 
-**9. Patient satisfaction capture**
-After a request is resolved, the QR page could show a brief "How did we do?" prompt (thumbs up/down or 1–5 stars). This data would feed a CSAT metric into the reports page.
+**9. ~~Patient satisfaction capture~~ ✅ DONE**
+After a request is resolved, the patient QR page can now show a brief 1–5 star "How did we do?" prompt. Feedback is stored once per request and feeds a CSAT metric into the reports page. A manager/admin-controlled tenant setting now turns this prompt on or off for the whole organization.
 
 **10. Services and Fun tabs (patient page)**
 Both tabs are currently "coming soon" placeholders. Services could list ward amenities (TV remote, phone charging, newspaper). Fun could link to entertainment or wifi details. These are easy wins for patient experience.

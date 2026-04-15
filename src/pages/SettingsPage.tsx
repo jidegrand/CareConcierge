@@ -2,9 +2,11 @@ import { useDarkMode } from '@/hooks/useDarkMode'
 import { useState, useEffect, FormEvent } from 'react'
 import NurseShell from '@/components/NurseShell'
 import { useAuth } from '@/hooks/useAuth'
+import { useTenantSettings } from '@/hooks/useTenantSettings'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useRequests } from '@/hooks/useRequests'
 import { supabase } from '@/lib/supabase'
+import { isAtLeast } from '@/lib/roles'
 import { COMPANY_NAME, PRODUCT_NAME, SYSTEM_LAYER_NAME } from '@/lib/brand'
 const APP_VERSION     = '1.1.0'
 
@@ -74,7 +76,7 @@ export default function SettingsPage() {
           {tab === 'profile'       && <ProfileTab       user={user} profile={profile} unitName={unitName} tenantId={tenantId} />}
           {tab === 'notifications' && <NotificationsTab />}
           {tab === 'security'      && <SecurityTab      user={user} />}
-          {tab === 'preferences'   && <PreferencesTab   />}
+          {tab === 'preferences'   && <PreferencesTab tenantId={tenantId} role={profile?.role} />}
         </main>
       </div>
     </NurseShell>
@@ -337,16 +339,37 @@ function SecurityTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // TAB: Preferences
 // ─────────────────────────────────────────────────────────────────────────────
-function PreferencesTab() {
+function PreferencesTab({ tenantId, role }: { tenantId: string | undefined; role: string | undefined }) {
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs)
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const canManagePatientFeedback = isAtLeast(role, 'nurse_manager')
+  const { settings, loading: settingsLoading, saveSettings } = useTenantSettings(tenantId)
+  const [patientFeedbackEnabled, setPatientFeedbackEnabled] = useState(false)
 
   const update = (patch: Partial<Prefs>) => setPrefs(p => ({ ...p, ...patch }))
 
-  const handleSave = () => {
-    savePrefs(prefs)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+  useEffect(() => {
+    setPatientFeedbackEnabled(settings.patient_feedback_enabled)
+  }, [settings.patient_feedback_enabled])
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+
+    try {
+      savePrefs(prefs)
+      if (canManagePatientFeedback && tenantId) {
+        await saveSettings({ patient_feedback_enabled: patientFeedbackEnabled })
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save preferences.')
+    }
+
+    setSaving(false)
   }
 
   const TIMEZONES = [
@@ -461,6 +484,22 @@ function PreferencesTab() {
         </div>
       </Card>
 
+      {canManagePatientFeedback && (
+        <Card className="mt-4">
+          <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4">Patient QR Experience</p>
+          <Toggle
+            label="Patient satisfaction prompt"
+            sub="Show a quick 1–5 star feedback prompt on the patient QR page after a request is resolved."
+            checked={patientFeedbackEnabled}
+            disabled={settingsLoading || !tenantId}
+            onChange={setPatientFeedbackEnabled}
+          />
+          <p className="mt-3 text-xs text-[var(--text-muted)]">
+            This organization-wide setting can be changed by managers and admins.
+          </p>
+        </Card>
+      )}
+
       <Card className="mt-4">
         <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">About {PRODUCT_NAME}</p>
         <InfoRow label="Version"    value={`v${APP_VERSION}`} mono />
@@ -471,9 +510,10 @@ function PreferencesTab() {
       </Card>
 
       <div className="mt-4 flex items-center justify-between">
-        {saved && <Alert type="success" msg="Preferences saved to this browser." />}
+        {error && <Alert type="error" msg={error} />}
+        {saved && <Alert type="success" msg="Preferences saved successfully." />}
         <div className="ml-auto">
-          <SaveBtn saving={false} onClick={handleSave} label="Save preferences" />
+          <SaveBtn saving={saving} onClick={handleSave} label="Save preferences" />
         </div>
       </div>
     </div>

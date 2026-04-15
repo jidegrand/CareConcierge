@@ -38,6 +38,9 @@ export interface AnalyticsSummary {
   avgResponseSec: number | null
   fastestSec: number | null
   resolvedPct: number
+  csatPct: number | null
+  csatAvg: number | null
+  csatResponses: number
 }
 
 export interface AnalyticsData {
@@ -65,7 +68,15 @@ export function useAnalytics(
   requestTypes: RequestTypeConfig[] = REQUEST_TYPES
 ): AnalyticsData {
   const [data, setData] = useState<Omit<AnalyticsData, 'loading'>>({
-    summary:       { totalToday: 0, avgResponseSec: null, fastestSec: null, resolvedPct: 0 },
+    summary:       {
+      totalToday: 0,
+      avgResponseSec: null,
+      fastestSec: null,
+      resolvedPct: 0,
+      csatPct: null,
+      csatAvg: null,
+      csatResponses: 0,
+    },
     hourlyVolume:  [],
     shiftVolume:   [],
     bayDemand:     [],
@@ -83,23 +94,42 @@ export function useAnalytics(
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    // Fetch all of today's requests for this unit
-    const { data: rows } = await supabase
-      .from('requests')
-      .select(`
-        id, type, status, is_urgent,
-        created_at, acknowledged_at, resolved_at,
-        room:rooms (
-          id, name,
-          unit:units (
-            id,
-            site:sites (tenant_id)
+    // Fetch all of today's requests and feedback for this scope.
+    const [requestsRes, feedbackRes] = await Promise.all([
+      supabase
+        .from('requests')
+        .select(`
+          id, type, status, is_urgent,
+          created_at, acknowledged_at, resolved_at,
+          room:rooms (
+            id, name,
+            unit:units (
+              id,
+              site:sites (tenant_id)
+            )
           )
-        )
-      `)
-      .gte('created_at', today.toISOString())
-      .order('created_at', { ascending: true })
+        `)
+        .gte('created_at', today.toISOString())
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('request_feedback')
+        .select(`
+          rating, created_at,
+          request:requests (
+            room:rooms (
+              unit:units (
+                id,
+                site:sites (tenant_id)
+              )
+            )
+          )
+        `)
+        .gte('created_at', today.toISOString())
+        .order('created_at', { ascending: true }),
+    ])
 
+    const rows = requestsRes.data
+    const feedbackRows = feedbackRes.data
     if (!rows) { setLoading(false); return }
 
     type RawRequest = {
@@ -120,9 +150,30 @@ export function useAnalytics(
       }>
     }
 
+    type RawFeedback = {
+      rating: number
+      created_at: string
+      request?: MaybeArray<{
+        room?: MaybeArray<{
+          unit?: MaybeArray<{
+            id?: string
+            site?: MaybeArray<{ tenant_id?: string }>
+          }>
+        }>
+      }>
+    }
+
     // Filter to unit
     const requests = (rows as RawRequest[]).filter(r => {
       const room = getSingle(r.room)
+      const unit = getSingle(room?.unit)
+      const site = getSingle(unit?.site)
+      return unitId ? unit?.id === unitId : site?.tenant_id === tenantId
+    })
+
+    const feedback = ((feedbackRows ?? []) as RawFeedback[]).filter(item => {
+      const request = getSingle(item.request)
+      const room = getSingle(request?.room)
       const unit = getSingle(room?.unit)
       const site = getSingle(unit?.site)
       return unitId ? unit?.id === unitId : site?.tenant_id === tenantId
@@ -154,6 +205,13 @@ export function useAnalytics(
       : null
     const fastestSec = ackTimes.length ? Math.round(Math.min(...ackTimes)) : null
     const resolvedPct = total > 0 ? Math.round((resolved.length / total) * 100) : 0
+    const csatResponses = feedback.length
+    const csatAvg = csatResponses > 0
+      ? Math.round((feedback.reduce((sum, item) => sum + item.rating, 0) / csatResponses) * 10) / 10
+      : null
+    const csatPct = csatResponses > 0
+      ? Math.round((feedback.filter(item => item.rating >= 4).length / csatResponses) * 100)
+      : null
 
     // ── Hourly volume ─────────────────────────────────────────────
     const hourMap: Record<number, { requests: number; urgent: number }> = {}
@@ -237,7 +295,7 @@ export function useAnalytics(
       .sort((a, b) => b.count - a.count)
 
     setData({
-      summary: { totalToday: total, avgResponseSec, fastestSec, resolvedPct },
+      summary: { totalToday: total, avgResponseSec, fastestSec, resolvedPct, csatPct, csatAvg, csatResponses },
       hourlyVolume,
       shiftVolume,
       bayDemand,

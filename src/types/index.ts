@@ -28,6 +28,13 @@ export interface TenantLicense {
   updated_at: string
 }
 
+export interface TenantSetting {
+  tenant_id: string
+  patient_feedback_enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Site {
   id: string
   tenant_id: string
@@ -70,6 +77,13 @@ export interface Request {
   room?: Room
   acknowledger?: { id: string; full_name: string | null }
   resolver?: { id: string; full_name: string | null }
+}
+
+export interface RequestFeedback {
+  id: string
+  request_id: string
+  rating: number
+  created_at: string
 }
 
 // ─── UI config types ──────────────────────────────────────────────────────────

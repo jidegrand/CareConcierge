@@ -14,6 +14,13 @@ CREATE TABLE tenants (
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE tenant_settings (
+  tenant_id                 UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+  patient_feedback_enabled  BOOLEAN NOT NULL DEFAULT false,
+  created_at                TIMESTAMPTZ DEFAULT now(),
+  updated_at                TIMESTAMPTZ DEFAULT now()
+);
+
 -- ── 2. SITES ──────────────────────────────────────────────────────────────────
 CREATE TABLE sites (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -58,6 +65,13 @@ CREATE TABLE requests (
   resolved_by     UUID REFERENCES auth.users(id)
 );
 
+CREATE TABLE request_feedback (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id  UUID NOT NULL UNIQUE REFERENCES requests(id) ON DELETE CASCADE,
+  rating      SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
 -- ── 6. REQUEST TYPES ──────────────────────────────────────────────────────────
 CREATE TABLE request_types (
   id          TEXT NOT NULL,
@@ -92,6 +106,7 @@ CREATE TABLE user_profiles (
 CREATE INDEX idx_requests_room_id   ON requests(room_id);
 CREATE INDEX idx_requests_status    ON requests(status);
 CREATE INDEX idx_requests_created   ON requests(created_at DESC);
+CREATE INDEX idx_request_feedback_created ON request_feedback(created_at DESC);
 CREATE INDEX idx_request_types_tenant ON request_types(tenant_id, active, sort_order);
 CREATE INDEX idx_rooms_unit_id      ON rooms(unit_id);
 CREATE INDEX idx_units_site_id      ON units(site_id);
@@ -103,10 +118,12 @@ CREATE INDEX idx_profiles_tenant_id ON user_profiles(tenant_id);
 -- ─────────────────────────────────────────────────────────────────────────────
 
 ALTER TABLE tenants       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sites         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE units         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rooms         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE requests      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE request_feedback ENABLE ROW LEVEL SECURITY;
 ALTER TABLE request_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
@@ -131,6 +148,34 @@ $$;
 -- ── Tenants: users can only see their own tenant ──────────────────────────────
 CREATE POLICY "tenant_select" ON tenants
   FOR SELECT USING (id = current_tenant_id());
+
+CREATE POLICY "tenant_settings_public_select" ON tenant_settings
+  FOR SELECT USING (true);
+
+CREATE POLICY "tenant_settings_manager_insert" ON tenant_settings
+  FOR INSERT WITH CHECK (
+    (
+      tenant_id = current_tenant_id()
+      AND current_user_role() IN ('tenant_admin', 'site_manager', 'charge_nurse', 'nurse_manager')
+    )
+    OR current_user_role() = 'super_admin'
+  );
+
+CREATE POLICY "tenant_settings_manager_update" ON tenant_settings
+  FOR UPDATE USING (
+    (
+      tenant_id = current_tenant_id()
+      AND current_user_role() IN ('tenant_admin', 'site_manager', 'charge_nurse', 'nurse_manager')
+    )
+    OR current_user_role() = 'super_admin'
+  )
+  WITH CHECK (
+    (
+      tenant_id = current_tenant_id()
+      AND current_user_role() IN ('tenant_admin', 'site_manager', 'charge_nurse', 'nurse_manager')
+    )
+    OR current_user_role() = 'super_admin'
+  );
 
 -- ── Sites: scoped to tenant ───────────────────────────────────────────────────
 CREATE POLICY "sites_select" ON sites
@@ -213,6 +258,37 @@ CREATE POLICY "requests_nurse_update" ON requests
       JOIN sites s  ON u.site_id  = s.id
       WHERE s.tenant_id = current_tenant_id()
       AND (current_unit_id() IS NULL OR u.id = current_unit_id())
+    )
+  );
+
+CREATE POLICY "request_feedback_public_insert" ON request_feedback
+  FOR INSERT WITH CHECK (
+    request_id IN (
+      SELECT req.id
+      FROM public.requests req
+      JOIN public.rooms r ON req.room_id = r.id
+      JOIN public.units u ON r.unit_id = u.id
+      JOIN public.sites s ON u.site_id = s.id
+      LEFT JOIN public.tenant_settings ts ON ts.tenant_id = s.tenant_id
+      WHERE req.status = 'resolved'
+        AND r.active = true
+        AND COALESCE(ts.patient_feedback_enabled, false) = true
+    )
+  );
+
+CREATE POLICY "request_feedback_nurse_select" ON request_feedback
+  FOR SELECT USING (
+    request_id IN (
+      SELECT r.id
+      FROM public.requests r
+      JOIN public.rooms rm ON r.room_id = rm.id
+      JOIN public.units u  ON rm.unit_id = u.id
+      JOIN public.sites s  ON u.site_id = s.id
+      WHERE (
+        s.tenant_id = current_tenant_id()
+        AND (current_unit_id() IS NULL OR u.id = current_unit_id())
+      )
+      OR current_user_role() = 'super_admin'
     )
   );
 

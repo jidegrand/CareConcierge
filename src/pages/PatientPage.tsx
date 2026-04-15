@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useRoom } from '@/hooks/useRoom'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
+import { useTenantSettings } from '@/hooks/useTenantSettings'
 import { supabase } from '@/lib/supabase'
 import { playPatientReceipt } from '@/lib/sounds'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
@@ -20,6 +21,7 @@ interface ActiveRequest {
   type:  string
   label: string
   time:  Date
+  status: 'pending' | 'acknowledged' | 'resolved'
 }
 
 interface ActiveRequestRow {
@@ -34,11 +36,15 @@ export default function PatientPage() {
   const { room, loading, error } = useRoom(roomId)
   const tenantId = room?.unit?.site?.tenant?.id
   const { requestTypes } = useRequestTypes(tenantId)
+  const { settings: tenantSettings } = useTenantSettings(tenantId)
   const [activeTab,    setActiveTab]    = useState<TabId>('requests')
   const [submitting,   setSubmitting]   = useState(false)
   const [activeRequest, setActiveRequest] = useState<ActiveRequest | null>(null)
   const [activeRequestsByType, setActiveRequestsByType] = useState<Record<string, ActiveRequestRow>>({})
   const [cancelingRequest, setCancelingRequest] = useState(false)
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+  const [feedbackError, setFeedbackError] = useState<string | null>(null)
+  const [feedbackByRequestId, setFeedbackByRequestId] = useState<Record<string, number>>({})
   const [callPressed,  setCallPressed]  = useState(false)
   const [submitError,  setSubmitError]  = useState<string | null>(null)
   // Set of request type IDs that already have a pending/acknowledged request for this room
@@ -67,7 +73,9 @@ export default function PatientPage() {
       setActiveRequest(prev => {
         if (!prev) return prev
         const live = nextByType[prev.type]
-        return live ? { ...prev, id: live.id } : null
+        return live
+          ? { ...prev, id: live.id, time: new Date(live.created_at), status: live.status }
+          : { ...prev, status: 'resolved' }
       })
       if (!nextByType.nurse) setCallPressed(false)
     }
@@ -85,6 +93,10 @@ export default function PatientPage() {
     return () => { supabase.removeChannel(channel) }
   }, [room])
 
+  useEffect(() => {
+    setFeedbackError(null)
+  }, [activeRequest?.id, activeRequest?.status])
+
   const openActiveRequest = (type: string, label: string) => {
     const live = activeRequestsByType[type]
     if (!live) return
@@ -94,6 +106,7 @@ export default function PatientPage() {
       type,
       label,
       time: new Date(live.created_at),
+      status: live.status,
     })
   }
 
@@ -116,7 +129,7 @@ export default function PatientPage() {
     setActiveRequestsByType(prev => ({ ...prev, [typeId]: live }))
     setActiveTypeSet(prev => new Set(prev).add(typeId))
     playPatientReceipt()
-    setActiveRequest({ id: live.id, type: typeId, label, time: new Date(live.created_at) })
+    setActiveRequest({ id: live.id, type: typeId, label, time: new Date(live.created_at), status: live.status })
     setSubmitting(false)
   }
 
@@ -139,7 +152,7 @@ export default function PatientPage() {
     setActiveRequestsByType(prev => ({ ...prev, nurse: live }))
     setActiveTypeSet(prev => new Set(prev).add('nurse'))
     playPatientReceipt()
-    setActiveRequest({ id: live.id, type: 'nurse', label: 'Call Nurse', time: new Date(live.created_at) })
+    setActiveRequest({ id: live.id, type: 'nurse', label: 'Call Nurse', time: new Date(live.created_at), status: live.status })
   }
 
   const cancelRequest = async () => {
@@ -206,9 +219,39 @@ export default function PatientPage() {
     setCancelingRequest(false)
   }
 
+  const submitFeedback = async (rating: number) => {
+    if (!activeRequest || activeRequest.status !== 'resolved' || feedbackSubmitting) return
+
+    setFeedbackSubmitting(true)
+    setFeedbackError(null)
+
+    const { error } = await supabase
+      .from('request_feedback')
+      .insert({
+        request_id: activeRequest.id,
+        rating,
+      })
+
+    if (error) {
+      if (error.code === '23505') {
+        setFeedbackByRequestId(prev => ({ ...prev, [activeRequest.id]: rating }))
+        setFeedbackSubmitting(false)
+        return
+      }
+      setFeedbackError(error.message)
+      setFeedbackSubmitting(false)
+      return
+    }
+
+    setFeedbackByRequestId(prev => ({ ...prev, [activeRequest.id]: rating }))
+    setFeedbackSubmitting(false)
+  }
+
   const dismiss = () => {
     setActiveRequest(null)
     setCallPressed(false)
+    setSubmitError(null)
+    setFeedbackError(null)
     // Don't clear activeTypeSet — it reflects real DB state and will update via realtime
   }
 
@@ -420,11 +463,15 @@ export default function PatientPage() {
         {activeRequest && (
           <RequestStatusModal
             request={activeRequest}
-            status={activeRequestsByType[activeRequest.type]?.status ?? 'pending'}
             canceling={cancelingRequest}
             error={submitError}
+            feedbackEnabled={tenantSettings.patient_feedback_enabled}
+            feedbackSubmitting={feedbackSubmitting}
+            feedbackError={feedbackError}
+            feedbackRating={feedbackByRequestId[activeRequest.id] ?? null}
             onDismiss={dismiss}
             onCancel={cancelRequest}
+            onRate={submitFeedback}
           />
         )}
       </div>
@@ -436,22 +483,46 @@ export default function PatientPage() {
 // Shows a simple submission confirmation after a patient sends a request.
 function RequestStatusModal({
   request,
-  status,
   canceling,
   error,
+  feedbackEnabled,
+  feedbackSubmitting,
+  feedbackError,
+  feedbackRating,
   onDismiss,
   onCancel,
+  onRate,
 }: {
   request: ActiveRequest
-  status: 'pending' | 'acknowledged'
   canceling: boolean
   error: string | null
+  feedbackEnabled: boolean
+  feedbackSubmitting: boolean
+  feedbackError: string | null
+  feedbackRating: number | null
   onDismiss: () => void
   onCancel: () => void
+  onRate: (rating: number) => void
 }) {
-  const { label } = request
+  const { label, status } = request
   const canCancel = status === 'pending' || status === 'acknowledged'
   const acknowledgementNote = status === 'acknowledged'
+  const resolved = status === 'resolved'
+  const showFeedbackPrompt = resolved && feedbackEnabled && feedbackRating === null
+  const showFeedbackThanks = resolved && feedbackEnabled && feedbackRating !== null
+  const badgeLabel = resolved ? 'Completed' : acknowledgementNote ? 'On the way' : 'Received'
+  const title = resolved
+    ? 'Your request has been completed'
+    : acknowledgementNote
+      ? 'Your care team has acknowledged your request'
+      : 'Your request has been received'
+  const body = resolved
+    ? feedbackEnabled
+      ? 'Thank you for letting us help. If you have a moment, please rate the experience below.'
+      : 'Thank you for letting us help. If you need anything else, you can submit another request at any time.'
+    : acknowledgementNote
+      ? 'A nurse has seen this request and is on the way.'
+      : 'A nurse will be with you shortly. Please stay comfortable.'
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0f172a]/35 p-4 backdrop-blur-[2px]">
@@ -472,15 +543,15 @@ function RequestStatusModal({
             <div className="mb-1 flex items-center gap-2 flex-wrap">
               <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
                 style={{ background: '#DCEEFF', color: '#1D6FA8' }}>
-                Received
+                {badgeLabel}
               </span>
               <span className="text-xs text-[#6B7C93]">{label}</span>
             </div>
             <p className="text-base font-bold leading-tight text-[#16324F] md:text-lg">
-              Your request has been received
+              {title}
             </p>
             <p className="mt-1 text-sm leading-relaxed text-[#4C6178]">
-              A nurse will be with you shortly. Please stay comfortable.
+              {body}
             </p>
             {canCancel && (
               <p className="mt-2 text-xs font-medium text-[#7A8DA3]">
@@ -507,7 +578,9 @@ function RequestStatusModal({
               </svg>
             </span>
             <p className="text-sm font-medium text-[#166534]">
-              We have received your request and alerted the care team.
+              {resolved
+                ? 'Your request has been marked complete by the care team.'
+                : 'We have received your request and alerted the care team.'}
             </p>
           </div>
         </div>
@@ -515,6 +588,39 @@ function RequestStatusModal({
         {error && (
           <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
+          </div>
+        )}
+
+        {showFeedbackPrompt && (
+          <div className="mb-5 rounded-2xl border border-[#D8E6F3] bg-[#F8FBFF] px-4 py-4">
+            <p className="text-sm font-semibold text-[#16324F]">How did we do?</p>
+            <p className="mt-1 text-xs text-[#6B7C93]">Tap a star to rate this request from 1 to 5.</p>
+            <div className="mt-4 grid grid-cols-5 gap-2">
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <button
+                  key={rating}
+                  type="button"
+                  onClick={() => onRate(rating)}
+                  disabled={feedbackSubmitting}
+                  className="rounded-2xl border border-[#D8E6F3] bg-white px-2 py-3 text-center transition-transform active:scale-[0.98] disabled:opacity-60">
+                  <div className="text-2xl leading-none text-[#F59E0B]">★</div>
+                  <div className="mt-1 text-xs font-semibold text-[#16324F]">{rating}</div>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-[#7A8DA3]">1 = Poor, 5 = Excellent</p>
+          </div>
+        )}
+
+        {showFeedbackThanks && (
+          <div className="mb-5 rounded-2xl border border-[#D1FAE5] bg-[#F0FDF4] px-4 py-3 text-sm text-[#166534]">
+            Thank you for the feedback. You rated this request {feedbackRating}/5.
+          </div>
+        )}
+
+        {feedbackError && (
+          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {feedbackError}
           </div>
         )}
 

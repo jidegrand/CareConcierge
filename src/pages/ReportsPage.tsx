@@ -37,6 +37,10 @@ function fmtSec(s: number | null) {
   return sec > 0 ? `${m}m ${sec}s` : `${m}m`
 }
 
+function fmtRating(rating: number | null) {
+  return rating === null ? '—' : `${rating.toFixed(1)}/5`
+}
+
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -155,11 +159,22 @@ function AnalyticsPanel({ analytics }: { analytics: ReturnType<typeof useAnalyti
   return (
     <div className="space-y-5">
       {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatCard label="Total Requests"   value={String(analytics.summary.totalToday)}          sub="across all bays"    accent={BLUE}  icon={<ReqIcon />} />
         <StatCard label="Avg Response Time" value={fmtSec(analytics.summary.avgResponseSec)}     sub="to acknowledge"     accent={AMBER} icon={<ClockIcon />} />
         <StatCard label="Fastest Response"  value={fmtSec(analytics.summary.fastestSec)}         sub="best today"         accent={GREEN} icon={<FastIcon />} />
         <StatCard label="Resolution Rate"   value={`${analytics.summary.resolvedPct}%`}          sub="resolved today"     accent={analytics.summary.resolvedPct >= 80 ? GREEN : AMBER} icon={<DoneIcon />} />
+        <StatCard
+          label="CSAT"
+          value={analytics.summary.csatPct === null ? '—' : `${analytics.summary.csatPct}%`}
+          sub={
+            analytics.summary.csatResponses > 0
+              ? `${analytics.summary.csatResponses} responses · avg ${fmtRating(analytics.summary.csatAvg)}`
+              : 'No patient feedback yet'
+          }
+          accent={analytics.summary.csatPct !== null && analytics.summary.csatPct >= 80 ? GREEN : BLUE}
+          icon={<HeartIcon />}
+        />
       </div>
 
       {/* Hourly + Type */}
@@ -658,6 +673,7 @@ const ReqIcon  = () => ico(<><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1
 const ClockIcon = () => ico(<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>)
 const FastIcon  = () => ico(<><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></>)
 const DoneIcon  = () => ico(<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>)
+const HeartIcon = () => ico(<><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></>)
 const DownloadIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/>
