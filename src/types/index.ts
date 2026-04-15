@@ -48,6 +48,7 @@ export interface Unit {
   site_id: string
   name: string
   slug: string
+  room_naming_template: string
   created_at: string
 }
 

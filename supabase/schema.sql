@@ -37,6 +37,7 @@ CREATE TABLE units (
   site_id     UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
   slug        TEXT NOT NULL,
+  room_naming_template TEXT NOT NULL DEFAULT 'Room {n}',
   created_at  TIMESTAMPTZ DEFAULT now(),
   UNIQUE (site_id, slug)
 );

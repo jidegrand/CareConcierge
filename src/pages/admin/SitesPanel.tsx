@@ -4,14 +4,33 @@ import type { Room } from '@/types'
 
 interface Props { tenantId: string }
 
+const DEFAULT_ROOM_TEMPLATE = 'Room {n}'
+
 type ModalState =
   | { kind: 'create-site' }
   | { kind: 'edit-site';   id: string; name: string }
   | { kind: 'create-unit'; siteId: string; siteName: string }
-  | { kind: 'edit-unit';   id: string; name: string }
-  | { kind: 'create-room'; unitId: string; unitName: string }
+  | { kind: 'edit-unit';   id: string; name: string; roomNamingTemplate: string }
+  | { kind: 'create-room'; unitId: string; unitName: string; roomNamingTemplate: string; nextNumber: number }
   | { kind: 'edit-room';   id: string; name: string; label: string }
   | null
+
+const escapeRegex = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const getNextRoomNumber = (unit: UnitWithRooms) => {
+  const template = unit.room_naming_template?.trim() || DEFAULT_ROOM_TEMPLATE
+  const pattern = `^${escapeRegex(template).replace(escapeRegex('{n}'), '(\\d+)')}$`
+  const regex = new RegExp(pattern, 'i')
+
+  const maxNumber = (unit.rooms ?? []).reduce((max, room) => {
+    const match = room.name.trim().match(regex)
+    const roomNumber = match ? Number(match[1]) : NaN
+    return Number.isFinite(roomNumber) ? Math.max(max, roomNumber) : max
+  }, 0)
+
+  return maxNumber > 0 ? maxNumber + 1 : (unit.rooms?.length ?? 0) + 1
+}
 
 export default function SitesPanel({ tenantId }: Props) {
   const ops = useSites(tenantId)
@@ -32,9 +51,17 @@ export default function SitesPanel({ tenantId }: Props) {
       if (!modal) return
       if (modal.kind === 'create-site')  await ops.createSite(values.name)
       if (modal.kind === 'edit-site')    await ops.updateSite(modal.id, values.name)
-      if (modal.kind === 'create-unit')  await ops.createUnit(modal.siteId, values.name)
-      if (modal.kind === 'edit-unit')    await ops.updateUnit(modal.id, values.name)
-      if (modal.kind === 'create-room')  await ops.createRoom(modal.unitId, values.name, values.label)
+      if (modal.kind === 'create-unit')  await ops.createUnit(modal.siteId, values.name, values.roomNamingTemplate)
+      if (modal.kind === 'edit-unit')    await ops.updateUnit(modal.id, values.name, values.roomNamingTemplate)
+      if (modal.kind === 'create-room')  {
+        await ops.createRoomsFromTemplate({
+          unitId: modal.unitId,
+          template: values.template || modal.roomNamingTemplate,
+          startNumber: Number(values.startNumber || modal.nextNumber),
+          roomCount: Number(values.roomCount || 1),
+          labelTemplate: values.labelTemplate,
+        })
+      }
       if (modal.kind === 'edit-room')    await ops.updateRoom(modal.id, values.name, values.label)
       setModal(null)
     } catch (e: unknown) {
@@ -78,9 +105,15 @@ export default function SitesPanel({ tenantId }: Props) {
               onEdit={() => setModal({ kind: 'edit-site', id: site.id, name: site.name })}
               onDelete={() => handleDelete('site', site.id, site.name)}
               onAddUnit={() => setModal({ kind: 'create-unit', siteId: site.id, siteName: site.name })}
-              onEditUnit={(u) => setModal({ kind: 'edit-unit', id: u.id, name: u.name })}
+              onEditUnit={(u) => setModal({ kind: 'edit-unit', id: u.id, name: u.name, roomNamingTemplate: u.room_naming_template })}
               onDeleteUnit={(u) => handleDelete('unit', u.id, u.name)}
-              onAddRoom={(u) => setModal({ kind: 'create-room', unitId: u.id, unitName: u.name })}
+              onAddRoom={(u) => setModal({
+                kind: 'create-room',
+                unitId: u.id,
+                unitName: u.name,
+                roomNamingTemplate: u.room_naming_template || DEFAULT_ROOM_TEMPLATE,
+                nextNumber: getNextRoomNumber(u),
+              })}
               onEditRoom={(r) => setModal({ kind: 'edit-room', id: r.id, name: r.name, label: r.label ?? r.name })}
               onToggleRoom={(r) => ops.toggleRoom(r.id, !r.active)}
               onDeleteRoom={(r) => handleDelete('room', r.id, r.name)}
@@ -183,6 +216,9 @@ function UnitRow({ unit, onEdit, onDelete, onAddRoom, onEditRoom, onToggleRoom, 
 }) {
   const [open, setOpen] = useState(true)
   const rooms = unit.rooms ?? []
+  const template = unit.room_naming_template?.trim() || DEFAULT_ROOM_TEMPLATE
+  const nextRoomNumber = getNextRoomNumber(unit)
+  const nextRoomPreview = template.replace(/\{n\}/g, String(nextRoomNumber))
 
   return (
     <div className="border-b border-[var(--border)] last:border-0">
@@ -193,7 +229,7 @@ function UnitRow({ unit, onEdit, onDelete, onAddRoom, onEditRoom, onToggleRoom, 
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-[var(--text-primary)]">{unit.name}</p>
-          <p className="text-xs text-[var(--text-muted)]">{rooms.length} room{rooms.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-[var(--text-muted)]">{rooms.length} room{rooms.length !== 1 ? 's' : ''} · template {template}</p>
         </div>
         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
           <IconBtn title="Edit unit"   onClick={onEdit}    icon={<EditIcon />} small />
@@ -205,6 +241,9 @@ function UnitRow({ unit, onEdit, onDelete, onAddRoom, onEditRoom, onToggleRoom, 
 
       {open && (
         <div className="pl-10 pr-4 pb-3">
+          <div className="mb-3 rounded-xl border border-dashed border-[var(--border)] bg-[var(--page-bg)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+            Next room from template: <span className="font-semibold text-[var(--text-primary)]">{nextRoomPreview}</span>
+          </div>
           {rooms.length === 0 ? (
             <p className="text-xs text-[var(--text-muted)] italic px-2 py-1">No rooms yet</p>
           ) : (
@@ -261,7 +300,7 @@ function RoomChip({ room, onEdit, onToggle, onDelete }: {
 // ── Modal ─────────────────────────────────────────────────────────────────────
 function Modal({ title, fields, defaults, error, onSubmit, onClose }: {
   title: string
-  fields: { key: string; label: string; placeholder?: string }[]
+  fields: { key: string; label: string; placeholder?: string; hint?: string }[]
   defaults: Record<string, string>
   error: string | null
   onSubmit: (v: Record<string, string>) => void
@@ -297,6 +336,9 @@ function Modal({ title, fields, defaults, error, onSubmit, onClose }: {
                 onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))}
                 placeholder={f.placeholder}
                 className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--clinical-blue)] focus:ring-2 focus:ring-[var(--clinical-blue)]/10 transition-all" />
+              {f.hint && (
+                <p className="mt-1 text-[11px] text-[var(--text-muted)]">{f.hint}</p>
+              )}
             </div>
           ))}
           {error && (
@@ -323,16 +365,30 @@ function modalTitle(m: NonNullable<ModalState>): string {
   const map: Record<string, string> = {
     'create-site': 'Add Site', 'edit-site': 'Edit Site',
     'create-unit': 'Add Unit', 'edit-unit': 'Edit Unit',
-    'create-room': 'Add Room', 'edit-room': 'Edit Room',
+    'create-room': 'Add Rooms', 'edit-room': 'Edit Room',
   }
   return map[m.kind] ?? ''
 }
 
 function modalFields(m: NonNullable<ModalState>) {
-  if (m.kind === 'create-room' || m.kind === 'edit-room') {
+  if (m.kind === 'create-room') {
+    return [
+      { key: 'template',      label: 'Room naming template', placeholder: 'Bay {n}', hint: 'Use {n} where the room number should appear.' },
+      { key: 'startNumber',   label: 'Starting number',      placeholder: '1', hint: 'The first room will use this number in the template.' },
+      { key: 'roomCount',     label: 'How many rooms',       placeholder: '1', hint: 'Create a sequential batch in one save.' },
+      { key: 'labelTemplate', label: 'Print label template', placeholder: 'ED Bay {n} (optional)', hint: 'Optional. Leave blank to reuse the generated room name.' },
+    ]
+  }
+  if (m.kind === 'edit-room') {
     return [
       { key: 'name',  label: 'Room name',  placeholder: 'Bay 1' },
       { key: 'label', label: 'Print label', placeholder: 'ED Bay 1 (optional)' },
+    ]
+  }
+  if (m.kind === 'create-unit' || m.kind === 'edit-unit') {
+    return [
+      { key: 'name',               label: 'Name',                 placeholder: 'Enter name' },
+      { key: 'roomNamingTemplate', label: 'Room naming template', placeholder: 'Bay {n}', hint: 'Set how rooms in this unit should be named. Include {n} for the number.' },
     ]
   }
   return [{ key: 'name', label: 'Name', placeholder: 'Enter name' }]
@@ -340,7 +396,14 @@ function modalFields(m: NonNullable<ModalState>) {
 
 function modalDefaults(m: NonNullable<ModalState>): Record<string, string> {
   if (m.kind === 'edit-site')  return { name: m.name }
-  if (m.kind === 'edit-unit')  return { name: m.name }
+  if (m.kind === 'create-unit') return { roomNamingTemplate: DEFAULT_ROOM_TEMPLATE }
+  if (m.kind === 'edit-unit')  return { name: m.name, roomNamingTemplate: m.roomNamingTemplate || DEFAULT_ROOM_TEMPLATE }
+  if (m.kind === 'create-room') return {
+    template: m.roomNamingTemplate || DEFAULT_ROOM_TEMPLATE,
+    startNumber: String(m.nextNumber),
+    roomCount: '1',
+    labelTemplate: '',
+  }
   if (m.kind === 'edit-room')  return { name: m.name, label: m.label }
   return {}
 }

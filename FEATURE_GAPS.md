@@ -67,8 +67,8 @@ When one nurse has significantly more open requests than others, the dashboard c
 **16. Bulk room creation**
 Rooms can only be created one at a time. A CSV import or "create N rooms named Bay 1–24" wizard would be a significant time save for setup.
 
-**17. Room naming templates**
-Each organization names rooms differently (Bay, Bed, Room, Suite). A naming template at the unit level (e.g. "Bay {n}") with auto-increment would speed up room setup.
+**17. ~~Room naming templates~~ ✅ DONE**
+Each unit can now store a room naming template such as `Bay {n}`. The Sites & Rooms admin flow uses that template to suggest the next room number and can create a sequential batch of rooms in one save, which makes initial room setup much faster.
 
 **18. Maintenance / out-of-service flag on rooms**
 There is no way to mark a room as out of service (cleaning, maintenance). Such rooms still appear on the bay map and in QR sheets. An inactive flag with reason would clean this up.

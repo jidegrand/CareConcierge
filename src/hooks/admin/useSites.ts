@@ -14,6 +14,24 @@ export interface RoomWithQR extends Room {
   qrUrl: string
 }
 
+const DEFAULT_ROOM_NAMING_TEMPLATE = 'Room {n}'
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+const normalizeRoomNamingTemplate = (value: string | undefined) => {
+  const template = value?.trim() || DEFAULT_ROOM_NAMING_TEMPLATE
+  if (!template.includes('{n}')) throw new Error('Room naming template must include {n}.')
+  return template
+}
+
+const buildRoomNameFromTemplate = (template: string, index: number) =>
+  template.replace(/\{n\}/g, String(index))
+
 export function useSites(tenantId: string | undefined) {
   const [sites, setSites] = useState<SiteWithUnits[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,14 +59,14 @@ export function useSites(tenantId: string | undefined) {
   // ── Site CRUD ──────────────────────────────────────────────────────────────
   const createSite = async (name: string) => {
     if (!tenantId) return
-    const slug = name.toLowerCase().replace(/\s+/g, '-')
+    const slug = slugify(name)
     const { error: err } = await supabase.from('sites').insert({ tenant_id: tenantId, name, slug })
     if (err) throw new Error(err.message)
     await fetch()
   }
 
   const updateSite = async (id: string, name: string) => {
-    const slug = name.toLowerCase().replace(/\s+/g, '-')
+    const slug = slugify(name)
     const { error: err } = await supabase.from('sites').update({ name, slug }).eq('id', id)
     if (err) throw new Error(err.message)
     await fetch()
@@ -61,16 +79,25 @@ export function useSites(tenantId: string | undefined) {
   }
 
   // ── Unit CRUD ──────────────────────────────────────────────────────────────
-  const createUnit = async (siteId: string, name: string) => {
-    const slug = name.toLowerCase().replace(/\s+/g, '-')
-    const { error: err } = await supabase.from('units').insert({ site_id: siteId, name, slug })
+  const createUnit = async (siteId: string, name: string, roomNamingTemplate?: string) => {
+    const slug = slugify(name)
+    const { error: err } = await supabase.from('units').insert({
+      site_id: siteId,
+      name,
+      slug,
+      room_naming_template: normalizeRoomNamingTemplate(roomNamingTemplate),
+    })
     if (err) throw new Error(err.message)
     await fetch()
   }
 
-  const updateUnit = async (id: string, name: string) => {
-    const slug = name.toLowerCase().replace(/\s+/g, '-')
-    const { error: err } = await supabase.from('units').update({ name, slug }).eq('id', id)
+  const updateUnit = async (id: string, name: string, roomNamingTemplate?: string) => {
+    const slug = slugify(name)
+    const { error: err } = await supabase.from('units').update({
+      name,
+      slug,
+      room_naming_template: normalizeRoomNamingTemplate(roomNamingTemplate),
+    }).eq('id', id)
     if (err) throw new Error(err.message)
     await fetch()
   }
@@ -82,8 +109,34 @@ export function useSites(tenantId: string | undefined) {
   }
 
   // ── Room CRUD ──────────────────────────────────────────────────────────────
-  const createRoom = async (unitId: string, name: string, label?: string) => {
-    const { error: err } = await supabase.from('rooms').insert({ unit_id: unitId, name, label: label || name, active: true })
+  const createRoomsFromTemplate = async (input: {
+    unitId: string
+    template: string
+    startNumber: number
+    roomCount: number
+    labelTemplate?: string
+  }) => {
+    const template = normalizeRoomNamingTemplate(input.template)
+    const roomCount = Math.max(1, Math.floor(input.roomCount))
+    const startNumber = Math.max(1, Math.floor(input.startNumber))
+    const labelTemplate = input.labelTemplate?.trim() || ''
+
+    const rows = Array.from({ length: roomCount }, (_, offset) => {
+      const roomNumber = startNumber + offset
+      const name = buildRoomNameFromTemplate(template, roomNumber)
+      const label = labelTemplate
+        ? buildRoomNameFromTemplate(labelTemplate, roomNumber)
+        : name
+
+      return {
+        unit_id: input.unitId,
+        name,
+        label,
+        active: true,
+      }
+    })
+
+    const { error: err } = await supabase.from('rooms').insert(rows)
     if (err) throw new Error(err.message)
     await fetch()
   }
@@ -110,6 +163,6 @@ export function useSites(tenantId: string | undefined) {
     sites, loading, error, refresh: fetch,
     createSite, updateSite, deleteSite,
     createUnit, updateUnit, deleteUnit,
-    createRoom, updateRoom, toggleRoom, deleteRoom,
+    createRoomsFromTemplate, updateRoom, toggleRoom, deleteRoom,
   }
 }
