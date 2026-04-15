@@ -22,6 +22,13 @@ interface ActiveRequest {
   status: 'pending' | 'acknowledged' | 'resolved'
 }
 
+interface LiveRequestRow {
+  id: string
+  room_id: string
+  type: string
+  status: ActiveRequest['status']
+}
+
 export default function PatientPage() {
   const { roomId } = useParams<{ roomId: string }>()
   const { room, loading, error } = useRoom(roomId)
@@ -40,6 +47,16 @@ export default function PatientPage() {
   useEffect(() => {
     if (!room) return
 
+    const applyLiveRows = (rows: LiveRequestRow[]) => {
+      setActiveTypeSet(new Set(rows.map(r => r.type)))
+      setActiveRequest(prev => {
+        if (!prev) return prev
+        const match = rows.find(r => r.id === prev.id)
+        const live = (match?.status ?? 'resolved') as ActiveRequest['status']
+        return live !== prev.status ? { ...prev, status: live } : prev
+      })
+    }
+
     const loadActiveTypes = async () => {
       const { data } = await supabase
         .from('requests')
@@ -47,17 +64,8 @@ export default function PatientPage() {
         .eq('room_id', room.id)
         .in('status', ['pending', 'acknowledged'])
 
-      const rows = (data ?? []) as { id: string; type: string; status: string }[]
-      setActiveTypeSet(new Set(rows.map(r => r.type)))
-
-      // Keep active request status in sync with DB
-      setActiveRequest(prev => {
-        if (!prev) return prev
-        const match = rows.find(r => r.id === prev.id)
-        // If not found in pending/acknowledged → it's been resolved
-        const live = (match?.status ?? 'resolved') as ActiveRequest['status']
-        return live !== prev.status ? { ...prev, status: live } : prev
-      })
+      const rows = (data ?? []) as LiveRequestRow[]
+      applyLiveRows(rows)
     }
 
     loadActiveTypes()
@@ -66,7 +74,38 @@ export default function PatientPage() {
       .channel(`patient-room-active:${room.id}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'requests', filter: `room_id=eq.${room.id}` },
-        () => loadActiveTypes()
+        (payload) => {
+          const nextRow = payload.new as Partial<LiveRequestRow>
+          const prevRow = payload.old as Partial<LiveRequestRow>
+          const changedId = nextRow.id ?? prevRow.id
+          const changedType = nextRow.type ?? prevRow.type
+          const changedStatus = nextRow.status as ActiveRequest['status'] | undefined
+
+          // Apply the live status immediately for the active request so the modal
+          // flips state as soon as the nurse acknowledges or resolves.
+          if (changedId) {
+            setActiveRequest(prev => {
+              if (!prev || prev.id !== changedId || !changedStatus) return prev
+              return prev.status === changedStatus ? prev : { ...prev, status: changedStatus }
+            })
+          }
+
+          // Keep the dedupe set responsive between refreshes.
+          if (changedType) {
+            if (changedStatus === 'pending' || changedStatus === 'acknowledged') {
+              setActiveTypeSet(prev => new Set(prev).add(changedType))
+            } else if (changedStatus === 'resolved') {
+              setActiveTypeSet(prev => {
+                const next = new Set(prev)
+                next.delete(changedType)
+                return next
+              })
+            }
+          }
+
+          // Re-sync from the database in case multiple requests changed at once.
+          loadActiveTypes()
+        }
       )
       .subscribe()
 
