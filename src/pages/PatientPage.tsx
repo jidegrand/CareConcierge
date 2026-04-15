@@ -3,24 +3,27 @@ import { useParams } from 'react-router-dom'
 import { useRoom } from '@/hooks/useRoom'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
 import { useTenantSettings } from '@/hooks/useTenantSettings'
+import {
+  PATIENT_LANGUAGE_OPTIONS,
+  PATIENT_LANGUAGE_STORAGE_KEY,
+  formatFeedbackThanks,
+  getInitialPatientLanguage,
+  getPatientCopy,
+  translateRequestTypeLabel,
+  type PatientLanguage,
+} from '@/lib/patientI18n'
 import { supabase } from '@/lib/supabase'
 import { playPatientReceipt } from '@/lib/sounds'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
 import { PRODUCT_NAME } from '@/lib/brand'
 
 type TabId = 'requests' | 'services' | 'fun' | 'info'
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: 'requests', label: 'REQUESTS', icon: <TabRequestIcon /> },
-  { id: 'services', label: 'SERVICES', icon: <TabServicesIcon /> },
-  { id: 'fun',      label: 'FUN',       icon: <TabFunIcon /> },
-  { id: 'info',     label: 'INFO',      icon: <TabInfoIcon /> },
-]
 
 interface ActiveRequest {
-  id:    string
-  type:  string
-  label: string
-  time:  Date
+  id: string
+  type: string
+  baseLabel: string
+  time: Date
   status: 'pending' | 'acknowledged' | 'resolved'
 }
 
@@ -37,6 +40,7 @@ export default function PatientPage() {
   const tenantId = room?.unit?.site?.tenant?.id
   const { requestTypes } = useRequestTypes(tenantId)
   const { settings: tenantSettings } = useTenantSettings(tenantId)
+  const [language, setLanguage] = useState<PatientLanguage>(() => getInitialPatientLanguage())
   const [activeTab,    setActiveTab]    = useState<TabId>('requests')
   const [submitting,   setSubmitting]   = useState(false)
   const [activeRequest, setActiveRequest] = useState<ActiveRequest | null>(null)
@@ -49,10 +53,38 @@ export default function PatientPage() {
   const [submitError,  setSubmitError]  = useState<string | null>(null)
   // Set of request type IDs that already have a pending/acknowledged request for this room
   const [activeTypeSet, setActiveTypeSet] = useState<Set<string>>(new Set())
-  const getRequestLabel = (type: string) => {
-    if (type === 'nurse') return 'Call Nurse'
-    return requestTypes.find(item => item.id === type)?.label ?? 'Request'
-  }
+  const copy = getPatientCopy(language)
+  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    { id: 'requests', label: copy.requestsTab, icon: <TabRequestIcon /> },
+    { id: 'services', label: copy.servicesTab, icon: <TabServicesIcon /> },
+    { id: 'fun',      label: copy.funTab,      icon: <TabFunIcon /> },
+    { id: 'info',     label: copy.infoTab,     icon: <TabInfoIcon /> },
+  ]
+  const getBaseRequestLabel = (type: string, fallbackLabel?: string) =>
+    fallbackLabel ?? requestTypes.find(item => item.id === type)?.label ?? copy.requestGeneric
+  const getRequestLabel = (type: string, fallbackLabel?: string) =>
+    translateRequestTypeLabel(language, type, getBaseRequestLabel(type, fallbackLabel))
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(PATIENT_LANGUAGE_STORAGE_KEY, language)
+  }, [language])
+
+  useEffect(() => {
+    setActiveRequest(prev => {
+      if (!prev) return prev
+      const nextBaseLabel = getBaseRequestLabel(prev.type, prev.baseLabel)
+      return nextBaseLabel === prev.baseLabel ? prev : { ...prev, baseLabel: nextBaseLabel }
+    })
+  }, [language, requestTypes])
+
+  const nurseBaseLabel = getBaseRequestLabel('nurse', 'Call Nurse')
+  const commonRequests = requestTypes
+    .filter(item => item.active && item.id !== 'nurse')
+    .map(item => ({
+      ...item,
+      translatedLabel: getRequestLabel(item.id, item.label),
+    }))
 
   // Load active types for this room + subscribe to realtime changes
   useEffect(() => {
@@ -103,7 +135,7 @@ export default function PatientPage() {
                 return {
                   id: nextId,
                   type: nextType,
-                  label: prev?.label ?? getRequestLabel(nextType),
+                  baseLabel: prev?.baseLabel ?? getBaseRequestLabel(nextType),
                   time: createdAt ? new Date(createdAt) : prev?.time ?? new Date(),
                   status: 'resolved',
                 }
@@ -123,20 +155,20 @@ export default function PatientPage() {
     setFeedbackError(null)
   }, [activeRequest?.id, activeRequest?.status])
 
-  const openActiveRequest = (type: string, label: string) => {
+  const openActiveRequest = (type: string, baseLabel: string) => {
     const live = activeRequestsByType[type]
     if (!live) return
     setSubmitError(null)
     setActiveRequest({
       id: live.id,
       type,
-      label,
+      baseLabel,
       time: new Date(live.created_at),
       status: live.status,
     })
   }
 
-  const submitRequest = async (typeId: string, label: string, urgent: boolean) => {
+  const submitRequest = async (typeId: string, baseLabel: string, urgent: boolean) => {
     if (!room || submitting || cancelingRequest || activeTypeSet.has(typeId)) return
     setSubmitting(true)
     setSubmitError(null)
@@ -155,7 +187,7 @@ export default function PatientPage() {
     setActiveRequestsByType(prev => ({ ...prev, [typeId]: live }))
     setActiveTypeSet(prev => new Set(prev).add(typeId))
     playPatientReceipt()
-    setActiveRequest({ id: live.id, type: typeId, label, time: new Date(live.created_at), status: live.status })
+    setActiveRequest({ id: live.id, type: typeId, baseLabel, time: new Date(live.created_at), status: live.status })
     setSubmitting(false)
   }
 
@@ -178,7 +210,7 @@ export default function PatientPage() {
     setActiveRequestsByType(prev => ({ ...prev, nurse: live }))
     setActiveTypeSet(prev => new Set(prev).add('nurse'))
     playPatientReceipt()
-    setActiveRequest({ id: live.id, type: 'nurse', label: 'Call Nurse', time: new Date(live.created_at), status: live.status })
+    setActiveRequest({ id: live.id, type: 'nurse', baseLabel: nurseBaseLabel, time: new Date(live.created_at), status: live.status })
   }
 
   const cancelRequest = async () => {
@@ -282,10 +314,9 @@ export default function PatientPage() {
   }
 
   const orgName = room?.unit?.site?.tenant?.name ?? PRODUCT_NAME
-  const commonRequests = requestTypes.filter(item => item.active && item.id !== 'nurse')
 
-  if (loading) return <LoadingScreen />
-  if (error || !room) return <ErrorScreen />
+  if (loading) return <LoadingScreen copy={copy} />
+  if (error || !room) return <ErrorScreen copy={copy} />
 
   return (
     <div
@@ -310,12 +341,19 @@ export default function PatientPage() {
               <p className="truncate text-xs font-medium text-[#7A8597]">{room.unit?.name ?? room.name}</p>
             </div>
           </div>
-          <button className="w-9 h-9 rounded-full bg-white border border-[#E5E7EB] flex items-center justify-center shadow-sm flex-shrink-0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-          </button>
+          <div className="min-w-[132px] rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 shadow-sm">
+            <label className="block text-[10px] font-bold uppercase tracking-[0.16em] text-[#7A8597]">
+              {copy.language}
+            </label>
+            <select
+              value={language}
+              onChange={event => setLanguage(event.target.value as PatientLanguage)}
+              className="mt-1 w-full bg-transparent text-sm font-semibold text-[#16324F] outline-none">
+              {PATIENT_LANGUAGE_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* ── Tab content ───────────────────────────────────────── */}
@@ -335,26 +373,26 @@ export default function PatientPage() {
                       <path d="M11 2h2v8.27l6.29-4.2 1.06 1.59L14 12l6.35 4.34-1.06 1.59L14 13.73V22h-2v-8.27l-6.29 4.2-1.06-1.59L11 12 4.65 7.66l1.06-1.59L11 10.27z"/>
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-1">Call Nurse</h2>
+                  <h2 className="text-2xl font-bold text-white mb-1">{copy.callNurseTitle}</h2>
                   <p className="text-white/75 text-sm mb-6 leading-relaxed">
-                    For urgent assistance or pain relief
+                    {copy.callNurseSub}
                   </p>
                   <button
                     onClick={() => activeTypeSet.has('nurse')
-                      ? openActiveRequest('nurse', 'Call Nurse')
+                      ? openActiveRequest('nurse', nurseBaseLabel)
                       : handleCallNurse()}
                     disabled={callPressed || submitting || cancelingRequest}
                     className="px-10 py-3.5 rounded-full font-bold text-base transition-all active:scale-95 disabled:opacity-70"
                     style={{ background: 'white', color: '#C0392B' }}>
-                    {activeTypeSet.has('nurse') ? 'Nurse Notified ✓' : callPressed ? 'Notifying…' : 'Press Now'}
+                    {activeTypeSet.has('nurse') ? `${copy.nurseNotified} ✓` : callPressed ? copy.notifying : copy.pressNow}
                   </button>
                 </div>
               </div>
 
               {/* ── Common Requests grid ── */}
               <div className="flex items-center justify-between mb-3 px-1">
-                <h3 className="text-[17px] font-bold text-[#1A1A2E]">Common Requests</h3>
-                <span className="text-xs font-semibold tracking-widest text-[#9CA3AF]">TAP TO SEND</span>
+                <h3 className="text-[17px] font-bold text-[#1A1A2E]">{copy.commonRequests}</h3>
+                <span className="text-xs font-semibold tracking-widest text-[#9CA3AF]">{copy.tapToSend}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3 mb-5 md:grid-cols-3">
@@ -391,17 +429,17 @@ export default function PatientPage() {
                         }}>
                         <RequestTypeIcon
                           icon={req.icon}
-                          label={req.label}
+                          label={req.translatedLabel}
                           className="text-[28px]"
                           imageClassName="h-8 w-8 object-contain"
                         />
                       </div>
                       <div className="text-center">
                         <span className="text-[15px] font-semibold" style={{ color: alreadyActive ? '#065F46' : '#1A1A2E' }}>
-                          {req.label}
+                          {req.translatedLabel}
                         </span>
                         {alreadyActive && (
-                          <p className="text-[11px] font-medium text-green-600 mt-0.5">Request sent</p>
+                          <p className="text-[11px] font-medium text-green-600 mt-0.5">{copy.requestSent}</p>
                         )}
                       </div>
                     </button>
@@ -420,38 +458,36 @@ export default function PatientPage() {
 
           {/* ── Services tab ── */}
           {activeTab === 'services' && (
-            <ComingSoon icon="🛎️" title="Services" sub="Hospital services and amenities coming soon." />
+            <ComingSoon icon="🛎️" title={copy.servicesTitle} sub={copy.servicesSub} />
           )}
 
           {/* ── Fun tab ── */}
           {activeTab === 'fun' && (
-            <ComingSoon icon="🎮" title="Entertainment" sub="Games, music, and relaxation content coming soon." />
+            <ComingSoon icon="🎮" title={copy.funTitle} sub={copy.funSub} />
           )}
 
           {/* ── Info tab ── */}
           {activeTab === 'info' && (
             <div className="space-y-3 pt-2">
               <InfoCard
-                title="Your Bay"
+                title={copy.yourBay}
                 value={room.name}
                 icon="🏥"
               />
               <InfoCard
-                title="Unit"
+                title={copy.unit}
                 value={room.unit?.name ?? '—'}
                 icon="📍"
               />
               <InfoCard
-                title="Site"
+                title={copy.site}
                 value={room.unit?.site?.name ?? '—'}
                 icon="🏢"
               />
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F3F4F6]">
-                <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">About</p>
+                <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">{copy.about}</p>
                 <p className="text-sm text-[#4B5563] leading-relaxed">
-                  Use the Requests tab to send a message to your care team.
-                  For emergencies, press the red Call Nurse button or the
-                  physical call button on your bed.
+                  {copy.aboutBody}
                 </p>
               </div>
             </div>
@@ -462,7 +498,7 @@ export default function PatientPage() {
         {/* ── Bottom tab bar ─────────────────────────────────────── */}
         <div className="bg-white border-t border-[#E5E7EB] px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] shadow-[0_-8px_20px_rgba(15,23,42,0.05)]">
           <div className="flex">
-            {TABS.map(tab => {
+            {tabs.map(tab => {
               const active = activeTab === tab.id
               return (
                 <button
@@ -489,6 +525,7 @@ export default function PatientPage() {
         {activeRequest && (
           <RequestStatusModal
             request={activeRequest}
+            language={language}
             canceling={cancelingRequest}
             error={submitError}
             feedbackEnabled={tenantSettings.patient_feedback_enabled}
@@ -509,6 +546,7 @@ export default function PatientPage() {
 // Shows a simple submission confirmation after a patient sends a request.
 function RequestStatusModal({
   request,
+  language,
   canceling,
   error,
   feedbackEnabled,
@@ -520,6 +558,7 @@ function RequestStatusModal({
   onRate,
 }: {
   request: ActiveRequest
+  language: PatientLanguage
   canceling: boolean
   error: string | null
   feedbackEnabled: boolean
@@ -530,25 +569,27 @@ function RequestStatusModal({
   onCancel: () => void
   onRate: (rating: number) => void
 }) {
-  const { label, status } = request
+  const { type, baseLabel, status } = request
+  const copy = getPatientCopy(language)
+  const label = translateRequestTypeLabel(language, type, baseLabel)
   const canCancel = status === 'pending' || status === 'acknowledged'
   const acknowledgementNote = status === 'acknowledged'
   const resolved = status === 'resolved'
   const showFeedbackPrompt = resolved && feedbackEnabled && feedbackRating === null
   const showFeedbackThanks = resolved && feedbackEnabled && feedbackRating !== null
-  const badgeLabel = resolved ? 'Completed' : acknowledgementNote ? 'On the way' : 'Received'
+  const badgeLabel = resolved ? copy.badgeCompleted : acknowledgementNote ? copy.badgeOnTheWay : copy.badgeReceived
   const title = resolved
-    ? 'Your request has been completed'
+    ? copy.titleCompleted
     : acknowledgementNote
-      ? 'Your care team has acknowledged your request'
-      : 'Your request has been received'
+      ? copy.titleAcknowledged
+      : copy.titleReceived
   const body = resolved
     ? feedbackEnabled
-      ? 'Thank you for letting us help. If you have a moment, please rate the experience below.'
-      : 'Thank you for letting us help. If you need anything else, you can submit another request at any time.'
+      ? copy.bodyCompletedWithFeedback
+      : copy.bodyCompleted
     : acknowledgementNote
-      ? 'A nurse has seen this request and is on the way.'
-      : 'A nurse will be with you shortly. Please stay comfortable.'
+      ? copy.bodyAcknowledged
+      : copy.bodyReceived
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0f172a]/35 p-4 backdrop-blur-[2px]">
@@ -582,8 +623,8 @@ function RequestStatusModal({
             {canCancel && (
               <p className="mt-2 text-xs font-medium text-[#7A8DA3]">
                 {acknowledgementNote
-                  ? 'The care team has seen this request, and you can still cancel it if you no longer need help.'
-                  : 'You can cancel this request if you no longer need help.'}
+                  ? copy.cancelNoteAcknowledged
+                  : copy.cancelNoteReceived}
               </p>
             )}
           </div>
@@ -605,8 +646,8 @@ function RequestStatusModal({
             </span>
             <p className="text-sm font-medium text-[#166534]">
               {resolved
-                ? 'Your request has been marked complete by the care team.'
-                : 'We have received your request and alerted the care team.'}
+                ? copy.bannerCompleted
+                : copy.bannerReceived}
             </p>
           </div>
         </div>
@@ -619,8 +660,8 @@ function RequestStatusModal({
 
         {showFeedbackPrompt && (
           <div className="mb-5 rounded-2xl border border-[#D8E6F3] bg-[#F8FBFF] px-4 py-4">
-            <p className="text-sm font-semibold text-[#16324F]">How did we do?</p>
-            <p className="mt-1 text-xs text-[#6B7C93]">Tap a star to rate this request from 1 to 5.</p>
+            <p className="text-sm font-semibold text-[#16324F]">{copy.feedbackTitle}</p>
+            <p className="mt-1 text-xs text-[#6B7C93]">{copy.feedbackSub}</p>
             <div className="mt-4 grid grid-cols-5 gap-2">
               {[1, 2, 3, 4, 5].map((rating) => (
                 <button
@@ -634,13 +675,13 @@ function RequestStatusModal({
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-[11px] text-[#7A8DA3]">1 = Poor, 5 = Excellent</p>
+            <p className="mt-2 text-[11px] text-[#7A8DA3]">{copy.feedbackScale}</p>
           </div>
         )}
 
         {showFeedbackThanks && (
           <div className="mb-5 rounded-2xl border border-[#D1FAE5] bg-[#F0FDF4] px-4 py-3 text-sm text-[#166534]">
-            Thank you for the feedback. You rated this request {feedbackRating}/5.
+            {formatFeedbackThanks(language, feedbackRating)}
           </div>
         )}
 
@@ -658,7 +699,7 @@ function RequestStatusModal({
               disabled={canceling}
               className="w-full rounded-2xl px-4 py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-70"
               style={{ background: '#FEE2E2', color: '#B91C1C' }}>
-              {canceling ? 'Cancelling…' : 'Cancel request'}
+              {canceling ? `${copy.cancelRequest}...` : copy.cancelRequest}
             </button>
           )}
           <button
@@ -666,7 +707,7 @@ function RequestStatusModal({
             onClick={onDismiss}
             className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98]"
             style={{ background: '#1D6FA8' }}>
-            Dismiss
+            {copy.dismiss}
           </button>
         </div>
       </div>
@@ -697,24 +738,24 @@ function InfoCard({ title, value, icon }: { title: string; value: string; icon: 
   )
 }
 
-function LoadingScreen() {
+function LoadingScreen({ copy }: { copy: ReturnType<typeof getPatientCopy> }) {
   return (
     <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center">
       <div className="text-center">
         <div className="w-10 h-10 border-3 border-[#1D6FA8] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm text-[#9CA3AF]">Loading…</p>
+        <p className="text-sm text-[#9CA3AF]">{copy.loading}</p>
       </div>
     </div>
   )
 }
 
-function ErrorScreen() {
+function ErrorScreen({ copy }: { copy: ReturnType<typeof getPatientCopy> }) {
   return (
     <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center px-8">
       <div className="text-center">
         <p className="text-4xl mb-4">🔍</p>
-        <p className="font-bold text-[#1A1A2E] mb-1">Room not found</p>
-        <p className="text-sm text-[#9CA3AF]">Please scan the QR code at your bedside again or ask a staff member for help.</p>
+        <p className="font-bold text-[#1A1A2E] mb-1">{copy.roomNotFoundTitle}</p>
+        <p className="text-sm text-[#9CA3AF]">{copy.roomNotFoundBody}</p>
       </div>
     </div>
   )

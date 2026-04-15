@@ -41,8 +41,8 @@ After a request is resolved, the patient QR page can now show a brief 1–5 star
 **10. Services and Fun tabs (patient page)**
 Both tabs are currently "coming soon" placeholders. Services could list ward amenities (TV remote, phone charging, newspaper). Fun could link to entertainment or wifi details. These are easy wins for patient experience.
 
-**11. Multi-language support on patient page**
-The patient-facing QR page has no i18n. Hospitals serving non-English speakers need at minimum a language selector that switches the request labels.
+**11. ~~Multi-language support on patient page~~ ✅ DONE**
+The patient-facing QR page now includes a persistent language selector. The patient UI and request labels can switch between English, Spanish, French, and Haitian Creole without changing the underlying request type setup, so non-English-speaking patients can navigate the QR page more comfortably.
 
 ---
 
