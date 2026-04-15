@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body, #root {
+    height: 100%;
+    background-color: #F0F4F8;
+    color: #111827;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body { overscroll-behavior: none; }
+}
+
+/* ── Light mode ──────────────────────────────────────────────────────────────*/
+:root {
+  --clinical-blue:    #1D6FA8;
+  --clinical-blue-dk: #0D4A70;
+  --clinical-blue-lt: #EFF6FF;
+  --success:          #059669;
+  --success-lt:       #ECFDF5;
+  --warning:          #D97706;
+  --warning-lt:       #FFFBEB;
+  --danger:           #DC2626;
+  --danger-lt:        #FEF2F2;
+  --page-bg:          #F0F4F8;
+  --surface:          #FFFFFF;
+  --border:           #D1D9E0;
+  --border-strong:    #B0BBC8;
+  --text-primary:     #111827;
+  --text-secondary:   #4B5563;
+  --text-muted:       #8A97A8;
+}
+
+/* ── Dark mode ───────────────────────────────────────────────────────────────*/
+html.dark { color-scheme: dark; }
+
+html.dark body,
+html.dark #root {
+  background-color: #0D1117;
+  color: #E6EDF3;
+}
+
+html.dark {
+  --clinical-blue:    #4DA6E8;
+  --clinical-blue-dk: #2D8FD5;
+  --clinical-blue-lt: #0D2137;
+  --success:          #3FB950;
+  --success-lt:       #0D2818;
+  --warning:          #E3B341;
+  --warning-lt:       #2D1F00;
+  --danger:           #F85149;
+  --danger-lt:        #2D0F0F;
+  --page-bg:          #0D1117;
+  --surface:          #161B22;
+  --border:           #30363D;
+  --border-strong:    #484F58;
+  --text-primary:     #E6EDF3;
+  --text-secondary:   #8B949E;
+  --text-muted:       #6E7681;
+}
+
+/* Surfaces */
+html.dark .bg-white { background-color: #161B22 !important; }
+
+/* Inputs */
+html.dark input:not([disabled]),
+html.dark select:not([disabled]),
+html.dark textarea {
+  background-color: #0D1117 !important;
+  color: #E6EDF3 !important;
+  border-color: #30363D !important;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder { color: #484F58 !important; }
+
+/* Table rows */
+html.dark tbody tr:hover { background-color: #1C2128 !important; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D1D9E0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #B0BBC8; }
+html.dark ::-webkit-scrollbar-thumb { background: #30363D; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: #484F58; }
+
+/* Animations */
+@keyframes bounce-in {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-bounce-in { animation: bounce-in 0.32s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.animate-fade-in { animation: fade-in 0.18s ease forwards; }
+
+@keyframes slide-down {
+  from { transform: translateY(-6px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.animate-slide-down { animation: slide-down 0.2s ease forwards; }
+
+/* Print — always light */
+@media print { body { background: #fff !important; color: #000 !important; } }
