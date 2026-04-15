@@ -29,8 +29,8 @@ Two-layer deduplication: (1) Patient page — on load, fetches pending/acknowled
 
 ## Patient Experience
 
-**7. Real-time status visible to patient**
-After submitting a request via QR, the patient has no feedback that it was received, acknowledged, or resolved. The patient page already shows a status modal — it should stay open and update via Realtime subscription.
+**7. ~~Real-time status visible to patient~~ ✅ DONE**
+`ActiveRequest` extended with `id` and `status` fields. Insert now uses `.select('id').single()` to capture the row ID. The existing room-level realtime subscription (from gap #6) now also updates `activeRequest.status` — pending/acknowledged rows are matched by ID; absence from the result means resolved. Static modal replaced with `RequestStatusModal`: three visual states (blue spinner "Received" → amber nurse-icon "On the way" → green checkmark "Completed") with a 3-step progress track across the top. Patient sees live status transitions without page refresh.
 
 **8. Request cancellation by patient**
 A patient cannot cancel a request they submitted (e.g. they got up themselves). A cancel button on the active-request modal would reduce noise in the nurse queue.

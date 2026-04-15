@@ -15,9 +15,11 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
 ]
 
 interface ActiveRequest {
-  type:  string
-  label: string
-  time:  Date
+  id:     string
+  type:   string
+  label:  string
+  time:   Date
+  status: 'pending' | 'acknowledged' | 'resolved'
 }
 
 export default function PatientPage() {
@@ -41,10 +43,21 @@ export default function PatientPage() {
     const loadActiveTypes = async () => {
       const { data } = await supabase
         .from('requests')
-        .select('type')
+        .select('id, type, status')
         .eq('room_id', room.id)
         .in('status', ['pending', 'acknowledged'])
-      setActiveTypeSet(new Set((data ?? []).map((r: { type: string }) => r.type)))
+
+      const rows = (data ?? []) as { id: string; type: string; status: string }[]
+      setActiveTypeSet(new Set(rows.map(r => r.type)))
+
+      // Keep active request status in sync with DB
+      setActiveRequest(prev => {
+        if (!prev) return prev
+        const match = rows.find(r => r.id === prev.id)
+        // If not found in pending/acknowledged → it's been resolved
+        const live = (match?.status ?? 'resolved') as ActiveRequest['status']
+        return live !== prev.status ? { ...prev, status: live } : prev
+      })
     }
 
     loadActiveTypes()
@@ -73,24 +86,23 @@ export default function PatientPage() {
     return () => clearInterval(interval)
   }, [activeRequest])
 
-  const submitRequest = async (id: string, label: string, urgent: boolean) => {
-    if (!room || submitting || activeTypeSet.has(id)) return
+  const submitRequest = async (typeId: string, label: string, urgent: boolean) => {
+    if (!room || submitting || activeTypeSet.has(typeId)) return
     setSubmitting(true)
     setSubmitError(null)
-    const { error } = await supabase.from('requests').insert({
+    const { data, error } = await supabase.from('requests').insert({
       room_id:   room.id,
-      type:      id,
+      type:      typeId,
       is_urgent: urgent,
       status:    'pending',
-    })
+    }).select('id').single()
     if (error) {
       setSubmitError(error.message)
       setSubmitting(false)
       return
     }
-    // Optimistically mark this type as active so the button disables immediately
-    setActiveTypeSet(prev => new Set(prev).add(id))
-    setActiveRequest({ type: id, label, time: new Date() })
+    setActiveTypeSet(prev => new Set(prev).add(typeId))
+    setActiveRequest({ id: data.id, type: typeId, label, time: new Date(), status: 'pending' })
     setSubmitting(false)
   }
 
@@ -98,19 +110,19 @@ export default function PatientPage() {
     if (!room || callPressed || activeTypeSet.has('nurse')) return
     setCallPressed(true)
     setSubmitError(null)
-    const { error } = await supabase.from('requests').insert({
+    const { data, error } = await supabase.from('requests').insert({
       room_id:   room.id,
       type:      'nurse',
       is_urgent: true,
       status:    'pending',
-    })
+    }).select('id').single()
     if (error) {
       setSubmitError(error.message)
       setCallPressed(false)
       return
     }
     setActiveTypeSet(prev => new Set(prev).add('nurse'))
-    setActiveRequest({ type: 'nurse', label: 'Call Nurse', time: new Date() })
+    setActiveRequest({ id: data.id, type: 'nurse', label: 'Call Nurse', time: new Date(), status: 'pending' })
   }
 
   const dismiss = () => {
@@ -321,51 +333,161 @@ export default function PatientPage() {
         </div>
 
         {activeRequest && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0f172a]/35 p-4 backdrop-blur-[2px]">
-            <div
-              className="w-full max-w-md rounded-[28px] border border-[#D8E6F3] p-5 shadow-2xl md:p-6"
-              style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #EEF7FF 100%)' }}>
-              <div className="mb-4 flex items-start gap-3">
-                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border border-[#CFE0F0]">
-                  <div className="w-full h-full bg-[#DDEEFF] flex items-center justify-center">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#1D6FA8">
-                      <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <div className="mb-1 flex items-center gap-2">
-                    <span className="rounded-full bg-[#DCEEFF] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#1D6FA8]">
-                      Active Request
-                    </span>
-                    <span className="text-xs text-[#6B7C93]">Just now</span>
-                  </div>
-                  <p className="text-base font-bold leading-tight text-[#16324F] md:text-lg">
-                    Your care team has been notified.
-                  </p>
-                  <p className="mt-1 text-sm leading-relaxed text-[#4C6178]">
-                    Requested: <span className="font-semibold text-[#16324F]">{activeRequest.label}</span>.
-                    Estimated arrival: <span className="font-semibold text-[#16324F]">2–4 mins</span>.
-                  </p>
-                </div>
-                <button onClick={dismiss} className="mt-0.5 text-[#7A8DA3] transition-colors hover:text-[#16324F]">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </div>
+          <RequestStatusModal
+            request={activeRequest}
+            progress={progress}
+            onDismiss={dismiss}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
 
-              <div className="mb-5 w-full overflow-hidden rounded-full bg-[#D8E6F3]">
-                <div className="h-1.5 rounded-full bg-[#1D6FA8] transition-all duration-300"
-                  style={{ width: `${progress}%` }} />
-              </div>
+// ── Request status modal ──────────────────────────────────────────────────────
+// Shows live status of the patient's most recent request.
+// Status transitions: pending → acknowledged → resolved
+function RequestStatusModal({
+  request,
+  progress,
+  onDismiss,
+}: {
+  request: ActiveRequest
+  progress: number
+  onDismiss: () => void
+}) {
+  const { status, label } = request
 
-              <button
-                onClick={dismiss}
-                className="w-full rounded-2xl bg-[#1D6FA8] px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98]">
-                Okay
-              </button>
+  const cfg = {
+    pending: {
+      bg:        'linear-gradient(180deg, #FFFFFF 0%, #EEF7FF 100%)',
+      border:    '#D8E6F3',
+      iconBg:    '#DDEEFF',
+      iconColor: '#1D6FA8',
+      badge:     { bg: '#DCEEFF', text: '#1D6FA8', label: 'Waiting' },
+      heading:   'Your request has been received',
+      body:      'A nurse will be with you shortly. Please stay comfortable.',
+      btnBg:     '#1D6FA8',
+      showBar:   true,
+    },
+    acknowledged: {
+      bg:        'linear-gradient(180deg, #FFFFFF 0%, #FFFBEB 100%)',
+      border:    '#FDE68A',
+      iconBg:    '#FEF3C7',
+      iconColor: '#D97706',
+      badge:     { bg: '#FEF3C7', text: '#92400E', label: 'On the way' },
+      heading:   'A nurse is on their way',
+      body:      'Your request has been acknowledged. Help is coming to your bay.',
+      btnBg:     '#D97706',
+      showBar:   false,
+    },
+    resolved: {
+      bg:        'linear-gradient(180deg, #FFFFFF 0%, #F0FDF4 100%)',
+      border:    '#BBF7D0',
+      iconBg:    '#D1FAE5',
+      iconColor: '#059669',
+      badge:     { bg: '#D1FAE5', text: '#065F46', label: 'Completed' },
+      heading:   'Request completed — thank you!',
+      body:      'Your nurse has attended to your request. Tap Close if you need anything else.',
+      btnBg:     '#059669',
+      showBar:   false,
+    },
+  }[status]
+
+  return (
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0f172a]/35 p-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-md rounded-[28px] border p-5 shadow-2xl md:p-6 transition-all"
+        style={{ background: cfg.bg, borderColor: cfg.border }}>
+
+        {/* Icon + text */}
+        <div className="mb-4 flex items-start gap-3">
+          <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center"
+            style={{ background: cfg.iconBg }}>
+            {status === 'pending' && (
+              // Spinner
+              <svg className="animate-spin" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke={cfg.iconColor} strokeWidth="2.5" strokeLinecap="round">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+            )}
+            {status === 'acknowledged' && (
+              // Walking person / nurse
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={cfg.iconColor}
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="5" r="2"/>
+                <path d="M12 7l-3 5h6l-3-5z"/>
+                <path d="M9 12l-2 6m8-6l2 6"/>
+                <path d="M9 18l1-3m5-1l-1 4"/>
+              </svg>
+            )}
+            {status === 'resolved' && (
+              // Checkmark
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={cfg.iconColor}
+                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            )}
+          </div>
+
+          <div className="flex-1">
+            <div className="mb-1 flex items-center gap-2 flex-wrap">
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                style={{ background: cfg.badge.bg, color: cfg.badge.text }}>
+                {cfg.badge.label}
+              </span>
+              <span className="text-xs text-[#6B7C93]">{label}</span>
             </div>
+            <p className="text-base font-bold leading-tight text-[#16324F] md:text-lg">
+              {cfg.heading}
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-[#4C6178]">
+              {cfg.body}
+            </p>
+          </div>
+
+          <button onClick={onDismiss} className="mt-0.5 text-[#7A8DA3] transition-colors hover:text-[#16324F]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Status step track */}
+        <div className="mb-5 flex items-center gap-2">
+          {(['pending', 'acknowledged', 'resolved'] as const).map((s, i) => {
+            const done    = ['pending', 'acknowledged', 'resolved'].indexOf(status) >= i
+            const current = status === s
+            const labels  = ['Received', 'Acknowledged', 'Resolved']
+            return (
+              <div key={s} className="flex-1 flex flex-col items-center gap-1">
+                <div className={`w-full h-1.5 rounded-full transition-all duration-500 ${
+                  done ? 'opacity-100' : 'opacity-20'
+                }`}
+                  style={{ background: current ? cfg.iconColor : done ? cfg.iconColor : '#CBD5E1' }} />
+                <span className="text-[10px] font-semibold"
+                  style={{ color: done ? cfg.iconColor : '#94A3B8' }}>
+                  {labels[i]}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Pending: animated progress bar */}
+        {cfg.showBar && (
+          <div className="mb-5 w-full overflow-hidden rounded-full bg-[#D8E6F3]">
+            <div className="h-1.5 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%`, background: cfg.iconColor }} />
           </div>
         )}
+
+        <button
+          onClick={onDismiss}
+          className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98]"
+          style={{ background: cfg.btnBg }}>
+          {status === 'resolved' ? 'Close' : 'Dismiss'}
+        </button>
       </div>
     </div>
   )
