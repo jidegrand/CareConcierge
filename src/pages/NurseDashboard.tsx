@@ -3,6 +3,8 @@ import NurseShell from '@/components/NurseShell'
 import { useRequests } from '@/hooks/useRequests'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
 import { useTenantContext } from '@/hooks/useTenantContext'
+import { usePrefs } from '@/hooks/usePrefs'
+import { useOverdueAlerts } from '@/hooks/useOverdueAlerts'
 import { timeAgo } from '@/lib/constants'
 import { supabase } from '@/lib/supabase'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
@@ -92,6 +94,13 @@ export default function NurseDashboard() {
   } = useRequests(unitId, tenantId)
 
   const shiftManager = useShiftManager(unitId, tenantId)
+  const prefs = usePrefs()
+  const overdueIds = useOverdueAlerts(
+    requests,
+    prefs.overdueThreshold,
+    soundEnabled,
+    prefs.urgentSoundOnly,
+  )
   const [tab, setTab] = useState<Tab>('all')
 
   const pending      = requests.filter(r => r.status === 'pending')
@@ -114,20 +123,16 @@ export default function NurseDashboard() {
       onSoundToggle={() => setSoundEnabled(!soundEnabled)} unitName={unitName}>
       <style>{`
         @keyframes criticalDotBlink {
-          0%, 100% {
-            opacity: 1;
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.35);
-          }
-          50% {
-            opacity: 0.35;
-            transform: scale(0.72);
-            box-shadow: 0 0 0 5px rgba(220, 38, 38, 0);
-          }
+          0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(220,38,38,0.35); }
+          50%       { opacity: 0.35; transform: scale(0.72); box-shadow: 0 0 0 5px rgba(220,38,38,0); }
         }
-        .critical-dot-blink {
-          animation: criticalDotBlink 1s ease-in-out infinite;
+        .critical-dot-blink { animation: criticalDotBlink 1s ease-in-out infinite; }
+
+        @keyframes overduePulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(234,88,12,0.4); }
+          50%       { box-shadow: 0 0 0 6px rgba(234,88,12,0); }
         }
+        .overdue-pulse { animation: overduePulse 1.6s ease-in-out infinite; }
       `}</style>
 
       <div className="flex h-full">
@@ -170,6 +175,8 @@ export default function NurseDashboard() {
                     {pending.map(r => (
                       <PendingCard key={r.id} request={r}
                         typeMap={requestTypeMap}
+                        isOverdue={overdueIds.has(r.id)}
+                        responseTargetSec={prefs.responseTarget * 60}
                         onAcknowledge={() => updateStatus(r.id, 'acknowledged')} />
                     ))}
                   </div>
@@ -184,6 +191,7 @@ export default function NurseDashboard() {
                     {acknowledged.map(r => (
                       <InProgressCard key={r.id} request={r}
                         typeMap={requestTypeMap}
+                        overdueThresholdSec={prefs.overdueThreshold * 60 * 2}
                         onResolve={() => updateStatus(r.id, 'resolved')} />
                     ))}
                   </div>
@@ -379,43 +387,75 @@ function SectionLabel({ color, label, count }: { color: string; label: string; c
 }
 
 /* ── Pending card ───────────────────────────────────────────────────────────── */
+// Visual escalation levels:
+//   normal      → plain red left border
+//   approaching → amber tint + "Waiting" badge  (age ≥ responseTarget)
+//   overdue     → pulsing orange border + "Overdue" badge  (age ≥ overdueThreshold)
+//   urgent      → always "Critical" dot regardless of age
 function PendingCard({
   request,
   typeMap,
+  isOverdue,
+  responseTargetSec,
   onAcknowledge,
 }: {
   request: Request
   typeMap: Record<string, RequestTypeConfig>
+  isOverdue: boolean
+  responseTargetSec: number
   onAcknowledge: () => void
 }) {
   const config     = typeMap[request.type]
   const ageSeconds = (Date.now() - new Date(request.created_at).getTime()) / 1000
-  const isCritical = request.is_urgent || ageSeconds > 300
+  const isApproaching = !isOverdue && ageSeconds >= responseTargetSec
   const bayLabel   = request.room?.name?.toUpperCase() ?? 'BAY —'
 
+  // Determine border/background based on severity
+  const cardStyle = isOverdue
+    ? { background: '#FFF7ED', borderColor: '#FED7AA', borderLeft: '4px solid #EA580C' }
+    : isApproaching
+      ? { background: '#FFFBEB', borderColor: '#FDE68A', borderLeft: '4px solid #D97706' }
+      : { background: STATUS_COLORS.pending.bg, borderColor: STATUS_COLORS.pending.border, borderLeft: `4px solid ${STATUS_COLORS.pending.accent}` }
+
+  const btnColor = isOverdue ? '#EA580C' : isApproaching ? '#D97706' : STATUS_COLORS.pending.accent
+
   return (
-    <div className="rounded-2xl border flex flex-col"
-      style={{
-        background: STATUS_COLORS.pending.bg,
-        borderColor: STATUS_COLORS.pending.border,
-        borderLeft: `4px solid ${STATUS_COLORS.pending.accent}`,
-      }}>
+    <div className={`rounded-2xl border flex flex-col ${isOverdue ? 'overdue-pulse' : ''}`}
+      style={cardStyle}>
       <div className="px-4 py-4 flex-1">
         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
             style={{ background: '#DBEAFE', color: '#1D4ED8' }}>
             {bayLabel}
           </span>
-          {isCritical && (
+
+          {/* Overdue badge — highest priority */}
+          {isOverdue && (
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+              style={{ background: '#FED7AA', color: '#9A3412' }}>
+              <span className="critical-dot-blink h-2 w-2 rounded-full" style={{ background: '#EA580C' }} />
+              Overdue
+            </span>
+          )}
+
+          {/* Approaching badge */}
+          {isApproaching && !isOverdue && (
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+              style={{ background: '#FEF3C7', color: '#92400E' }}>
+              Waiting
+            </span>
+          )}
+
+          {/* Urgent / critical badge */}
+          {request.is_urgent && !isOverdue && (
             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
               style={{ background: STATUS_COLORS.pending.soft, color: STATUS_COLORS.pending.accent }}>
-              {request.is_urgent && (
-                <span className="critical-dot-blink h-2 w-2 rounded-full" style={{ background: STATUS_COLORS.pending.accent }} />
-              )}
-              Critical
+              <span className="critical-dot-blink h-2 w-2 rounded-full" style={{ background: STATUS_COLORS.pending.accent }} />
+              Urgent
             </span>
           )}
         </div>
+
         <p className="text-sm font-bold mb-1.5" style={{ color: '#111827' }}>
           {config?.label ?? request.type}
         </p>
@@ -429,7 +469,7 @@ function PendingCard({
       <div className="px-4 pb-3">
         <button onClick={onAcknowledge}
           className="w-full py-2 rounded-xl text-white text-xs font-bold transition-colors"
-          style={{ background: STATUS_COLORS.pending.accent }}>
+          style={{ background: btnColor }}>
           Acknowledge
         </button>
       </div>
@@ -438,44 +478,68 @@ function PendingCard({
 }
 
 /* ── In Progress card ───────────────────────────────────────────────────────── */
+// Visual escalation:
+//   normal   → blue border + "In Progress" badge
+//   long wait → amber tint + pulsing "Long Wait" badge  (elapsed ≥ overdueThresholdSec)
 function InProgressCard({
   request,
   typeMap,
+  overdueThresholdSec,
   onResolve,
 }: {
   request: Request
   typeMap: Record<string, RequestTypeConfig>
+  overdueThresholdSec: number
   onResolve: () => void
 }) {
   const config   = typeMap[request.type]
-  const elapsed  = Math.floor((Date.now() - new Date(request.created_at).getTime()) / 60000)
   const bayLabel = request.room?.name?.toUpperCase() ?? 'BAY —'
 
+  // Measure elapsed from acknowledged_at if available, otherwise created_at
+  const startMs    = new Date(request.acknowledged_at ?? request.created_at).getTime()
+  const elapsedSec = (Date.now() - startMs) / 1000
+  const elapsedMin = Math.floor(elapsedSec / 60)
+  const isLongWait = elapsedSec >= overdueThresholdSec
+
+  const cardStyle = isLongWait
+    ? { background: '#FFFBEB', borderColor: '#FDE68A', borderLeft: '4px solid #D97706' }
+    : { background: STATUS_COLORS.inProgress.bg, borderColor: STATUS_COLORS.inProgress.border, borderLeft: `4px solid ${STATUS_COLORS.inProgress.accent}` }
+
   return (
-    <div className="rounded-2xl border flex flex-col"
-      style={{
-        background: STATUS_COLORS.inProgress.bg,
-        borderColor: STATUS_COLORS.inProgress.border,
-        borderLeft: `4px solid ${STATUS_COLORS.inProgress.accent}`,
-      }}>
+    <div className={`rounded-2xl border flex flex-col ${isLongWait ? 'overdue-pulse' : ''}`}
+      style={cardStyle}>
       <div className="px-4 py-4 flex-1">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
             style={{ background: '#DBEAFE', color: '#1D4ED8' }}>
             {bayLabel}
           </span>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
-            style={{ background: '#FACC15', color: '#111827' }}>
-            In Progress
-          </span>
+          {isLongWait ? (
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+              style={{ background: '#FEF3C7', color: '#92400E' }}>
+              <span className="critical-dot-blink h-2 w-2 rounded-full" style={{ background: '#D97706' }} />
+              Long Wait
+            </span>
+          ) : (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+              style={{ background: '#FACC15', color: '#111827' }}>
+              In Progress
+            </span>
+          )}
         </div>
         <p className="text-sm font-bold mb-1.5" style={{ color: '#111827' }}>
           {config?.label ?? request.type}
         </p>
-        <p className="text-xs" style={{ color: STATUS_COLORS.inProgress.text }}>{elapsed}m elapsed</p>
+        <p className="flex items-center gap-1 text-xs" style={{ color: isLongWait ? '#D97706' : STATUS_COLORS.inProgress.text }}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          {elapsedMin}m active
+        </p>
       </div>
       <div className="px-4 pb-3 flex justify-end">
-        <button onClick={onResolve} className="text-xs font-bold" style={{ color: STATUS_COLORS.inProgress.text }}>
+        <button onClick={onResolve} className="text-xs font-bold transition-colors"
+          style={{ color: isLongWait ? '#D97706' : STATUS_COLORS.inProgress.text }}>
           Resolve
         </button>
       </div>

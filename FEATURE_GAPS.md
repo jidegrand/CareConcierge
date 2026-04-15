@@ -10,8 +10,8 @@
 **1. ~~`acknowledged_by` column is missing~~ ✅ DONE**
 Added `acknowledged_by uuid` column to `requests` (migration 012) with FK to `user_profiles`. `useRequests` now writes `acknowledged_by = currentUser.id` on acknowledge and joins the acknowledger profile. `useFeed` populates `actorName` on acknowledged and resolved feed events so the Feed page shows "by Nurse Jane". `useStaffing` tracks `acknowledgedToday` and `avgAckSec` per staff member alongside resolved workload.
 
-**2. Request escalation / overdue alerts**
-The settings page lets users configure an "overdue threshold" but nothing actually fires when it is breached. Requests that sit unacknowledged past the threshold should visually escalate (color shift, pulse) and ideally trigger a push/sound alert to shift managers.
+**2. ~~Request escalation / overdue alerts~~ ✅ DONE**
+Added `usePrefs` hook (shared localStorage-backed prefs, reactive across components). Added `useOverdueAlerts` hook that synchronously derives a `Set<string>` of overdue IDs for rendering and fires sound/browser-notification alerts the first time each request crosses the configured `overdueThreshold`. `PendingCard` now has three visual escalation states: normal (red) → approaching (amber "Waiting" badge at `responseTarget`) → overdue (pulsing orange border + "Overdue" badge). `InProgressCard` now shows a pulsing "Long Wait" badge when a request has been active longer than `overdueThreshold × 2`. `SettingsPage` updated to import from the shared `usePrefs` module.
 
 **3. Request reassignment**
 Once a nurse acknowledges a request there is no way to hand it off. A "Reassign to…" action would allow charge nurses to redistribute load mid-shift.

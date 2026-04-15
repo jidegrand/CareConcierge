@@ -25,31 +25,7 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 // ── Persistence helpers ───────────────────────────────────────────────────────
-const PREFS_KEY = 'bayrequest_prefs'
-interface Prefs {
-  soundEnabled:     boolean
-  urgentSoundOnly:  boolean
-  browserPush:      boolean
-  overdueThreshold: number   // minutes
-  responseTarget:   number   // minutes
-  timezone:         string
-  compactView:      boolean
-  autoRefreshSec:   number
-}
-const DEFAULT_PREFS: Prefs = {
-  soundEnabled: true, urgentSoundOnly: false, browserPush: false,
-  overdueThreshold: 5, responseTarget: 3, timezone: 'America/Toronto',
-  compactView: false, autoRefreshSec: 30,
-}
-function loadPrefs(): Prefs {
-  try {
-    const raw = localStorage.getItem(PREFS_KEY)
-    return raw ? { ...DEFAULT_PREFS, ...JSON.parse(raw) } : DEFAULT_PREFS
-  } catch { return DEFAULT_PREFS }
-}
-function savePrefs(p: Prefs) {
-  localStorage.setItem(PREFS_KEY, JSON.stringify(p))
-}
+import { loadPrefs, savePrefs, type Prefs } from '@/hooks/usePrefs'
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
