@@ -3,6 +3,8 @@ import NurseShell from '@/components/NurseShell'
 import { useStaffing, type StaffMember, type StaffRole } from '@/hooks/useStaffing'
 import { useRequests } from '@/hooks/useRequests'
 import { useTenantContext } from '@/hooks/useTenantContext'
+import { useAuth } from '@/hooks/useAuth'
+import { can } from '@/lib/roles'
 
 // ── Role config ───────────────────────────────────────────────────────────────
 const ROLE_CFG: Record<string, { label: string; bg: string; text: string }> = {
@@ -62,6 +64,7 @@ function WorkloadBar({ value, max, color }: { value: number; max: number; color:
 type ViewMode = 'roster' | 'workload'
 
 export default function StaffingPage() {
+  const { profile } = useAuth()
   const { tenantId, tenantName, unitId } = useTenantContext()
 
   const { requests, stats, connected, soundEnabled, setSoundEnabled } = useRequests(unitId, tenantId)
@@ -79,6 +82,26 @@ export default function StaffingPage() {
   )
 
   const roles = Array.from(new Set(staff.map(s => s.role))) as StaffRole[]
+
+  if (!can(profile?.role, 'page.staffing')) {
+    return (
+      <NurseShell stats={stats} connected={connected}
+        soundEnabled={soundEnabled} onSoundToggle={() => setSoundEnabled(!soundEnabled)}
+        unitName={unitName}>
+        <div className="flex items-center justify-center h-full px-6">
+          <div className="text-center max-w-sm">
+            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <p className="font-semibold text-[var(--text-primary)] mb-1">Access restricted</p>
+            <p className="text-sm text-[var(--text-muted)]">Staffing requires a nurse-level role or above.</p>
+          </div>
+        </div>
+      </NurseShell>
+    )
+  }
 
   if (!tenantId) {
     return (

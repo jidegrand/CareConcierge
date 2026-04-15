@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useUsers, useSites } from '@/hooks/useAdminData'
 import type { UserWithMeta, PendingInvite } from '@/hooks/useAdminData'
+import { useAuth } from '@/hooks/useAuth'
 import { ROLE_CFG } from '@/lib/roles'
 
-const ROLES = [
+const ALL_ROLES = [
   'tenant_admin',
   'site_manager',
   'nurse_manager',
@@ -12,7 +13,7 @@ const ROLES = [
   'volunteer',
   'viewer',
 ] as const
-type Role = typeof ROLES[number]
+type Role = typeof ALL_ROLES[number]
 
 const ROLE_LABELS: Record<string, string> = Object.fromEntries(
   Object.entries(ROLE_CFG).map(([k, v]) => [k, v.label])
@@ -25,8 +26,13 @@ const ROLE_COLORS: Record<string, { bg: string; text: string }> = Object.fromEnt
 interface Props { tenantId: string }
 
 export default function UsersPanel({ tenantId }: Props) {
+  const { profile: callerProfile } = useAuth()
   const { users, pendingInvites, loading, inviteUser, cancelInvite, updateRole, removeUser } = useUsers(tenantId)
   const { sites } = useSites(tenantId)
+
+  // Only show roles the caller can assign — prevent rank escalation
+  const callerRank = ROLE_CFG[callerProfile?.role as Role]?.rank ?? 99
+  const ROLES = ALL_ROLES.filter(r => (ROLE_CFG[r]?.rank ?? 99) >= callerRank)
 
   const [showInvite,  setShowInvite]  = useState(false)
   const [editUser,    setEditUser]    = useState<UserWithMeta | null>(null)

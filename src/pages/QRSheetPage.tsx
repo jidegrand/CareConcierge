@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import QRCode from 'qrcode'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
+import { useTenantContext } from '@/hooks/useTenantContext'
+import { can } from '@/lib/roles'
 import type { Room, Unit, Site } from '@/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -25,6 +28,10 @@ async function generateQRDataUrl(url: string): Promise<string> {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function QRSheetPage() {
+  const { profile } = useAuth()
+  const { tenantId } = useTenantContext()
+  const role = profile?.role
+
   const [units, setUnits] = useState<(Unit & { site: Site })[]>([])
   const [config, setConfig] = useState<SheetConfig>({
     unitId: '',
@@ -35,15 +42,34 @@ export default function QRSheetPage() {
   const [unitMeta, setUnitMeta] = useState<(Unit & { site: Site & { tenant: { name: string } } }) | null>(null)
   const printRef = useRef<HTMLDivElement>(null)
 
-  // Load units for selector
+  // Load units scoped to the current user's tenant
   useEffect(() => {
+    if (!tenantId) return
     supabase
       .from('units')
-      .select('*, site:sites(*, tenant:tenants(name))')
+      .select('*, site:sites!inner(*, tenant:tenants(name))')
+      .eq('sites.tenant_id', tenantId)
       .then(({ data }) => {
         if (data) setUnits(data as (Unit & { site: Site })[])
       })
-  }, [])
+  }, [tenantId])
+
+  // Role guard — must have page.qrsheet permission
+  if (!can(role, 'page.qrsheet')) {
+    return (
+      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <div className="w-14 h-14 rounded-full bg-red-900/40 flex items-center justify-center mx-auto mb-4">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <p className="font-semibold text-white mb-1">Access restricted</p>
+          <p className="text-sm text-gray-500">QR sheet generation requires a charge nurse or manager-level role.</p>
+        </div>
+      </div>
+    )
+  }
 
   const generate = async () => {
     if (!config.unitId) return

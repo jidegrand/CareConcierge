@@ -12,12 +12,12 @@ import { useAdminStats } from '@/hooks/useAdminData'
 import { canAny } from '@/lib/roles'
 
 type Tab = 'overview' | 'sites' | 'requests' | 'users' | 'qr'
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'sites',    label: 'Sites & Rooms' },
-  { id: 'requests', label: 'Common Requests' },
-  { id: 'users',    label: 'Users' },
-  { id: 'qr',       label: 'QR Codes' },
+const ALL_TABS: { id: Tab; label: string; perm?: 'admin.users' | 'admin.users.own_unit' }[] = [
+  { id: 'overview',  label: 'Overview' },
+  { id: 'sites',     label: 'Sites & Rooms' },
+  { id: 'requests',  label: 'Common Requests' },
+  { id: 'users',     label: 'Users',     perm: 'admin.users.own_unit' },
+  { id: 'qr',        label: 'QR Codes' },
 ]
 
 export default function AdminPage() {
@@ -35,6 +35,7 @@ export default function AdminPage() {
 
   const role     = profile?.role ?? 'nurse'
   const canAdmin = canAny(role, 'page.admin')
+  const TABS = ALL_TABS.filter(t => !t.perm || canAny(role, t.perm))
 
   if (!canAdmin) {
     return (
