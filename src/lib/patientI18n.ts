@@ -1,4 +1,4 @@
-export type PatientLanguage = 'en' | 'es' | 'fr' | 'ht' | 'zh' | 'pa' | 'yue' | 'ar' | 'tl'
+export type PatientLanguage = 'en' | 'es' | 'fr' | 'zh' | 'pa' | 'yue' | 'ar' | 'tl'
 
 export const PATIENT_LANGUAGE_STORAGE_KEY = 'patient-language'
 
@@ -6,7 +6,6 @@ export const PATIENT_LANGUAGE_OPTIONS: Array<{ value: PatientLanguage; label: st
   { value: 'en', label: 'English' },
   { value: 'es', label: 'Espanol' },
   { value: 'fr', label: 'Francais' },
-  { value: 'ht', label: 'Kreyol Ayisyen' },
   { value: 'zh', label: 'Mandarin' },
   { value: 'pa', label: 'Punjabi' },
   { value: 'yue', label: 'Cantonese' },
@@ -47,17 +46,6 @@ const REQUEST_LABELS = {
     food: 'Repas / collation',
     temperature: 'Trop chaud / froid',
     family: 'Aide pour contacter la famille',
-  },
-  ht: {
-    water: 'Dlo',
-    blanket: 'Dra',
-    pain: 'Doule / mal alese',
-    medication: 'Medikaman',
-    bathroom: 'Ed pou ale twalet',
-    nurse: 'Rele enfimye',
-    food: 'Manje / ti goute',
-    temperature: 'Twop cho / twop fret',
-    family: 'Ed pou kontakte fanmi',
   },
   zh: {
     water: '水',
@@ -274,53 +262,6 @@ const PATIENT_COPY = {
     feedbackScale: '1 = Mauvais, 5 = Excellent',
     cancelRequest: 'Annuler la demande',
     dismiss: 'Fermer',
-  },
-  ht: {
-    language: 'Lang',
-    requestsTab: 'DEMANN',
-    servicesTab: 'SEVIS',
-    funTab: 'DETANT',
-    infoTab: 'ENFO',
-    callNurseTitle: 'Rele enfimye',
-    callNurseSub: 'Pou asistans ijan oswa soulajman doulè',
-    nurseNotified: 'Yo avize enfimye a',
-    notifying: 'Y ap voye avi...',
-    pressNow: 'Peze kounye a',
-    commonRequests: 'Demann komen',
-    tapToSend: 'PEZE POU VOYE',
-    requestSent: 'Demann voye',
-    servicesTitle: 'Sevis',
-    servicesSub: 'Sevis lopital ak keksoz itil yo ap vini byento.',
-    funTitle: 'Detant',
-    funSub: 'Jwet, mizik, ak keksoz pou detann ap vini byento.',
-    yourBay: 'Espas ou',
-    unit: 'Inite',
-    site: 'Sant',
-    about: 'Konsenan',
-    aboutBody: 'Sevi ak onglet Demann nan pou voye yon mesaj bay ekip swen ou. Si gen ijans, peze bouton wouj Rele enfimye a oswa bouton fizik ki toupre kabann ou.',
-    loading: 'Ap chaje...',
-    roomNotFoundTitle: 'Yo pa jwenn chanm nan',
-    roomNotFoundBody: 'Tanpri eskane kod QR ki bo kabann ou anko oswa mande yon manm pesonel la pou ed.',
-    requestGeneric: 'Demann',
-    badgeCompleted: 'Fini',
-    badgeOnTheWay: 'Sou wout',
-    badgeReceived: 'Resevwa',
-    titleCompleted: 'Demann ou a fini',
-    titleAcknowledged: 'Ekip swen an rekonet demann ou an',
-    titleReceived: 'Yo resevwa demann ou an',
-    bodyCompletedWithFeedback: 'Mesi paske ou kite nou ede ou. Si ou gen yon ti moman, tanpri bay eksperyans lan yon not anba a.',
-    bodyCompleted: 'Mesi paske ou kite nou ede ou. Si ou bezwen lot bagay, ou ka voye yon lot demann nenpot le.',
-    bodyAcknowledged: 'Yon enfimye we demann sa a epi li sou wout la.',
-    bodyReceived: 'Yon enfimye pral vini jwenn ou tale. Tanpri rete alez.',
-    cancelNoteAcknowledged: 'Ekip swen an deja we demann sa a, epi ou ka toujou anile li si ou pa bezwen ed anko.',
-    cancelNoteReceived: 'Ou ka anile demann sa a si ou pa bezwen ed anko.',
-    bannerCompleted: 'Ekip swen an make demann ou an kom fini.',
-    bannerReceived: 'Nou resevwa demann ou an epi nou avize ekip swen an.',
-    feedbackTitle: 'Kijan nou te fe?',
-    feedbackSub: 'Peze yon zetwal pou bay demann sa a yon not soti 1 rive 5.',
-    feedbackScale: '1 = Pa bon, 5 = Ekselan',
-    cancelRequest: 'Anile demann',
-    dismiss: 'Femen',
   },
   zh: {
     language: '语言',
@@ -582,8 +523,7 @@ const detectLanguage = () => {
     if (candidate.startsWith('yue')) return 'yue'
     if (candidate.startsWith('zh-hk') || candidate.startsWith('zh-mo') || candidate.startsWith('zh-tw')) return 'yue'
     if (candidate.startsWith('zh')) return 'zh'
-    if (candidate === 'ht' || candidate.startsWith('ht-')) return 'ht'
-    if (candidate.startsWith('fr')) return candidate.includes('-ht') ? 'ht' : 'fr'
+    if (candidate.startsWith('fr')) return 'fr'
   }
 
   return 'en'
@@ -593,7 +533,7 @@ export const getInitialPatientLanguage = (): PatientLanguage => {
   if (typeof window === 'undefined') return 'en'
 
   const stored = window.localStorage.getItem(PATIENT_LANGUAGE_STORAGE_KEY)
-  if (stored === 'en' || stored === 'es' || stored === 'fr' || stored === 'ht' || stored === 'zh' || stored === 'pa' || stored === 'yue' || stored === 'ar' || stored === 'tl') return stored
+  if (stored === 'en' || stored === 'es' || stored === 'fr' || stored === 'zh' || stored === 'pa' || stored === 'yue' || stored === 'ar' || stored === 'tl') return stored
   return detectLanguage()
 }
 
@@ -620,8 +560,6 @@ export const formatFeedbackThanks = (language: PatientLanguage, rating: number) 
       return `Gracias por sus comentarios. Califico esta solicitud con ${rating}/5.`
     case 'fr':
       return `Merci pour votre avis. Vous avez note cette demande ${rating}/5.`
-    case 'ht':
-      return `Mesi pou opinyon ou. Ou bay demann sa a not ${rating}/5.`
     case 'zh':
       return `感谢您的反馈。您为这次请求打了 ${rating}/5 分。`
     case 'pa':
