@@ -76,7 +76,8 @@ export default function PlatformAccessControlPage() {
 
   const openAddSuperAdmin = () => {
     setInviteEmail('')
-    setInviteTenantId(tenants[0]?.id ?? '')
+    const extendiHealth = tenants.find(t => t.name.toLowerCase().includes('extendihealth'))
+    setInviteTenantId(extendiHealth?.id ?? tenants[0]?.id ?? '')
     setInviteSent(false)
     setInviteError(null)
     setShowAddSuperAdmin(true)
