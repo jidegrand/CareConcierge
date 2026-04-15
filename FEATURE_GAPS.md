@@ -19,8 +19,8 @@ Added `reassign(requestId, newUserId, newUserName?)` to `useRequests` — update
 **4. Clinical notes on requests**
 No free-text note can be attached to a request. Staff sometimes need to record what was done (e.g. "gave 500ml water, patient comfortable"). A notes field — write on resolve, visible in history — would complete the resolution record.
 
-**5. Shift handover report**
-No formal handover exists. At end of shift, an outgoing charge nurse has no structured way to brief the incoming team. A handover summary (open requests, recent resolutions, notes per bay) could be generated from existing data.
+**5. ~~Shift handover report~~ ✅ DONE**
+Added `HandoverReportModal` component. A "Handover Report" button in the dashboard right panel opens a full-screen modal with: summary stats banner (pending / in-progress / resolved counts), open-requests table (sorted oldest-first, shows bay, type, status badge, age, assignee), resolved-this-shift table (resolver name, time, wait duration), and staff activity log. "Print" calls `window.print()` with a CSS rule that isolates the report for clean printing. "Copy text" writes a plain-text version to the clipboard for pasting into handover notes.
 
 **6. Request deduplication / patient linking**
 If a patient submits the same request twice, two independent requests are created with no linkage. Rooms with multiple active requests of the same type should either deduplicate or group them.

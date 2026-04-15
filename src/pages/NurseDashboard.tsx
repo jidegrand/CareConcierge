@@ -8,6 +8,7 @@ import { useOverdueAlerts } from '@/hooks/useOverdueAlerts'
 import { timeAgo } from '@/lib/constants'
 import { supabase } from '@/lib/supabase'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
+import HandoverReportModal from '@/pages/HandoverReportModal'
 import type { Request, RequestTypeConfig } from '@/types'
 type Tab = 'all' | 'pending' | 'in-progress' | 'resolved'
 
@@ -142,6 +143,7 @@ export default function NurseDashboard() {
   const shiftManager    = useShiftManager(unitId, tenantId)
   const assignableStaff = useAssignableStaff(unitId, tenantId)
   const prefs = usePrefs()
+  const [showHandover, setShowHandover] = useState(false)
   const overdueIds = useOverdueAlerts(
     requests,
     prefs.overdueThreshold,
@@ -318,6 +320,32 @@ export default function NurseDashboard() {
             </div>
           </div>
 
+          {/* Handover report trigger */}
+          <button
+            onClick={() => setShowHandover(true)}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-[var(--border)] bg-white hover:border-[var(--clinical-blue)] hover:bg-[var(--clinical-blue-lt)] transition-all group">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+                style={{ background: '#EFF6FF' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--clinical-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--clinical-blue)]">
+                  Handover Report
+                </p>
+                <p className="text-[11px] text-[var(--text-muted)]">Generate end-of-shift summary</p>
+              </div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+
           {/* Staff Activity — real data */}
           <div className="bg-white rounded-2xl border border-[var(--border)] p-4">
             <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest mb-3">
@@ -420,6 +448,16 @@ export default function NurseDashboard() {
           </div>
         </aside>
       </div>
+
+      {showHandover && (
+        <HandoverReportModal
+          unitName={unitName}
+          requests={requests}
+          staffEvents={staffEvents}
+          requestTypeMap={requestTypeMap}
+          onClose={() => setShowHandover(false)}
+        />
+      )}
     </NurseShell>
   )
 }
