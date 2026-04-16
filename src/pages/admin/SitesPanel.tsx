@@ -70,11 +70,19 @@ export default function SitesPanel({ tenantId }: Props) {
   }
 
   const handleDelete = async (kind: string, id: string, name: string) => {
-    if (!confirm(`Delete "${name}"? This will also remove all nested records.`)) return
+    const confirmation = kind === 'room'
+      ? `Delete "${name}"?\n\nRooms with request history are archived instead of being permanently removed.`
+      : `Delete "${name}"? This will also remove all nested records.`
+
+    if (!confirm(confirmation)) return
+
     try {
       if (kind === 'site') await ops.deleteSite(id)
       if (kind === 'unit') await ops.deleteUnit(id)
-      if (kind === 'room') await ops.deleteRoom(id)
+      if (kind === 'room') {
+        const outcome = await ops.deleteRoom(id)
+        if (outcome) alert(outcome)
+      }
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Delete failed')
     }

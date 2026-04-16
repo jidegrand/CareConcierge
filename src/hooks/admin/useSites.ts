@@ -32,6 +32,8 @@ const normalizeRoomNamingTemplate = (value: string | undefined) => {
 const buildRoomNameFromTemplate = (template: string, index: number) =>
   template.replace(/\{n\}/g, String(index))
 
+const ACTIVE_REQUEST_STATUSES = ['pending', 'acknowledged'] as const
+
 export function useSites(tenantId: string | undefined) {
   const [sites, setSites] = useState<SiteWithUnits[]>([])
   const [loading, setLoading] = useState(true)
@@ -154,9 +156,36 @@ export function useSites(tenantId: string | undefined) {
   }
 
   const deleteRoom = async (id: string) => {
+    const { count: activeRequestCount, error: activeErr } = await supabase
+      .from('requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('room_id', id)
+      .in('status', [...ACTIVE_REQUEST_STATUSES])
+
+    if (activeErr) throw new Error(activeErr.message)
+
+    if ((activeRequestCount ?? 0) > 0) {
+      throw new Error('This room still has active requests. Resolve or cancel them first, or deactivate the room instead.')
+    }
+
+    const { count: requestHistoryCount, error: historyErr } = await supabase
+      .from('requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('room_id', id)
+
+    if (historyErr) throw new Error(historyErr.message)
+
+    if ((requestHistoryCount ?? 0) > 0) {
+      const { error: archiveErr } = await supabase.from('rooms').update({ active: false }).eq('id', id)
+      if (archiveErr) throw new Error(archiveErr.message)
+      await fetch()
+      return 'This room has request history, so it was deactivated instead of deleted to preserve reports.'
+    }
+
     const { error: err } = await supabase.from('rooms').delete().eq('id', id)
     if (err) throw new Error(err.message)
     await fetch()
+    return null
   }
 
   return {
