@@ -13,8 +13,8 @@ interface Props {
   organizations: OrganizationWithStats[]
   loading: boolean
   error: string | null
-  createOrganization: (name: string, slug?: string) => Promise<void>
-  updateOrganization: (id: string, name: string, slug: string) => Promise<void>
+  createOrganization: (name: string, slug?: string, organizationUrl?: string) => Promise<void>
+  updateOrganization: (id: string, name: string, slug: string, organizationUrl?: string) => Promise<void>
   deleteOrganization: (id: string) => Promise<void>
 }
 
@@ -62,12 +62,12 @@ export default function OrganizationsPanel({
     )
   }, [organizations, search])
 
-  const handleSubmit = async (values: { name: string; slug: string }) => {
+  const handleSubmit = async (values: { name: string; slug: string; organizationUrl: string }) => {
     setSaving(true)
     setFormError(null)
     try {
-      if (modal?.kind === 'create') await createOrganization(values.name, values.slug)
-      if (modal?.kind === 'edit') await updateOrganization(modal.organization.id, values.name, values.slug)
+      if (modal?.kind === 'create') await createOrganization(values.name, values.slug, values.organizationUrl)
+      if (modal?.kind === 'edit') await updateOrganization(modal.organization.id, values.name, values.slug, values.organizationUrl)
       setModal(null)
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Unable to save organization')
@@ -232,6 +232,7 @@ export default function OrganizationsPanel({
           title={modal.kind === 'create' ? 'Add Organization' : 'Edit Organization'}
           defaultName={modal.kind === 'edit' ? modal.organization.name : ''}
           defaultSlug={modal.kind === 'edit' ? modal.organization.slug : ''}
+          defaultOrganizationUrl={modal.kind === 'edit' ? modal.organization.organization_url ?? '' : ''}
           error={formError}
           saving={saving}
           onClose={() => { setModal(null); setFormError(null) }}
@@ -314,6 +315,7 @@ function OrganizationModal({
   title,
   defaultName,
   defaultSlug,
+  defaultOrganizationUrl,
   error,
   saving,
   onClose,
@@ -322,13 +324,15 @@ function OrganizationModal({
   title: string
   defaultName: string
   defaultSlug: string
+  defaultOrganizationUrl: string
   error: string | null
   saving: boolean
   onClose: () => void
-  onSubmit: (values: { name: string; slug: string }) => void
+  onSubmit: (values: { name: string; slug: string; organizationUrl: string }) => void
 }) {
   const [name, setName] = useState(defaultName)
   const [slug, setSlug] = useState(defaultSlug)
+  const [organizationUrl, setOrganizationUrl] = useState(defaultOrganizationUrl)
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(Boolean(defaultSlug))
 
   const handleNameChange = (value: string) => {
@@ -376,6 +380,17 @@ function OrganizationModal({
               className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[var(--clinical-blue)] focus:ring-2 focus:ring-[var(--clinical-blue)]/10 transition-all"
             />
           </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+              Organization website
+            </label>
+            <input
+              value={organizationUrl}
+              onChange={(event) => setOrganizationUrl(event.target.value)}
+              placeholder="https://www.yourorganization.org"
+              className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[var(--clinical-blue)] focus:ring-2 focus:ring-[var(--clinical-blue)]/10 transition-all"
+            />
+          </div>
           {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-[var(--border)]">
@@ -383,7 +398,7 @@ function OrganizationModal({
             Cancel
           </button>
           <button
-            onClick={() => onSubmit({ name, slug })}
+            onClick={() => onSubmit({ name, slug, organizationUrl })}
             disabled={saving || !name.trim()}
             className="px-4 py-2 rounded-xl bg-[var(--clinical-blue)] text-white text-sm font-medium disabled:opacity-50 hover:bg-[var(--clinical-blue-dk)] transition-colors"
           >

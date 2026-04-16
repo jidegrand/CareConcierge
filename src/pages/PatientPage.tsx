@@ -72,7 +72,7 @@ export default function PatientPage() {
   const [activeTypeSet, setActiveTypeSet] = useState<Set<string>>(new Set())
   const copy = getPatientCopy(language)
   const patientIdleRedirectUrl = normalizeRedirectUrl(
-    room?.unit?.site?.hospital_url ?? tenantSettings.patient_idle_redirect_url
+    room?.unit?.site?.hospital_url ?? room?.unit?.site?.tenant?.organization_url ?? tenantSettings.patient_idle_redirect_url
   )
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'requests', label: copy.requestsTab, icon: <TabRequestIcon /> },

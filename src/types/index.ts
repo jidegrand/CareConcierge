@@ -8,6 +8,7 @@ export interface Tenant {
   id: string
   name: string
   slug: string
+  organization_url: string | null
   created_at: string
 }
 

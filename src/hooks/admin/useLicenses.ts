@@ -24,7 +24,7 @@ export function useTenantLicenses(enabled = true) {
     setError(null)
 
     const [tenantsRes, licensesRes] = await Promise.all([
-      supabase.from('tenants').select('id, name, slug, created_at').order('created_at'),
+      supabase.from('tenants').select('id, name, slug, organization_url, created_at').order('created_at'),
       supabase.from('tenant_licenses').select('*').order('created_at'),
     ])
 

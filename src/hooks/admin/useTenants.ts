@@ -13,6 +13,23 @@ export interface OrganizationWithStats extends Tenant {
 
 export type TenantWithStats = OrganizationWithStats
 
+const normalizeOptionalUrl = (value: string | undefined) => {
+  const trimmed = value?.trim() ?? ''
+  if (!trimmed) return null
+
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
+  try {
+    const url = new URL(candidate)
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Organization website must start with http:// or https://.')
+    }
+    return url.toString()
+  } catch {
+    throw new Error('Enter a valid organization website URL.')
+  }
+}
+
 export function useTenants(enabled = true) {
   const [tenants, setTenants] = useState<OrganizationWithStats[]>([])
   const [loading, setLoading] = useState(true)
@@ -29,7 +46,7 @@ export function useTenants(enabled = true) {
     setError(null)
 
     const [tenantsRes, sitesRes, usersRes, requestTypesRes] = await Promise.all([
-      supabase.from('tenants').select('id, name, slug, created_at').order('created_at'),
+      supabase.from('tenants').select('id, name, slug, organization_url, created_at').order('created_at'),
       supabase.from('sites').select('tenant_id, units(id, rooms(id))'),
       supabase.from('user_profiles').select('id, tenant_id'),
       supabase.from('request_types').select('id, tenant_id'),
@@ -74,16 +91,24 @@ export function useTenants(enabled = true) {
 
   useEffect(() => { fetch() }, [fetch])
 
-  const createTenant = async (name: string, slug?: string) => {
+  const createTenant = async (name: string, slug?: string, organizationUrl?: string) => {
     const nextSlug = slugify(slug || name)
-    const { error: err } = await supabase.from('tenants').insert({ name: name.trim(), slug: nextSlug })
+    const { error: err } = await supabase.from('tenants').insert({
+      name: name.trim(),
+      slug: nextSlug,
+      organization_url: normalizeOptionalUrl(organizationUrl),
+    })
     if (err) throw new Error(err.message)
     await fetch()
   }
 
-  const updateTenant = async (id: string, name: string, slug: string) => {
+  const updateTenant = async (id: string, name: string, slug: string, organizationUrl?: string) => {
     const nextSlug = slugify(slug || name)
-    const { error: err } = await supabase.from('tenants').update({ name: name.trim(), slug: nextSlug }).eq('id', id)
+    const { error: err } = await supabase.from('tenants').update({
+      name: name.trim(),
+      slug: nextSlug,
+      organization_url: normalizeOptionalUrl(organizationUrl),
+    }).eq('id', id)
     if (err) throw new Error(err.message)
     await fetch()
   }
