@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react'
+import { useState, useEffect, FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useTenantContext } from '@/hooks/useTenantContext'
@@ -6,6 +6,7 @@ import { buildAppUrl } from '@/lib/tenant'
 import { PRODUCT_NAME } from '@/lib/brand'
 
 type LoginMode = 'password' | 'magic'
+const INACTIVE_ACCOUNT_NOTICE_KEY = 'bayrequest_inactive_account_notice'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -16,8 +17,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState<string | null>(null)
+  const [inactiveNotice, setInactiveNotice] = useState(false)
   const [magicSent, setMagicSent] = useState(false)
   const resetRequested = searchParams.get('reset') === 'requested'
+
+  useEffect(() => {
+    try {
+      const nextNotice = localStorage.getItem(INACTIVE_ACCOUNT_NOTICE_KEY) === '1'
+      if (nextNotice) {
+        setInactiveNotice(true)
+        localStorage.removeItem(INACTIVE_ACCOUNT_NOTICE_KEY)
+      }
+    } catch {}
+  }, [])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -112,6 +124,17 @@ export default function LoginPage() {
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
                 If your email is registered, password reset instructions have been sent. Open the link in that email to set a new password.
+              </div>
+            )}
+
+            {inactiveNotice && (
+              <div className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 mt-0.5">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                This account has been deactivated. Contact your administrator if you need access restored.
               </div>
             )}
 

@@ -48,7 +48,7 @@ export function useTenants(enabled = true) {
     const [tenantsRes, sitesRes, usersRes, requestTypesRes] = await Promise.all([
       supabase.from('tenants').select('id, name, slug, organization_url, created_at').order('created_at'),
       supabase.from('sites').select('tenant_id, units(id, rooms(id))'),
-      supabase.from('user_profiles').select('id, tenant_id'),
+      supabase.from('user_profiles').select('id, tenant_id').eq('active', true),
       supabase.from('request_types').select('id, tenant_id'),
     ])
 

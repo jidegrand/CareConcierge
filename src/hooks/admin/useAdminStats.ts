@@ -26,7 +26,7 @@ export function useAdminStats(tenantId: string | undefined) {
 
       const [sitesRes, usersRes, requestsRes] = await Promise.all([
         supabase.from('sites').select('id, units(id, rooms(id))', { count: 'exact' }).eq('tenant_id', tenantId),
-        supabase.from('user_profiles').select('id', { count: 'exact' }).eq('tenant_id', tenantId),
+        supabase.from('user_profiles').select('id', { count: 'exact' }).eq('tenant_id', tenantId).eq('active', true),
         supabase
           .from('requests')
           .select(`id, room:rooms (unit:units (site:sites (tenant_id)))`)

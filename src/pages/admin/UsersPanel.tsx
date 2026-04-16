@@ -27,7 +27,7 @@ interface Props { tenantId: string }
 
 export default function UsersPanel({ tenantId }: Props) {
   const { profile: callerProfile } = useAuth()
-  const { users, pendingInvites, loading, inviteUser, cancelInvite, updateRole, removeUser } = useUsers(tenantId)
+  const { users, pendingInvites, loading, inviteUser, cancelInvite, updateRole, setUserActive } = useUsers(tenantId)
   const { sites } = useSites(tenantId)
 
   // Only show roles the caller can assign — prevent rank escalation
@@ -47,6 +47,8 @@ export default function UsersPanel({ tenantId }: Props) {
   const allUnits = sites.flatMap(s =>
     (s.units ?? []).map(u => ({ id: u.id, label: `${s.name} — ${u.name}` }))
   )
+  const activeUsers = users.filter(user => user.active).length
+  const inactiveUsers = users.length - activeUsers
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) return
@@ -72,9 +74,17 @@ export default function UsersPanel({ tenantId }: Props) {
     setSaving(false)
   }
 
-  const handleRemove = async (u: UserWithMeta) => {
-    if (!confirm(`Remove ${u.email} from this tenant?`)) return
-    try { await removeUser(u.id) } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Remove failed') }
+  const handleToggleActive = async (u: UserWithMeta) => {
+    const subject = u.full_name ?? u.id.slice(0, 8)
+    const message = u.active
+      ? `Deactivate ${subject}? They will keep their historical activity, but they will no longer be able to sign in.`
+      : `Reactivate ${subject}? They will be able to sign in again.`
+    if (!confirm(message)) return
+    try {
+      await setUserActive(u.id, !u.active)
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : (u.active ? 'Deactivate failed' : 'Reactivate failed'))
+    }
   }
 
   if (loading) return <PanelLoading />
@@ -85,7 +95,7 @@ export default function UsersPanel({ tenantId }: Props) {
         <div>
           <h3 className="text-base font-bold text-[var(--text-primary)]">Users</h3>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            {users.length} active{pendingInvites.length > 0 ? `, ${pendingInvites.length} pending` : ''}
+            {activeUsers} active{inactiveUsers > 0 ? `, ${inactiveUsers} inactive` : ''}{pendingInvites.length > 0 ? `, ${pendingInvites.length} pending` : ''}
           </p>
         </div>
         <button onClick={() => { setShowInvite(true); setInviteSent(false); setInviteEmail('') }}
@@ -154,20 +164,27 @@ export default function UsersPanel({ tenantId }: Props) {
                 )
               })}
 
-              {/* Active users */}
+              {/* Users */}
               {users.map(u => {
                 const rc = ROLE_COLORS[u.role] ?? ROLE_COLORS.nurse
                 return (
-                  <tr key={u.id} className="hover:bg-[var(--page-bg)] transition-colors">
+                  <tr key={u.id} className={`${u.active ? 'hover:bg-[var(--page-bg)]' : 'bg-slate-50/70 hover:bg-slate-50'} transition-colors`}>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[var(--clinical-blue)] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${u.active ? 'bg-[var(--clinical-blue)]' : 'bg-slate-400'}`}>
                           {(u.full_name ?? u.id).slice(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-[var(--text-primary)]">
-                            {u.full_name ?? '—'}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-[var(--text-primary)]">
+                              {u.full_name ?? '—'}
+                            </p>
+                            {!u.active && (
+                              <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 uppercase tracking-wide">
+                                Inactive
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-[var(--text-muted)] font-mono">
                             {u.id.slice(0, 8)}…
                           </p>
@@ -175,10 +192,17 @@ export default function UsersPanel({ tenantId }: Props) {
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                        style={{ background: rc.bg, color: rc.text }}>
-                        {ROLE_LABELS[u.role] ?? u.role}
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                          style={{ background: rc.bg, color: rc.text }}>
+                          {ROLE_LABELS[u.role] ?? u.role}
+                        </span>
+                        {!u.active && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 uppercase tracking-wide">
+                            Sign-in blocked
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <p className="text-sm text-[var(--text-secondary)]">
@@ -192,9 +216,9 @@ export default function UsersPanel({ tenantId }: Props) {
                           Edit
                         </button>
                         <span className="text-[var(--border)]">·</span>
-                        <button onClick={() => handleRemove(u)}
-                          className="text-xs font-medium text-red-500 hover:underline">
-                          Remove
+                        <button onClick={() => handleToggleActive(u)}
+                          className={`text-xs font-medium hover:underline ${u.active ? 'text-amber-600' : 'text-emerald-600'}`}>
+                          {u.active ? 'Deactivate' : 'Reactivate'}
                         </button>
                       </div>
                     </td>

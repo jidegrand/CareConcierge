@@ -100,6 +100,7 @@ CREATE TABLE user_profiles (
   role        TEXT NOT NULL DEFAULT 'nurse'
               CHECK (role IN ('tenant_admin', 'site_manager', 'charge_nurse', 'nurse', 'viewer')),
   full_name   TEXT,
+  active      BOOLEAN NOT NULL DEFAULT true,
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 
@@ -116,6 +117,7 @@ CREATE INDEX idx_rooms_unit_id      ON rooms(unit_id);
 CREATE INDEX idx_units_site_id      ON units(site_id);
 CREATE INDEX idx_sites_tenant_id    ON sites(tenant_id);
 CREATE INDEX idx_profiles_tenant_id ON user_profiles(tenant_id);
+CREATE INDEX idx_profiles_tenant_active ON user_profiles(tenant_id, active);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- ROW LEVEL SECURITY
@@ -133,20 +135,20 @@ ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Helper function: get current user's tenant_id
 CREATE OR REPLACE FUNCTION current_tenant_id()
-RETURNS UUID LANGUAGE sql STABLE AS $$
-  SELECT tenant_id FROM user_profiles WHERE id = auth.uid()
+RETURNS UUID LANGUAGE sql STABLE SET search_path = public, auth AS $$
+  SELECT tenant_id FROM user_profiles WHERE id = auth.uid() AND active = true
 $$;
 
 -- Helper function: get current user's role
 CREATE OR REPLACE FUNCTION current_user_role()
-RETURNS TEXT LANGUAGE sql STABLE AS $$
-  SELECT role FROM user_profiles WHERE id = auth.uid()
+RETURNS TEXT LANGUAGE sql STABLE SET search_path = public, auth AS $$
+  SELECT role FROM user_profiles WHERE id = auth.uid() AND active = true
 $$;
 
 -- Helper function: get current user's unit_id
 CREATE OR REPLACE FUNCTION current_unit_id()
-RETURNS UUID LANGUAGE sql STABLE AS $$
-  SELECT unit_id FROM user_profiles WHERE id = auth.uid()
+RETURNS UUID LANGUAGE sql STABLE SET search_path = public, auth AS $$
+  SELECT unit_id FROM user_profiles WHERE id = auth.uid() AND active = true
 $$;
 
 -- ── Tenants: users can only see their own tenant ──────────────────────────────
@@ -362,6 +364,46 @@ CREATE POLICY "profiles_select_admin" ON user_profiles
   FOR SELECT USING (
     tenant_id = current_tenant_id()
     AND current_user_role() = 'tenant_admin'
+  );
+
+CREATE POLICY "profiles_update_admin" ON user_profiles
+  FOR UPDATE USING (
+    current_user_role() = 'super_admin'
+    OR (
+      tenant_id = current_tenant_id()
+      AND id <> auth.uid()
+      AND current_user_role() = 'tenant_admin'
+    )
+    OR (
+      tenant_id = current_tenant_id()
+      AND id <> auth.uid()
+      AND current_user_role() IN ('nurse_manager', 'site_manager')
+      AND (
+        current_unit_id() IS NULL
+        OR unit_id IS NULL
+        OR unit_id = current_unit_id()
+      )
+    )
+  )
+  WITH CHECK (
+    current_user_role() = 'super_admin'
+    OR (
+      tenant_id = current_tenant_id()
+      AND id <> auth.uid()
+      AND current_user_role() = 'tenant_admin'
+      AND role <> 'super_admin'
+    )
+    OR (
+      tenant_id = current_tenant_id()
+      AND id <> auth.uid()
+      AND current_user_role() IN ('nurse_manager', 'site_manager')
+      AND role NOT IN ('super_admin', 'tenant_admin')
+      AND (
+        current_unit_id() IS NULL
+        OR unit_id IS NULL
+        OR unit_id = current_unit_id()
+      )
+    )
   );
 
 -- ─────────────────────────────────────────────────────────────────────────────

@@ -3,6 +3,8 @@ import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { UserProfile } from '@/types'
 
+const INACTIVE_ACCOUNT_NOTICE_KEY = 'bayrequest_inactive_account_notice'
+
 // ── Context ───────────────────────────────────────────────────────────────────
 interface AuthContextValue {
   session: Session | null
@@ -28,29 +30,55 @@ export function useAuthProvider(): AuthContextValue {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const handleInactiveProfile = async () => {
+    try {
+      localStorage.setItem(INACTIVE_ACCOUNT_NOTICE_KEY, '1')
+    } catch {}
+    await supabase.auth.signOut()
+    setSession(null)
+    setProfile(null)
+  }
+
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('id', userId)
       .single()
-    if (data) setProfile(data as UserProfile)
+
+    if (error || !data) {
+      setProfile(null)
+      return false
+    }
+
+    const nextProfile = data as UserProfile
+    if (!nextProfile.active) {
+      await handleInactiveProfile()
+      return false
+    }
+
+    setProfile(nextProfile)
+    return true
   }
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
-      if (session?.user) fetchProfile(session.user.id)
+      if (session?.user) {
+        await fetchProfile(session.user.id)
+      } else {
+        setProfile(null)
+      }
       setLoading(false)
     })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         setSession(session)
         if (session?.user) {
-          fetchProfile(session.user.id)
+          await fetchProfile(session.user.id)
         } else {
           setProfile(null)
         }
@@ -60,6 +88,16 @@ export function useAuthProvider(): AuthContextValue {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!session?.user) return
+
+    const interval = window.setInterval(() => {
+      fetchProfile(session.user.id)
+    }, 60_000)
+
+    return () => window.clearInterval(interval)
+  }, [session?.user?.id])
 
   const signOut = async () => {
     await supabase.auth.signOut()

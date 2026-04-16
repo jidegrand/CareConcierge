@@ -39,6 +39,7 @@ export function useUsers(tenantId: string | undefined) {
         .from('user_profiles')
         .select(`*, unit:units(name)`)
         .eq('tenant_id', tenantId)
+        .order('active', { ascending: false })
         .order('created_at', { ascending: false }),
       supabase
         .from('pending_invites')
@@ -94,11 +95,11 @@ export function useUsers(tenantId: string | undefined) {
     await fetch()
   }
 
-  const removeUser = async (userId: string) => {
-    const { error: err } = await supabase.from('user_profiles').delete().eq('id', userId)
+  const setUserActive = async (userId: string, active: boolean) => {
+    const { error: err } = await supabase.from('user_profiles').update({ active }).eq('id', userId)
     if (err) throw new Error(err.message)
     await fetch()
   }
 
-  return { users, pendingInvites, loading, refresh: fetch, inviteUser, cancelInvite, updateRole, removeUser }
+  return { users, pendingInvites, loading, refresh: fetch, inviteUser, cancelInvite, updateRole, setUserActive }
 }

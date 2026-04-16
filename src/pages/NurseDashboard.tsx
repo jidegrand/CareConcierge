@@ -56,6 +56,7 @@ function useShiftManager(unitId: string | undefined, tenantId: string | undefine
     let query = supabase
       .from('user_profiles')
       .select('id, full_name, role, unit:units(name)')
+      .eq('active', true)
       .in('role', ['charge_nurse', 'site_manager', 'tenant_admin'])
       .limit(1)
 
@@ -102,6 +103,7 @@ function useAssignableStaff(unitId: string | undefined, tenantId: string | undef
     let query = supabase
       .from('user_profiles')
       .select('id, full_name, role')
+      .eq('active', true)
       .in('role', ASSIGNABLE_ROLES)
 
     if (unitId) {

@@ -118,5 +118,6 @@ export interface UserProfile {
   unit_id: string | null
   role: UserRole
   full_name: string | null
+  active: boolean
   email: string
 }
