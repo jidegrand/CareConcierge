@@ -17,6 +17,7 @@ CREATE TABLE tenants (
 CREATE TABLE tenant_settings (
   tenant_id                 UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
   patient_feedback_enabled  BOOLEAN NOT NULL DEFAULT false,
+  patient_idle_redirect_url TEXT,
   created_at                TIMESTAMPTZ DEFAULT now(),
   updated_at                TIMESTAMPTZ DEFAULT now()
 );
@@ -27,6 +28,7 @@ CREATE TABLE sites (
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
   slug        TEXT NOT NULL,
+  hospital_url TEXT,
   created_at  TIMESTAMPTZ DEFAULT now(),
   UNIQUE (tenant_id, slug)
 );

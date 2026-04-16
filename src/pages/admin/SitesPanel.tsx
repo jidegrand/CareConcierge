@@ -8,7 +8,7 @@ const DEFAULT_ROOM_TEMPLATE = 'Room {n}'
 
 type ModalState =
   | { kind: 'create-site' }
-  | { kind: 'edit-site';   id: string; name: string }
+  | { kind: 'edit-site';   id: string; name: string; hospitalUrl: string }
   | { kind: 'create-unit'; siteId: string; siteName: string }
   | { kind: 'edit-unit';   id: string; name: string; roomNamingTemplate: string }
   | { kind: 'create-room'; unitId: string; unitName: string; roomNamingTemplate: string; nextNumber: number }
@@ -49,8 +49,8 @@ export default function SitesPanel({ tenantId }: Props) {
     setErr(null)
     try {
       if (!modal) return
-      if (modal.kind === 'create-site')  await ops.createSite(values.name)
-      if (modal.kind === 'edit-site')    await ops.updateSite(modal.id, values.name)
+      if (modal.kind === 'create-site')  await ops.createSite(values.name, values.hospitalUrl)
+      if (modal.kind === 'edit-site')    await ops.updateSite(modal.id, values.name, values.hospitalUrl)
       if (modal.kind === 'create-unit')  await ops.createUnit(modal.siteId, values.name, values.roomNamingTemplate)
       if (modal.kind === 'edit-unit')    await ops.updateUnit(modal.id, values.name, values.roomNamingTemplate)
       if (modal.kind === 'create-room')  {
@@ -110,7 +110,7 @@ export default function SitesPanel({ tenantId }: Props) {
             <SiteRow key={site.id} site={site}
               expanded={expanded.has(site.id)}
               onToggle={() => toggle(site.id)}
-              onEdit={() => setModal({ kind: 'edit-site', id: site.id, name: site.name })}
+              onEdit={() => setModal({ kind: 'edit-site', id: site.id, name: site.name, hospitalUrl: site.hospital_url ?? '' })}
               onDelete={() => handleDelete('site', site.id, site.name)}
               onAddUnit={() => setModal({ kind: 'create-unit', siteId: site.id, siteName: site.name })}
               onEditUnit={(u) => setModal({ kind: 'edit-unit', id: u.id, name: u.name, roomNamingTemplate: u.room_naming_template })}
@@ -178,6 +178,9 @@ function SiteRow({ site, expanded, onToggle, onEdit, onDelete, onAddUnit,
           <p className="text-xs text-[var(--text-muted)]">
             {unitCount} unit{unitCount !== 1 ? 's' : ''} · {roomCount} room{roomCount !== 1 ? 's' : ''}
           </p>
+          {site.hospital_url && (
+            <p className="text-xs text-[var(--clinical-blue)] truncate mt-0.5">{site.hospital_url}</p>
+          )}
         </div>
         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
           <IconBtn title="Edit site"   onClick={onEdit}   icon={<EditIcon />} />
@@ -387,6 +390,12 @@ function modalFields(m: NonNullable<ModalState>) {
       { key: 'labelTemplate', label: 'Print label template', placeholder: 'ED Bay {n} (optional)', hint: 'Optional. Leave blank to reuse the generated room name.' },
     ]
   }
+  if (m.kind === 'create-site' || m.kind === 'edit-site') {
+    return [
+      { key: 'name',        label: 'Name',                 placeholder: 'Enter name' },
+      { key: 'hospitalUrl', label: 'Hospital website URL', placeholder: 'https://www.yourhospital.org', hint: 'Patients will be redirected here after 2 hours of inactivity.' },
+    ]
+  }
   if (m.kind === 'edit-room') {
     return [
       { key: 'name',  label: 'Room name',  placeholder: 'Bay 1' },
@@ -403,7 +412,8 @@ function modalFields(m: NonNullable<ModalState>) {
 }
 
 function modalDefaults(m: NonNullable<ModalState>): Record<string, string> {
-  if (m.kind === 'edit-site')  return { name: m.name }
+  if (m.kind === 'create-site') return { hospitalUrl: '' }
+  if (m.kind === 'edit-site')  return { name: m.name, hospitalUrl: m.hospitalUrl }
   if (m.kind === 'create-unit') return { roomNamingTemplate: DEFAULT_ROOM_TEMPLATE }
   if (m.kind === 'edit-unit')  return { name: m.name, roomNamingTemplate: m.roomNamingTemplate || DEFAULT_ROOM_TEMPLATE }
   if (m.kind === 'create-room') return {

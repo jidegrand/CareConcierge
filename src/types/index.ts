@@ -31,6 +31,7 @@ export interface TenantLicense {
 export interface TenantSetting {
   tenant_id: string
   patient_feedback_enabled: boolean
+  patient_idle_redirect_url: string | null
   created_at: string
   updated_at: string
 }
@@ -40,6 +41,7 @@ export interface Site {
   tenant_id: string
   name: string
   slug: string
+  hospital_url: string | null
   created_at: string
 }
 

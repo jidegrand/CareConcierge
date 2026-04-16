@@ -34,6 +34,23 @@ const buildRoomNameFromTemplate = (template: string, index: number) =>
 
 const ACTIVE_REQUEST_STATUSES = ['pending', 'acknowledged'] as const
 
+const normalizeOptionalUrl = (value: string | undefined) => {
+  const trimmed = value?.trim() ?? ''
+  if (!trimmed) return null
+
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
+  try {
+    const url = new URL(candidate)
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Hospital website must start with http:// or https://.')
+    }
+    return url.toString()
+  } catch {
+    throw new Error('Enter a valid hospital website URL.')
+  }
+}
+
 export function useSites(tenantId: string | undefined) {
   const [sites, setSites] = useState<SiteWithUnits[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,17 +76,26 @@ export function useSites(tenantId: string | undefined) {
   useEffect(() => { fetch() }, [fetch])
 
   // ── Site CRUD ──────────────────────────────────────────────────────────────
-  const createSite = async (name: string) => {
+  const createSite = async (name: string, hospitalUrl?: string) => {
     if (!tenantId) return
     const slug = slugify(name)
-    const { error: err } = await supabase.from('sites').insert({ tenant_id: tenantId, name, slug })
+    const { error: err } = await supabase.from('sites').insert({
+      tenant_id: tenantId,
+      name,
+      slug,
+      hospital_url: normalizeOptionalUrl(hospitalUrl),
+    })
     if (err) throw new Error(err.message)
     await fetch()
   }
 
-  const updateSite = async (id: string, name: string) => {
+  const updateSite = async (id: string, name: string, hospitalUrl?: string) => {
     const slug = slugify(name)
-    const { error: err } = await supabase.from('sites').update({ name, slug }).eq('id', id)
+    const { error: err } = await supabase.from('sites').update({
+      name,
+      slug,
+      hospital_url: normalizeOptionalUrl(hospitalUrl),
+    }).eq('id', id)
     if (err) throw new Error(err.message)
     await fetch()
   }

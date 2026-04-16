@@ -34,6 +34,23 @@ interface ActiveRequestRow {
   created_at: string
 }
 
+const PATIENT_IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000
+const PATIENT_IDLE_CHECK_MS = 60 * 1000
+
+const normalizeRedirectUrl = (value: string | null | undefined) => {
+  const trimmed = value?.trim() ?? ''
+  if (!trimmed) return null
+
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
+  try {
+    const url = new URL(candidate)
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : null
+  } catch {
+    return null
+  }
+}
+
 export default function PatientPage() {
   const { roomId } = useParams<{ roomId: string }>()
   const { room, loading, error } = useRoom(roomId)
@@ -54,6 +71,9 @@ export default function PatientPage() {
   // Set of request type IDs that already have a pending/acknowledged request for this room
   const [activeTypeSet, setActiveTypeSet] = useState<Set<string>>(new Set())
   const copy = getPatientCopy(language)
+  const patientIdleRedirectUrl = normalizeRedirectUrl(
+    room?.unit?.site?.hospital_url ?? tenantSettings.patient_idle_redirect_url
+  )
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'requests', label: copy.requestsTab, icon: <TabRequestIcon /> },
     { id: 'services', label: copy.servicesTab, icon: <TabServicesIcon /> },
@@ -154,6 +174,47 @@ export default function PatientPage() {
   useEffect(() => {
     setFeedbackError(null)
   }, [activeRequest?.id, activeRequest?.status])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !patientIdleRedirectUrl) return
+
+    let redirected = false
+    let lastActivityAt = Date.now()
+
+    const redirectToHospitalSite = () => {
+      if (redirected) return
+      redirected = true
+      window.location.replace(patientIdleRedirectUrl)
+    }
+
+    const recordActivity = () => {
+      lastActivityAt = Date.now()
+    }
+
+    const checkIdle = () => {
+      if (Date.now() - lastActivityAt >= PATIENT_IDLE_TIMEOUT_MS) {
+        redirectToHospitalSite()
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkIdle()
+      }
+    }
+
+    const events: (keyof WindowEventMap)[] = ['pointerdown', 'keydown', 'scroll', 'focus']
+    events.forEach(eventName => window.addEventListener(eventName, recordActivity, { passive: true }))
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    const intervalId = window.setInterval(checkIdle, PATIENT_IDLE_CHECK_MS)
+
+    return () => {
+      events.forEach(eventName => window.removeEventListener(eventName, recordActivity))
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.clearInterval(intervalId)
+    }
+  }, [patientIdleRedirectUrl])
 
   const openActiveRequest = (type: string, baseLabel: string) => {
     const live = activeRequestsByType[type]

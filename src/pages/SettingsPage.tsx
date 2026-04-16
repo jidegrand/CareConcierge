@@ -344,7 +344,7 @@ function PreferencesTab({ tenantId, role }: { tenantId: string | undefined; role
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const canManagePatientFeedback = isAtLeast(role, 'nurse_manager')
+  const canManagePatientQrSettings = isAtLeast(role, 'nurse_manager')
   const { settings, loading: settingsLoading, saveSettings } = useTenantSettings(tenantId)
   const [patientFeedbackEnabled, setPatientFeedbackEnabled] = useState(false)
 
@@ -360,8 +360,11 @@ function PreferencesTab({ tenantId, role }: { tenantId: string | undefined; role
 
     try {
       savePrefs(prefs)
-      if (canManagePatientFeedback && tenantId) {
-        await saveSettings({ patient_feedback_enabled: patientFeedbackEnabled })
+      if (canManagePatientQrSettings && tenantId) {
+        await saveSettings({
+          patient_feedback_enabled: patientFeedbackEnabled,
+          patient_idle_redirect_url: settings.patient_idle_redirect_url,
+        })
       }
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
@@ -484,7 +487,7 @@ function PreferencesTab({ tenantId, role }: { tenantId: string | undefined; role
         </div>
       </Card>
 
-      {canManagePatientFeedback && (
+      {canManagePatientQrSettings && (
         <Card className="mt-4">
           <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4">Patient QR Experience</p>
           <Toggle
@@ -495,7 +498,7 @@ function PreferencesTab({ tenantId, role }: { tenantId: string | undefined; role
             onChange={setPatientFeedbackEnabled}
           />
           <p className="mt-3 text-xs text-[var(--text-muted)]">
-            This organization-wide setting can be changed by managers and admins.
+            Managers and admins can also configure the patient idle redirect URL in Sites & Rooms for each hospital site.
           </p>
         </Card>
       )}
