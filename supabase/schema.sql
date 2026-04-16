@@ -188,6 +188,9 @@ CREATE POLICY "sites_insert_admin" ON sites
     AND current_user_role() IN ('tenant_admin')
   );
 
+CREATE POLICY "sites_insert_super_admin" ON sites
+  FOR INSERT WITH CHECK (current_user_role() = 'super_admin');
+
 -- ── Units: scoped to tenant via site ─────────────────────────────────────────
 CREATE POLICY "units_select" ON units
   FOR SELECT USING (
@@ -199,6 +202,9 @@ CREATE POLICY "units_insert_admin" ON units
     site_id IN (SELECT id FROM sites WHERE tenant_id = current_tenant_id())
     AND current_user_role() IN ('tenant_admin', 'site_manager')
   );
+
+CREATE POLICY "units_insert_super_admin" ON units
+  FOR INSERT WITH CHECK (current_user_role() = 'super_admin');
 
 -- ── Rooms: publicly readable by room UUID (patient QR access) ─────────────────
 -- Patients access rooms via UUID — no auth — so we allow public SELECT on rooms.
@@ -215,6 +221,9 @@ CREATE POLICY "rooms_insert_admin" ON rooms
     )
     AND current_user_role() IN ('tenant_admin', 'site_manager', 'charge_nurse', 'nurse_manager')
   );
+
+CREATE POLICY "rooms_insert_super_admin" ON rooms
+  FOR INSERT WITH CHECK (current_user_role() = 'super_admin');
 
 CREATE POLICY "rooms_update_staff" ON rooms
   FOR UPDATE USING (
