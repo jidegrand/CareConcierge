@@ -104,6 +104,16 @@ CREATE TABLE user_profiles (
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE pending_invites (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       TEXT NOT NULL UNIQUE,
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  unit_id     UUID REFERENCES units(id) ON DELETE SET NULL,
+  role        TEXT NOT NULL
+              CHECK (role IN ('super_admin', 'tenant_admin', 'nurse_manager', 'site_manager', 'charge_nurse', 'nurse', 'volunteer', 'viewer')),
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- INDEXES
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -118,6 +128,7 @@ CREATE INDEX idx_units_site_id      ON units(site_id);
 CREATE INDEX idx_sites_tenant_id    ON sites(tenant_id);
 CREATE INDEX idx_profiles_tenant_id ON user_profiles(tenant_id);
 CREATE INDEX idx_profiles_tenant_active ON user_profiles(tenant_id, active);
+CREATE INDEX idx_pending_invites_tenant ON pending_invites(tenant_id, created_at DESC);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- ROW LEVEL SECURITY
@@ -132,6 +143,7 @@ ALTER TABLE requests      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE request_feedback ENABLE ROW LEVEL SECURITY;
 ALTER TABLE request_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pending_invites ENABLE ROW LEVEL SECURITY;
 
 -- Helper function: get current user's tenant_id
 CREATE SCHEMA IF NOT EXISTS private;
@@ -199,6 +211,50 @@ CREATE OR REPLACE FUNCTION is_super_admin()
 RETURNS BOOLEAN LANGUAGE sql STABLE SET search_path = public, auth AS $$
   SELECT private.is_super_admin()
 $$;
+
+CREATE OR REPLACE FUNCTION public.handle_invited_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  matched_invite public.pending_invites%ROWTYPE;
+BEGIN
+  SELECT *
+  INTO matched_invite
+  FROM public.pending_invites
+  WHERE lower(email) = lower(new.email)
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF matched_invite.id IS NULL THEN
+    RETURN new;
+  END IF;
+
+  INSERT INTO public.user_profiles (id, tenant_id, unit_id, role, full_name)
+  VALUES (
+    new.id,
+    matched_invite.tenant_id,
+    matched_invite.unit_id,
+    matched_invite.role,
+    COALESCE(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name')
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET tenant_id = EXCLUDED.tenant_id,
+      unit_id = EXCLUDED.unit_id,
+      role = EXCLUDED.role;
+
+  DELETE FROM public.pending_invites WHERE id = matched_invite.id;
+
+  RETURN new;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created_profile ON auth.users;
+CREATE TRIGGER on_auth_user_created_profile
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_invited_user();
 
 -- ── Tenants: users can only see their own tenant ──────────────────────────────
 CREATE POLICY "tenant_select" ON tenants
@@ -452,6 +508,33 @@ CREATE POLICY "profiles_update_admin" ON user_profiles
         OR unit_id IS NULL
         OR unit_id = current_unit_id()
       )
+    )
+  );
+
+CREATE POLICY "pending_invites_select_admin" ON pending_invites
+  FOR SELECT USING (
+    current_user_role() = 'super_admin'
+    OR (
+      tenant_id = current_tenant_id()
+      AND current_user_role() IN ('tenant_admin', 'site_manager', 'nurse_manager')
+    )
+  );
+
+CREATE POLICY "pending_invites_insert_admin" ON pending_invites
+  FOR INSERT WITH CHECK (
+    current_user_role() = 'super_admin'
+    OR (
+      tenant_id = current_tenant_id()
+      AND current_user_role() IN ('tenant_admin', 'site_manager', 'nurse_manager')
+    )
+  );
+
+CREATE POLICY "pending_invites_delete_admin" ON pending_invites
+  FOR DELETE USING (
+    current_user_role() = 'super_admin'
+    OR (
+      tenant_id = current_tenant_id()
+      AND current_user_role() IN ('tenant_admin', 'site_manager', 'nurse_manager')
     )
   );
 
