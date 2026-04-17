@@ -80,7 +80,7 @@ export default function PatientGuidePage() {
           <p className="text-gray-600 text-sm leading-relaxed">
             After tapping a request, you'll see a live status screen. It automatically updates as staff respond — no need to refresh.
           </p>
-          <div className="grid grid-cols-2 gap-3 mt-2">
+          <div className="grid grid-cols-3 gap-2 mt-2">
             <div className="text-center">
               <img
                 src="/screenshot/Patientrequestreceived.jpeg"
@@ -97,7 +97,16 @@ export default function PatientGuidePage() {
                 className="w-full rounded-2xl shadow-md border border-gray-200"
               />
               <p className="text-[11px] font-semibold text-blue-600 mt-2">② Staff on the way</p>
-              <p className="text-[10px] text-gray-400 leading-tight">Someone has acknowledged your request</p>
+              <p className="text-[10px] text-gray-400 leading-tight">Someone is coming</p>
+            </div>
+            <div className="text-center">
+              <img
+                src="/screenshot/Patientrequestcompleted.jpeg"
+                alt="Request resolved — completed"
+                className="w-full rounded-2xl shadow-md border border-gray-200"
+              />
+              <p className="text-[11px] font-semibold text-green-600 mt-2">③ Resolved</p>
+              <p className="text-[10px] text-gray-400 leading-tight">Request completed</p>
             </div>
           </div>
           <div className="mt-4 space-y-2">
