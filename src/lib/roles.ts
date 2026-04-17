@@ -161,8 +161,9 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/bay-map',   label: 'Bay Map',      perm: 'page.baymap',   section: 'main' },
   { path: '/staffing',  label: 'Staffing',     perm: 'page.staffing', section: 'main' },
   { path: '/reports',   label: 'Reports',      perm: 'page.reports',  section: 'main' },
-  { path: '/settings',  label: 'Settings',     perm: 'page.settings', section: 'bottom' },
-  { path: '/guide',     label: 'User Guide',   perm: 'page.guide',    section: 'bottom' },
+  { path: '/settings',    label: 'Settings',    perm: 'page.settings', section: 'bottom' },
+  { path: '/guide',       label: 'User Guide',  perm: 'page.guide',    section: 'bottom' },
+  { path: '/admin-guide', label: 'Admin Guide', perm: 'page.admin',    section: 'bottom' },
 ]
 
 export function isAtLeast(role: UserRole | string | undefined, minRole: UserRole): boolean {

@@ -16,6 +16,7 @@ import AdminPage       from '@/pages/AdminPage'
 import SettingsPage    from '@/pages/SettingsPage'
 import UserGuidePage   from '@/pages/UserGuidePage'
 import PatientGuidePage from '@/pages/PatientGuidePage'
+import AdminGuidePage  from '@/pages/AdminGuidePage'
 
 const PlatformLayout = lazy(() => import('@/pages/platform/PlatformLayout'))
 const PlatformOverviewPage = lazy(() => import('@/pages/platform/PlatformOverviewPage'))
@@ -106,7 +107,8 @@ export default function App() {
           <Route path="/admin/*"    element={<ProtectedRoute><AdminPage       /></ProtectedRoute>} />
           <Route path="/settings"   element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
           <Route path="/support"    element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
-          <Route path="/guide"      element={<ProtectedRoute><UserGuidePage   /></ProtectedRoute>} />
+          <Route path="/guide"       element={<ProtectedRoute><UserGuidePage   /></ProtectedRoute>} />
+          <Route path="/admin-guide" element={<ProtectedRoute><AdminGuidePage  /></ProtectedRoute>} />
           <Route path="*"           element={<HomeRedirect />} />
         </Routes>
       </AuthProvider>
