@@ -221,7 +221,7 @@ export default function UserGuidePage() {
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 The Bay Map gives a visual floor-plan view of your unit. Each bay tile shows its current status at a glance — colour-coded by the most urgent active request.
               </p>
-              <ScreenshotPlaceholder label="Bay Map — unit floor plan" />
+              <Screenshot src="/screenshot/Baymap.png" alt="Bay Map — unit floor plan" />
               <Step n={1} title="Read bay status colours">
                 Red = pending request. Blue = in progress. Green = no active requests. Grey = room inactive.
               </Step>
