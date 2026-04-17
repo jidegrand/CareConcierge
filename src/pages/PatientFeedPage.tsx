@@ -131,7 +131,7 @@ export default function PatientFeedPage() {
       <div className="flex h-full overflow-hidden">
 
         {/* ── Left panel: summary + filters + active bays ─────────── */}
-        <aside className="w-64 flex-shrink-0 border-r border-[var(--border)] flex flex-col bg-white overflow-y-auto">
+        <aside className="hidden lg:flex w-64 flex-shrink-0 border-r border-[var(--border)] flex-col bg-white overflow-y-auto">
 
           {/* Shift summary */}
           <div className="px-4 pt-5 pb-4 border-b border-[var(--border)]">

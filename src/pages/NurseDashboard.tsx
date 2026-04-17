@@ -263,7 +263,7 @@ export default function NurseDashboard() {
               {(tab === 'all' || tab === 'pending') && pending.length > 0 && (
                 <div>
                   <SectionLabel color={STATUS_COLORS.pending.accent} label="Pending" count={pending.length} />
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {pending.map(r => (
                       <PendingCard key={r.id} request={r}
                         typeMap={requestTypeMap}
@@ -280,7 +280,7 @@ export default function NurseDashboard() {
               {(tab === 'all' || tab === 'in-progress') && acknowledged.length > 0 && (
                 <div>
                   <SectionLabel color={STATUS_COLORS.inProgress.accent} label="In Progress" count={acknowledged.length} />
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {acknowledged.map(r => (
                       <InProgressCard key={r.id} request={r}
                         typeMap={requestTypeMap}
@@ -327,7 +327,7 @@ export default function NurseDashboard() {
         </div>
 
         {/* ── Right panel ───────────────────────────────────────────── */}
-        <aside className="w-72 flex-shrink-0 border-l border-[var(--border)] overflow-y-auto px-4 py-5 space-y-4 bg-[var(--page-bg)]">
+        <aside className="hidden xl:flex w-72 flex-shrink-0 border-l border-[var(--border)] overflow-y-auto px-4 py-5 space-y-4 flex-col bg-[var(--page-bg)]">
 
           {/* Status Overview */}
           <div className="rounded-2xl p-4" style={{ background: '#2C3E50' }}>

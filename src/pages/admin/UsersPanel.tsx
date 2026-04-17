@@ -113,6 +113,7 @@ export default function UsersPanel({ tenantId }: Props) {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--page-bg)]">
@@ -227,6 +228,7 @@ export default function UsersPanel({ tenantId }: Props) {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

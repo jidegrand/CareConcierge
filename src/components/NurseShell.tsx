@@ -31,6 +31,7 @@ export default function NurseShell({
   const [now, setNow]       = useState(new Date())
   const [shiftStart]        = useState(new Date())
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
@@ -71,12 +72,21 @@ export default function NurseShell({
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--page-bg)', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
 
       {/* ── Top nav ───────────────────────────────────────────────── */}
-      <header className="flex-shrink-0 flex items-center justify-between px-6 h-14 bg-[var(--surface)] border-b border-[var(--border)] z-10">
-        <div className="flex items-center gap-6">
+      <header className="flex-shrink-0 flex items-center justify-between px-4 lg:px-6 h-14 bg-[var(--surface)] border-b border-[var(--border)] z-10">
+        <div className="flex items-center gap-3 lg:gap-6">
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileNavOpen(true)}
+            className="lg:hidden p-1.5 rounded-lg hover:bg-[var(--page-bg)] transition-colors flex-shrink-0"
+            style={{ color: 'var(--text-muted)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
           <span className="text-[17px] font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
             {PRODUCT_NAME}
           </span>
-          <nav className="flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1">
             {[
               { label: 'Dashboard',    path: '/dashboard' },
               { label: 'Patient Feed', path: '/feed'      },
@@ -96,24 +106,25 @@ export default function NurseShell({
             })}
           </nav>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Urgent alert badge */}
+        <div className="flex items-center gap-2 lg:gap-3">
+          {/* Urgent alert badge — hidden on small screens */}
           {stats.pendingCount > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
               style={{ background: 'var(--danger-lt)', color: 'var(--danger)' }}>
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)] animate-pulse" />
               {stats.pendingCount} pending
             </div>
           )}
-          <button className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors shadow-sm">
-            <span className="text-base">✚</span> Emergency
+          <button className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-3 py-2 rounded-full transition-colors shadow-sm">
+            <span className="text-base leading-none">✚</span>
+            <span className="hidden sm:inline">Emergency</span>
           </button>
           <NotificationCenter />
           <button onClick={onSoundToggle} title={soundEnabled ? 'Mute alert sounds' : 'Enable alert sounds'}
-            className="relative w-9 h-9 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)] transition-colors">
+            className="hidden sm:flex relative w-9 h-9 rounded-full hover:bg-[var(--page-bg)] items-center justify-center text-[var(--text-muted)] transition-colors">
             {soundEnabled ? <VolumeOnIcon /> : <VolumeOffIcon />}
           </button>
-          <button className="w-9 h-9 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)] transition-colors">
+          <button className="hidden sm:flex w-9 h-9 rounded-full hover:bg-[var(--page-bg)] items-center justify-center text-[var(--text-muted)] transition-colors">
             <HelpIcon />
           </button>
           {/* Profile dropdown */}
@@ -193,7 +204,7 @@ export default function NurseShell({
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── Sidebar ──────────────────────────────────────────────── */}
-        <aside className={`${sidebarOpen ? 'w-56' : 'w-16'} flex-shrink-0 flex flex-col bg-[var(--surface)] border-r border-[var(--border)] transition-all duration-200 overflow-hidden`}>
+        <aside className={`${sidebarOpen ? 'w-56' : 'w-16'} flex-shrink-0 hidden lg:flex flex-col bg-[var(--surface)] border-r border-[var(--border)] transition-all duration-200 overflow-hidden`}>
 
           {/* Logo + collapse */}
           <div className="flex items-center justify-between px-4 py-4 border-b border-[var(--border)]">
@@ -386,6 +397,122 @@ export default function NurseShell({
         {/* ── Main content ──────────────────────────────────────────── */}
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
+
+      {/* ── Mobile nav overlay ────────────────────────────────────────── */}
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileNavOpen(false)} />
+          {/* Drawer */}
+          <aside className="absolute left-0 top-0 bottom-0 w-72 flex flex-col bg-[var(--surface)] shadow-2xl overflow-hidden">
+            {/* Logo + close */}
+            <div className="flex items-center justify-between px-4 py-4 border-b border-[var(--border)] flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[var(--clinical-blue)] flex items-center justify-center flex-shrink-0">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                  </svg>
+                </div>
+                <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>
+                  Care<span style={{ color: 'var(--clinical-blue)' }}> Concierge</span>
+                </p>
+              </div>
+              <button onClick={() => setMobileNavOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-[var(--page-bg)] transition-colors"
+                style={{ color: 'var(--text-muted)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Stats */}
+            <div className="flex-shrink-0 px-3 py-3 border-b border-[var(--border)] space-y-1.5">
+              <p className="text-[10px] font-medium uppercase tracking-wider px-1 mb-2" style={{ color: 'var(--text-muted)' }}>Today</p>
+              <StatCard label="Pending"      value={String(stats.pendingCount)}       color="danger"  />
+              <StatCard label="In Progress"  value={String(stats.inProgressCount)}    color="warning" />
+              <StatCard label="Resolved"     value={String(stats.resolvedTodayCount)} color="success" />
+              <StatCard label="Avg Response" value={fmtAck(stats.avgAckSeconds)}      color="neutral" />
+            </div>
+
+            {/* Main nav */}
+            <nav className="flex-1 min-h-0 px-2 py-3 space-y-0.5 overflow-y-auto">
+              {mainNav.map(item => {
+                const active = location.pathname === item.path
+                return (
+                  <button key={item.path}
+                    onClick={() => { navigate(item.path); setMobileNavOpen(false) }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      active
+                        ? 'bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)]'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--page-bg)] hover:text-[var(--text-primary)]'
+                    }`}>
+                    <span className="flex-shrink-0"><NavIcon path={item.path} active={active} /></span>
+                    {item.label}
+                  </button>
+                )
+              })}
+              {showPlatform && (
+                <button onClick={() => { navigate('/platform'); setMobileNavOpen(false) }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    location.pathname.startsWith('/platform')
+                      ? 'bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)]'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--page-bg)] hover:text-[var(--text-primary)]'
+                  }`}>
+                  <span className="flex-shrink-0"><PlatformIcon active={location.pathname.startsWith('/platform')} /></span>
+                  Platform
+                </button>
+              )}
+              {showAdmin && (
+                <button onClick={() => { navigate('/admin'); setMobileNavOpen(false) }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    location.pathname.startsWith('/admin')
+                      ? 'bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)]'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--page-bg)] hover:text-[var(--text-primary)]'
+                  }`}>
+                  <span className="flex-shrink-0"><AdminIcon active={location.pathname.startsWith('/admin')} /></span>
+                  Admin
+                </button>
+              )}
+              {showQR && (
+                <button onClick={() => { navigate('/qr-sheet'); setMobileNavOpen(false) }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    location.pathname === '/qr-sheet'
+                      ? 'bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)]'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--page-bg)] hover:text-[var(--text-primary)]'
+                  }`}>
+                  <span className="flex-shrink-0"><QRNavIcon active={location.pathname === '/qr-sheet'} /></span>
+                  QR Sheets
+                </button>
+              )}
+            </nav>
+
+            {/* Bottom */}
+            <div className="flex-shrink-0 border-t border-[var(--border)] px-3 py-3">
+              <div className="space-y-0.5">
+                {bottomNav.map(item => (
+                  <button key={item.path}
+                    onClick={() => { navigate(item.path); setMobileNavOpen(false) }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors ${
+                      location.pathname === item.path
+                        ? 'bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)]'
+                        : 'text-[var(--text-muted)] hover:bg-[var(--page-bg)] hover:text-[var(--text-secondary)]'
+                    }`}>
+                    <NavIcon path={item.path} active={location.pathname === item.path} />
+                    {item.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { navigate('/support'); setMobileNavOpen(false) }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-[var(--text-muted)] hover:bg-[var(--page-bg)] hover:text-[var(--text-secondary)] transition-colors">
+                  <SupportIcon />
+                  Support
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   )
 }

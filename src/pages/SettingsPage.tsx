@@ -44,8 +44,8 @@ export default function SettingsPage() {
 
       <div className="flex h-full overflow-hidden">
 
-        {/* Settings sub-nav */}
-        <aside className="w-52 flex-shrink-0 bg-white border-r border-[var(--border)] flex flex-col py-5">
+        {/* Settings sub-nav — sidebar on desktop, tab strip on mobile */}
+        <aside className="hidden sm:flex w-52 flex-shrink-0 bg-white border-r border-[var(--border)] flex-col py-5">
           <div className="px-4 mb-4">
             <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Settings</p>
           </div>
@@ -72,11 +72,27 @@ export default function SettingsPage() {
         </aside>
 
         {/* Panel */}
-        <main className="flex-1 overflow-y-auto px-8 py-7 max-w-2xl">
-          {tab === 'profile'       && <ProfileTab       user={user} profile={profile} unitName={unitName} tenantId={tenantId} />}
-          {tab === 'notifications' && <NotificationsTab />}
-          {tab === 'security'      && <SecurityTab      user={user} />}
-          {tab === 'preferences'   && <PreferencesTab tenantId={tenantId} role={profile?.role} />}
+        <main className="flex-1 overflow-y-auto max-w-2xl">
+          {/* Mobile tab strip */}
+          <div className="sm:hidden flex-shrink-0 bg-white border-b border-[var(--border)] flex overflow-x-auto sticky top-0 z-10">
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`flex items-center gap-1.5 px-4 py-3 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  tab === t.id
+                    ? 'border-[var(--clinical-blue)] text-[var(--clinical-blue)]'
+                    : 'border-transparent text-[var(--text-muted)]'
+                }`}>
+                {t.icon}
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div className="px-4 sm:px-8 py-7">
+            {tab === 'profile'       && <ProfileTab       user={user} profile={profile} unitName={unitName} tenantId={tenantId} />}
+            {tab === 'notifications' && <NotificationsTab />}
+            {tab === 'security'      && <SecurityTab      user={user} />}
+            {tab === 'preferences'   && <PreferencesTab tenantId={tenantId} role={profile?.role} />}
+          </div>
         </main>
       </div>
     </NurseShell>

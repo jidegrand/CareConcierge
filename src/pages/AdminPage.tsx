@@ -106,8 +106,8 @@ export default function AdminPage() {
       soundEnabled={soundEnabled} onSoundToggle={() => setSoundEnabled(!soundEnabled)} unitName={unitName}>
       <div className="flex h-full overflow-hidden">
 
-        {/* Admin sub-nav */}
-        <aside className="w-52 flex-shrink-0 bg-white border-r border-[var(--border)] flex flex-col py-5">
+        {/* Admin sub-nav — sidebar on desktop */}
+        <aside className="hidden sm:flex w-52 flex-shrink-0 bg-white border-r border-[var(--border)] flex-col py-5">
           <div className="px-4 mb-4">
             <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Admin Portal</p>
           </div>
@@ -130,19 +130,34 @@ export default function AdminPage() {
         </aside>
 
         {/* Panel */}
-        <main className="flex-1 overflow-y-auto px-6 py-6">
-          {tab === 'overview' && effectiveTenantId && (
-            <OverviewPanel
-              stats={adminStats}
-              loading={statsLoading}
-              tenantId={effectiveTenantId}
-              isSuperAdmin={isSuperAdmin}
-            />
-          )}
-          {tab === 'sites'    && effectiveTenantId && <SitesPanel tenantId={effectiveTenantId} />}
-          {tab === 'requests' && effectiveTenantId && <RequestTypesPanel tenantId={effectiveTenantId} />}
-          {tab === 'users'    && effectiveTenantId && <UsersPanel tenantId={effectiveTenantId} />}
-          {tab === 'qr'       && effectiveTenantId && <QRPanel tenantId={effectiveTenantId} />}
+        <main className="flex-1 overflow-y-auto">
+          {/* Mobile tab strip */}
+          <div className="sm:hidden bg-white border-b border-[var(--border)] flex overflow-x-auto sticky top-0 z-10">
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`px-4 py-3 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  tab === t.id
+                    ? 'border-[var(--clinical-blue)] text-[var(--clinical-blue)]'
+                    : 'border-transparent text-[var(--text-muted)]'
+                }`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div className="px-4 sm:px-6 py-6">
+            {tab === 'overview' && effectiveTenantId && (
+              <OverviewPanel
+                stats={adminStats}
+                loading={statsLoading}
+                tenantId={effectiveTenantId}
+                isSuperAdmin={isSuperAdmin}
+              />
+            )}
+            {tab === 'sites'    && effectiveTenantId && <SitesPanel tenantId={effectiveTenantId} />}
+            {tab === 'requests' && effectiveTenantId && <RequestTypesPanel tenantId={effectiveTenantId} />}
+            {tab === 'users'    && effectiveTenantId && <UsersPanel tenantId={effectiveTenantId} />}
+            {tab === 'qr'       && effectiveTenantId && <QRPanel tenantId={effectiveTenantId} />}
+          </div>
         </main>
       </div>
     </NurseShell>

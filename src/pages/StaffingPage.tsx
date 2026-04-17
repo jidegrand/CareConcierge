@@ -161,7 +161,7 @@ export default function StaffingPage() {
           </div>
 
           {/* Summary bar */}
-          <div className="flex-shrink-0 grid grid-cols-4 gap-px bg-[var(--border)] border-b border-[var(--border)]">
+          <div className="flex-shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-px bg-[var(--border)] border-b border-[var(--border)]">
             {[
               { label: 'Total Staff',    value: String(summary.totalStaff),             color: '#1D6FA8' },
               { label: 'Active Now',     value: String(summary.activeNow),              color: '#059669' },
@@ -227,6 +227,7 @@ export default function StaffingPage() {
 
             {!loading && visible.length > 0 && view === 'roster' && (
               <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-[var(--border)] bg-[var(--page-bg)]">
@@ -314,12 +315,13 @@ export default function StaffingPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 
             {/* Workload view — card grid */}
             {!loading && visible.length > 0 && view === 'workload' && (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {visible.map(s => {
                   const roleCfg = ROLE_CFG[s.role]
                   const color   = avatarColor(s.id)
