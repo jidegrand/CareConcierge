@@ -246,18 +246,21 @@ export default function UserGuidePage() {
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Patients access Care Concierge by scanning a QR code posted in their bay. The QR page is designed for one-tap use — no login required, no app to install.
               </p>
-              <Screenshot src="/screenshot/PatientHome screen.jpeg" alt="Patient QR page — home screen with request buttons" />
-              <Screenshot src="/screenshot/QRcodes.png" alt="Patient QR page — request buttons" />
               <Step n={1} title="Print QR codes">
                 Go to <strong>Admin → QR Sheet</strong> and print the sheet for your unit. Each bay has its own unique QR code that links directly to that room's page.
               </Step>
+              <Screenshot src="/screenshot/QRcodes.png" alt="QR code print sheet" />
               <Step n={2} title="Patient submits a request">
-                The patient taps a request type (water, blanket, nurse, etc.). They immediately see a live status indicator that updates as staff respond.
+                The patient scans the code and sees the request screen below. They tap a request type (water, blanket, nurse, etc.) and it is sent instantly — no app or login required.
               </Step>
-              <Step n={3} title="Patient cancels a request">
-                If the patient no longer needs help, they can tap <strong>Cancel request</strong> on the status screen before it is resolved.
+              <Screenshot src="/screenshot/PatientHome screen.jpeg" alt="Patient QR page — home screen with request buttons" />
+              <Step n={3} title="Patient tracks status in real time">
+                After tapping a request, the patient sees a live status screen that updates automatically as staff respond — from <strong>Request sent</strong> to <strong>Staff on the way</strong> to <strong>Resolved</strong>.
               </Step>
               <Screenshot src="/screenshot/Patientrequestreceived.jpeg" alt="Patient QR page — live status screen" />
+              <Step n={4} title="Patient cancels a request">
+                If the patient no longer needs help, they can tap <strong>Cancel request</strong> on the status screen before it is resolved.
+              </Step>
             </GuideSection>
 
             {/* Settings */}
