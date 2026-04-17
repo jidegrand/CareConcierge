@@ -69,13 +69,15 @@ export function useUsers(tenantId: string | undefined) {
 
   const inviteUser = async (email: string, role: string, unitId: string | null) => {
     if (!tenantId) throw new Error('No tenant')
+    const normalizedEmail = email.trim().toLowerCase()
+
     const { error: inviteErr } = await supabase
       .from('pending_invites')
-      .insert({ email: email.trim().toLowerCase(), tenant_id: tenantId, role, unit_id: unitId || null })
+      .insert({ email: normalizedEmail, tenant_id: tenantId, role, unit_id: unitId || null })
     if (inviteErr) throw new Error(inviteErr.message)
 
     const { error: otpErr } = await supabase.auth.signInWithOtp({
-      email,
+      email: normalizedEmail,
       options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/set-password') },
     })
     if (otpErr) throw new Error(otpErr.message)

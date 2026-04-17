@@ -23,7 +23,7 @@ export interface PlatformOutletContext {
 
 export default function PlatformLayout() {
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const isSuperAdmin = profile?.role === 'super_admin'
   const { tenants, loading } = useTenants(isSuperAdmin)
   const { licenses } = useTenantLicenses(isSuperAdmin)
@@ -51,6 +51,24 @@ export default function PlatformLayout() {
   }
 
   const navSearch = selectedOrganizationId ? `?orgId=${selectedOrganizationId}` : ''
+
+  if (user && !profile) {
+    return (
+      <PlatformShell>
+        <div className="flex items-center justify-center h-full px-6">
+          <div className="text-center max-w-sm">
+            <div className="w-14 h-14 rounded-full bg-[var(--clinical-blue-lt)] flex items-center justify-center mx-auto mb-4">
+              <div className="w-6 h-6 border-2 border-[var(--clinical-blue)] border-t-transparent rounded-full animate-spin" />
+            </div>
+            <p className="font-semibold text-[var(--text-primary)] mb-1">Finalizing your access</p>
+            <p className="text-sm text-[var(--text-muted)]">
+              We&apos;re still loading your platform profile. If this screen does not clear, refresh once or sign in again.
+            </p>
+          </div>
+        </div>
+      </PlatformShell>
+    )
+  }
 
   if (!isSuperAdmin) {
     return (

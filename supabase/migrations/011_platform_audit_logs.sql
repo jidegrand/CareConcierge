@@ -48,11 +48,17 @@ AS $$
 DECLARE
   actor_full_name TEXT;
   actor_role_value TEXT;
+  resolved_organization_id UUID;
 BEGIN
   SELECT full_name, role
   INTO actor_full_name, actor_role_value
   FROM user_profiles
   WHERE id = auth.uid();
+
+  SELECT t.id
+  INTO resolved_organization_id
+  FROM tenants t
+  WHERE t.id = p_organization_id;
 
   INSERT INTO platform_audit_logs (
     actor_id,
@@ -70,7 +76,7 @@ BEGIN
     auth.uid(),
     COALESCE(actor_full_name, 'Platform User'),
     actor_role_value,
-    p_organization_id,
+    resolved_organization_id,
     p_organization_name,
     p_action,
     p_target_type,

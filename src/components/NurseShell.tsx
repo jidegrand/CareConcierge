@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import NotificationCenter from '@/components/NotificationCenter'
 import { can, canAny, NAV_ITEMS, ROLE_CFG, type UserRole } from '@/lib/roles'
 import { PRODUCT_NAME } from '@/lib/brand'
 import type { RequestStats } from '@/hooks/useRequests'
@@ -107,12 +108,10 @@ export default function NurseShell({
           <button className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors shadow-sm">
             <span className="text-base">✚</span> Emergency
           </button>
-          <button onClick={onSoundToggle} title={soundEnabled ? 'Mute' : 'Unmute'}
+          <NotificationCenter />
+          <button onClick={onSoundToggle} title={soundEnabled ? 'Mute alert sounds' : 'Enable alert sounds'}
             className="relative w-9 h-9 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)] transition-colors">
-            <BellIcon />
-            {stats.pendingCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-            )}
+            {soundEnabled ? <VolumeOnIcon /> : <VolumeOffIcon />}
           </button>
           <button className="w-9 h-9 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)] transition-colors">
             <HelpIcon />
@@ -452,8 +451,9 @@ function QRNavIcon({ active }: { active: boolean }) {
   )
 }
 const ico = (d: React.ReactNode) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
-const BellIcon    = () => ico(<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></>)
 const HelpIcon    = () => ico(<><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></>)
 const SupportIcon = () => ico(<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></>)
 const BellSmIcon  = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
 const MuteSmIcon  = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M17.73 17.73A9.94 9.94 0 0 1 12 20H6s3-2 3-9a6 6 0 0 1 .08-1M9.9 4.24A6 6 0 0 1 18 8c0 2.5-.5 4.5-1.27 6.27"/></svg>
+const VolumeOnIcon = () => ico(<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></>)
+const VolumeOffIcon = () => ico(<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></>)

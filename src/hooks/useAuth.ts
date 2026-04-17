@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import type { UserProfile } from '@/types'
 
 const INACTIVE_ACCOUNT_NOTICE_KEY = 'bayrequest_inactive_account_notice'
+const PROFILE_RETRY_DELAYS_MS = [250, 500, 1000, 2000, 4000]
 
 // ── Context ───────────────────────────────────────────────────────────────────
 interface AuthContextValue {
@@ -41,28 +42,30 @@ export function useAuthProvider(): AuthContextValue {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+      const { data, error } = await supabase.rpc('get_current_user_profile')
 
-      if (error || !data) {
-        setProfile(null)
-        return false
+      if (error) {
+        return 'error' as const
+      }
+
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        return 'missing' as const
       }
 
       const nextProfile = data as UserProfile
+      if (nextProfile.id !== userId) {
+        return 'missing' as const
+      }
+
       if (nextProfile.active === false) {
         await handleInactiveProfile()
-        return false
+        return 'inactive' as const
       }
 
       setProfile(nextProfile)
-      return true
+      return 'found' as const
     } catch {
-      setProfile(null)
-      return false
+      return 'error' as const
     }
   }
 
@@ -76,7 +79,22 @@ export function useAuthProvider(): AuthContextValue {
 
       try {
         if (nextSession?.user) {
-          await fetchProfile(nextSession.user.id)
+          setProfile(null)
+
+          for (let index = 0; index <= PROFILE_RETRY_DELAYS_MS.length; index += 1) {
+            const result = await fetchProfile(nextSession.user.id)
+            if (result === 'found' || result === 'inactive') {
+              return
+            }
+
+            const retryDelay = PROFILE_RETRY_DELAYS_MS[index]
+            if (retryDelay == null) {
+              setProfile(null)
+              return
+            }
+
+            await new Promise(resolve => window.setTimeout(resolve, retryDelay))
+          }
         } else {
           setProfile(null)
         }

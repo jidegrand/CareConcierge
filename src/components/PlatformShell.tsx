@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import NotificationCenter from '@/components/NotificationCenter'
 import { COMPANY_NAME, PRODUCT_NAME } from '@/lib/brand'
 import { ROLE_CFG, type UserRole } from '@/lib/roles'
 
@@ -15,9 +16,10 @@ export default function PlatformShell({ children }: Props) {
   const profileRef = useRef<HTMLDivElement>(null)
 
   const role = profile?.role as UserRole | undefined
-  const roleCfg = ROLE_CFG[role ?? 'super_admin']
+  const roleCfg = role ? ROLE_CFG[role] : undefined
   const displayName = profile?.full_name ?? user?.email?.split('@')[0] ?? 'User'
   const initials = displayName.split(' ').map(part => part[0]).join('').toUpperCase().slice(0, 2)
+  const roleLabel = roleCfg?.label ?? (profile ? role : 'Signed in')
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -53,11 +55,12 @@ export default function PlatformShell({ children }: Props) {
         </div>
 
         <div className="flex items-center gap-3">
+          <NotificationCenter />
           <span
             className="hidden sm:inline-flex text-[11px] font-bold px-2.5 py-1 rounded-full"
-            style={{ background: roleCfg?.bg ?? '#EDE9FE', color: roleCfg?.color ?? '#5B21B6' }}
+            style={{ background: roleCfg?.bg ?? '#E5E7EB', color: roleCfg?.color ?? '#374151' }}
           >
-            {roleCfg?.label ?? role ?? 'Platform User'}
+            {roleLabel}
           </span>
           <div className="relative" ref={profileRef}>
             <button
@@ -105,9 +108,9 @@ export default function PlatformShell({ children }: Props) {
                       <p className="text-xs truncate text-[var(--text-muted)]">{user?.email ?? 'Signed in'}</p>
                       <span
                         className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                        style={{ background: roleCfg?.bg ?? '#EDE9FE', color: roleCfg?.color ?? '#5B21B6' }}
+                        style={{ background: roleCfg?.bg ?? '#E5E7EB', color: roleCfg?.color ?? '#374151' }}
                       >
-                        {roleCfg?.label ?? role ?? 'Platform User'}
+                        {roleLabel}
                       </span>
                     </div>
                   </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { playNewRequest, playUrgentAlert, playResolve } from '@/lib/sounds'
+import { useNotifications } from '@/hooks/useNotifications'
 import { getSingle, type MaybeArray } from '@/lib/utils'
 import type { Request, RequestStatus } from '@/types'
 
@@ -70,6 +71,7 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
   const [connected,    setConnected]    = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const knownIds = useRef<Set<string>>(new Set())
+  const { pushNotification } = useNotifications()
 
   const removeRequestLocally = useCallback((requestId: string) => {
     knownIds.current.delete(requestId)
@@ -228,16 +230,58 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
         if (!knownIds.current.has(newReq.id)) {
           knownIds.current.add(newReq.id)
           if (soundEnabled) newReq.is_urgent ? playUrgentAlert() : playNewRequest()
+          pushNotification({
+            title: newReq.is_urgent ? 'Urgent request received' : 'New patient request',
+            body: `${newReq.type.replace(/_/g, ' ')} request received${newReq.is_urgent ? ' and marked urgent' : ''}.`,
+            tone: newReq.is_urgent ? 'critical' : 'info',
+            dedupeKey: `request-insert:${newReq.id}`,
+          })
         }
         fetchRequests()
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests' }, () => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests' }, (payload) => {
+        const next = payload.new as Request
+        const prev = payload.old as Partial<Request>
+        const current = requests.find(entry => entry.id === next.id)
+        const requestLabel = current?.room?.name
+          ? `${current.room.name} · ${current.type.replace(/_/g, ' ')}`
+          : next.type.replace(/_/g, ' ')
+
+        if (prev.status !== next.status) {
+          if (next.status === 'acknowledged') {
+            pushNotification({
+              title: 'Request acknowledged',
+              body: `${requestLabel} is now in progress.`,
+              tone: 'warning',
+              dedupeKey: `request-ack:${next.id}:${next.acknowledged_at ?? ''}`,
+            })
+          }
+
+          if (next.status === 'resolved') {
+            pushNotification({
+              title: 'Request resolved',
+              body: `${requestLabel} has been marked complete.`,
+              tone: 'success',
+              dedupeKey: `request-resolved:${next.id}:${next.resolved_at ?? ''}`,
+            })
+          }
+        }
+
         fetchRequests()
         fetchStaffEvents()
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'requests' }, (payload) => {
         const deletedId = (payload.old as { id?: string }).id
+        const current = requests.find(entry => entry.id === deletedId)
         if (deletedId) removeRequestLocally(deletedId)
+        if (current) {
+          pushNotification({
+            title: 'Request removed',
+            body: `${current.room?.name ?? 'A request'} · ${current.type.replace(/_/g, ' ')} was removed from the live queue.`,
+            tone: 'info',
+            dedupeKey: `request-delete:${deletedId}`,
+          })
+        }
         fetchRequests()
         fetchStaffEvents()
       })
@@ -252,7 +296,7 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
       supabase.removeChannel(channel)
       setConnected(false)
     }
-  }, [tenantId, unitId, soundEnabled, fetchRequests, fetchStaffEvents, removeRequestLocally])
+  }, [tenantId, unitId, soundEnabled, fetchRequests, fetchStaffEvents, pushNotification, removeRequestLocally, requests])
 
   // ── Update status — write acknowledged_by / resolved_by ──────────────────
   const updateStatus = async (id: string, status: RequestStatus) => {

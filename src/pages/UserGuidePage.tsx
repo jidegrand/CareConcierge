@@ -1,7 +1,61 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import NurseShell from '@/components/NurseShell'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useRequests } from '@/hooks/useRequests'
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+        aria-label="Close"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      <img
+        src={src}
+        alt={alt}
+        className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain"
+        onClick={e => e.stopPropagation()}
+      />
+    </div>
+  )
+}
+
+// ── Screenshot with click-to-expand ──────────────────────────────────────────
+function Screenshot({ src, alt }: { src: string; alt: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <div className="relative group cursor-zoom-in" onClick={() => setOpen(true)}>
+        <img src={src} alt={alt}
+          className="w-full rounded-xl border border-[var(--border)] shadow-sm transition-opacity group-hover:opacity-90" />
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="flex items-center gap-1.5 bg-black/60 text-white text-xs font-medium px-3 py-1.5 rounded-full backdrop-blur-sm">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+            Click to enlarge
+          </span>
+        </div>
+      </div>
+      {open && <Lightbox src={src} alt={alt} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
 
 // ── Placeholder image slot ────────────────────────────────────────────────────
 function ScreenshotPlaceholder({ label, aspect = '16/9' }: { label: string; aspect?: string }) {
@@ -130,8 +184,7 @@ export default function UserGuidePage() {
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 The dashboard is your main workspace. All active patient requests appear here in real-time, grouped by status: <strong className="text-[var(--text-primary)]">Pending</strong>, <strong className="text-[var(--text-primary)]">In Progress</strong>, and <strong className="text-[var(--text-primary)]">Resolved</strong>.
               </p>
-              <img src="/screenshot/dashboard.png" alt="Dashboard request queue"
-                className="w-full rounded-xl border border-[var(--border)] shadow-sm" />
+              <Screenshot src="/screenshot/dashboard.png" alt="Dashboard request queue" />
               <div className="space-y-3">
                 <Step n={1} title="Acknowledge a request">
                   Click <strong>Acknowledge</strong> on a pending request card to claim it. The request moves to In Progress and the patient is notified that someone is on the way.

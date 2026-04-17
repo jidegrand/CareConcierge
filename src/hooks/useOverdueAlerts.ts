@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { playUrgentAlert } from '@/lib/sounds'
+import { useNotifications } from '@/hooks/useNotifications'
 import type { Request } from '@/types'
 
 /**
@@ -20,6 +21,7 @@ export function useOverdueAlerts(
 ): Set<string> {
   // Tracks which request IDs have already triggered a sound/notification
   const alertedIds = useRef<Set<string>>(new Set())
+  const { pushNotification } = useNotifications()
 
   // ── Synchronously derive the current overdue set (for rendering) ──────────
   const thresholdMs = overdueThresholdMin * 60 * 1000
@@ -59,6 +61,13 @@ export function useOverdueAlerts(
           }
         }
 
+        pushNotification({
+          title: r.is_urgent ? 'Urgent request is overdue' : 'Request is overdue',
+          body: `Bay ${r.room?.name ?? '—'} — ${r.type.replace(/_/g, ' ')} has been waiting over ${overdueThresholdMin} min.`,
+          tone: r.is_urgent ? 'critical' : 'warning',
+          dedupeKey: `request-overdue:${r.id}`,
+        })
+
         // Browser push notification (if permission granted)
         if ('Notification' in window && Notification.permission === 'granted') {
           try {
@@ -84,7 +93,7 @@ export function useOverdueAlerts(
     check()
     const interval = setInterval(check, 15_000)
     return () => clearInterval(interval)
-  }, [requests, overdueThresholdMin, soundEnabled, urgentSoundOnly])
+  }, [requests, overdueThresholdMin, soundEnabled, urgentSoundOnly, pushNotification])
 
   return overdueIds
 }

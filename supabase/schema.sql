@@ -154,7 +154,7 @@ RETURNS UUID LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth
 $$;
 
 CREATE OR REPLACE FUNCTION current_tenant_id()
-RETURNS UUID LANGUAGE sql STABLE SET search_path = public, auth AS $$
+RETURNS UUID LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth, private AS $$
   SELECT private.current_tenant_id()
 $$;
 
@@ -165,7 +165,7 @@ RETURNS TEXT LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth
 $$;
 
 CREATE OR REPLACE FUNCTION current_user_role()
-RETURNS TEXT LANGUAGE sql STABLE SET search_path = public, auth AS $$
+RETURNS TEXT LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth, private AS $$
   SELECT private.current_user_role()
 $$;
 
@@ -176,8 +176,24 @@ RETURNS UUID LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth
 $$;
 
 CREATE OR REPLACE FUNCTION current_unit_id()
-RETURNS UUID LANGUAGE sql STABLE SET search_path = public, auth AS $$
+RETURNS UUID LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth, private AS $$
   SELECT private.current_unit_id()
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_current_user_profile()
+RETURNS JSONB
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, auth, private
+AS $$
+  SELECT to_jsonb(profile_row)
+  FROM (
+    SELECT id, tenant_id, unit_id, role, full_name, active
+    FROM public.user_profiles
+    WHERE id = auth.uid()
+    LIMIT 1
+  ) profile_row
 $$;
 
 -- Helper function: manager and super admin checks
@@ -199,21 +215,26 @@ GRANT USAGE ON SCHEMA private TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION private.current_tenant_id() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION private.current_user_role() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION private.current_unit_id() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_current_user_profile() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION private.is_manager_or_above() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION private.is_super_admin() TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION is_manager_or_above()
-RETURNS BOOLEAN LANGUAGE sql STABLE SET search_path = public, auth AS $$
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth, private AS $$
   SELECT private.is_manager_or_above()
 $$;
 
 CREATE OR REPLACE FUNCTION is_super_admin()
-RETURNS BOOLEAN LANGUAGE sql STABLE SET search_path = public, auth AS $$
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth, private AS $$
   SELECT private.is_super_admin()
 $$;
 
-CREATE OR REPLACE FUNCTION public.handle_invited_user()
-RETURNS trigger
+CREATE OR REPLACE FUNCTION private.bootstrap_profile_from_invite(
+  target_user_id UUID,
+  target_email TEXT,
+  target_full_name TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, auth
@@ -221,31 +242,83 @@ AS $$
 DECLARE
   matched_invite public.pending_invites%ROWTYPE;
 BEGIN
+  IF target_user_id IS NULL OR target_email IS NULL THEN
+    RETURN false;
+  END IF;
+
   SELECT *
   INTO matched_invite
   FROM public.pending_invites
-  WHERE lower(email) = lower(new.email)
+  WHERE lower(email) = lower(target_email)
   ORDER BY created_at DESC
   LIMIT 1;
 
   IF matched_invite.id IS NULL THEN
-    RETURN new;
+    RETURN false;
   END IF;
 
   INSERT INTO public.user_profiles (id, tenant_id, unit_id, role, full_name)
   VALUES (
-    new.id,
+    target_user_id,
     matched_invite.tenant_id,
     matched_invite.unit_id,
     matched_invite.role,
-    COALESCE(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name')
+    NULLIF(target_full_name, '')
   )
   ON CONFLICT (id) DO UPDATE
   SET tenant_id = EXCLUDED.tenant_id,
       unit_id = EXCLUDED.unit_id,
-      role = EXCLUDED.role;
+      role = EXCLUDED.role,
+      full_name = COALESCE(EXCLUDED.full_name, user_profiles.full_name);
 
   DELETE FROM public.pending_invites WHERE id = matched_invite.id;
+
+  RETURN true;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION private.handle_invited_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+  PERFORM private.bootstrap_profile_from_invite(
+    new.id,
+    new.email,
+    COALESCE(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name')
+  );
+
+  RETURN new;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION private.handle_pending_invite()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  matched_user auth.users%ROWTYPE;
+BEGIN
+  SELECT *
+  INTO matched_user
+  FROM auth.users
+  WHERE lower(email) = lower(new.email)
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF matched_user.id IS NULL THEN
+    RETURN new;
+  END IF;
+
+  PERFORM private.bootstrap_profile_from_invite(
+    matched_user.id,
+    matched_user.email,
+    COALESCE(matched_user.raw_user_meta_data ->> 'full_name', matched_user.raw_user_meta_data ->> 'name')
+  );
 
   RETURN new;
 END;
@@ -254,7 +327,12 @@ $$;
 DROP TRIGGER IF EXISTS on_auth_user_created_profile ON auth.users;
 CREATE TRIGGER on_auth_user_created_profile
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_invited_user();
+  FOR EACH ROW EXECUTE FUNCTION private.handle_invited_user();
+
+DROP TRIGGER IF EXISTS on_pending_invite_created_profile ON public.pending_invites;
+CREATE TRIGGER on_pending_invite_created_profile
+  AFTER INSERT OR UPDATE OF email, tenant_id, unit_id, role ON public.pending_invites
+  FOR EACH ROW EXECUTE FUNCTION private.handle_pending_invite();
 
 -- ── Tenants: users can only see their own tenant ──────────────────────────────
 CREATE POLICY "tenant_select" ON tenants
