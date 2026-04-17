@@ -257,7 +257,16 @@ export default function UserGuidePage() {
               <Step n={3} title="Patient tracks status in real time">
                 After tapping a request, the patient sees a live status screen that updates automatically as staff respond — from <strong>Request sent</strong> to <strong>Staff on the way</strong> to <strong>Resolved</strong>.
               </Step>
-              <Screenshot src="/screenshot/Patientrequestreceived.jpeg" alt="Patient QR page — live status screen" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Screenshot src="/screenshot/Patientrequestreceived.jpeg" alt="Patient QR page — request received" />
+                  <p className="text-xs text-center text-[var(--text-muted)] mt-1.5">Request sent</p>
+                </div>
+                <div>
+                  <Screenshot src="/screenshot/Patientacknowledgment.jpeg" alt="Patient QR page — staff acknowledged" />
+                  <p className="text-xs text-center text-[var(--text-muted)] mt-1.5">Staff on the way</p>
+                </div>
+              </div>
               <Step n={4} title="Patient cancels a request">
                 If the patient no longer needs help, they can tap <strong>Cancel request</strong> on the status screen before it is resolved.
               </Step>
