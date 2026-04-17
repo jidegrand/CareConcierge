@@ -57,23 +57,6 @@ function Screenshot({ src, alt }: { src: string; alt: string }) {
   )
 }
 
-// ── Placeholder image slot ────────────────────────────────────────────────────
-function ScreenshotPlaceholder({ label, aspect = '16/9' }: { label: string; aspect?: string }) {
-  return (
-    <div
-      className="w-full rounded-xl border-2 border-dashed border-[var(--border)] bg-[var(--page-bg)] flex flex-col items-center justify-center gap-2 text-[var(--text-muted)] select-none"
-      style={{ aspectRatio: aspect }}
-    >
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-40">
-        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-        <circle cx="12" cy="13" r="3"/>
-      </svg>
-      <p className="text-xs font-medium opacity-60">{label}</p>
-      <p className="text-[11px] opacity-40">Screenshot coming soon</p>
-    </div>
-  )
-}
-
 // ── Section wrapper ───────────────────────────────────────────────────────────
 function GuideSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
@@ -273,7 +256,7 @@ export default function UserGuidePage() {
               <Step n={3} title="Patient cancels a request">
                 If the patient no longer needs help, they can tap <strong>Cancel request</strong> on the status screen before it is resolved.
               </Step>
-              <ScreenshotPlaceholder label="Patient QR page — live status screen" aspect="9/16" />
+              <Screenshot src="/screenshot/Patientrequestreceived.jpeg" alt="Patient QR page — live status screen" />
             </GuideSection>
 
             {/* Settings */}
