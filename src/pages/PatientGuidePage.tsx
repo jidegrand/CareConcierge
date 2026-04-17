@@ -77,14 +77,29 @@ export default function PatientGuidePage() {
 
         {/* Step 4 — Track */}
         <Card step={4} color="blue" title="Track your request in real time">
-          <p className="text-gray-600 text-sm leading-relaxed mb-4">
+          <p className="text-gray-600 text-sm leading-relaxed">
             After tapping a request, you'll see a live status screen. It automatically updates as staff respond — no need to refresh.
           </p>
-          <img
-            src="/screenshot/Patientrequestreceived.jpeg"
-            alt="Request status screen showing request received and staff on the way"
-            className="w-full max-w-xs mx-auto rounded-2xl shadow-md border border-gray-200 block"
-          />
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            <div className="text-center">
+              <img
+                src="/screenshot/Patientrequestreceived.jpeg"
+                alt="Request received status screen"
+                className="w-full rounded-2xl shadow-md border border-gray-200"
+              />
+              <p className="text-[11px] font-semibold text-amber-600 mt-2">① Request sent</p>
+              <p className="text-[10px] text-gray-400 leading-tight">Staff have been notified</p>
+            </div>
+            <div className="text-center">
+              <img
+                src="/screenshot/Patientacknowledgment.jpeg"
+                alt="Request acknowledged — staff on the way"
+                className="w-full rounded-2xl shadow-md border border-gray-200"
+              />
+              <p className="text-[11px] font-semibold text-blue-600 mt-2">② Staff on the way</p>
+              <p className="text-[10px] text-gray-400 leading-tight">Someone has acknowledged your request</p>
+            </div>
+          </div>
           <div className="mt-4 space-y-2">
             {[
               { status: 'Request sent',       color: 'bg-amber-500',  desc: 'Your request has been received by staff.' },
