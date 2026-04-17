@@ -246,6 +246,7 @@ export default function UserGuidePage() {
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Patients access Care Concierge by scanning a QR code posted in their bay. The QR page is designed for one-tap use — no login required, no app to install.
               </p>
+              <Screenshot src="/screenshot/PatientHome screen.jpeg" alt="Patient QR page — home screen with request buttons" />
               <Screenshot src="/screenshot/QRcodes.png" alt="Patient QR page — request buttons" />
               <Step n={1} title="Print QR codes">
                 Go to <strong>Admin → QR Sheet</strong> and print the sheet for your unit. Each bay has its own unique QR code that links directly to that room's page.
