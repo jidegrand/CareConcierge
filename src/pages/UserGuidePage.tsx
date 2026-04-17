@@ -235,7 +235,7 @@ export default function UserGuidePage() {
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 The Staffing page shows every staff member currently active in your scope — their role, how many requests they have acknowledged and resolved today, and their average response time.
               </p>
-              <ScreenshotPlaceholder label="Staffing — team roster and workload" />
+              <Screenshot src="/screenshot/staffing.png" alt="Staffing — team roster and workload" />
               <Step n={1} title="Switch between Roster and Workload views">
                 The <strong>Roster</strong> tab lists staff with role badges. The <strong>Workload</strong> tab shows a bar chart of resolved-today counts to spot imbalances.
               </Step>
