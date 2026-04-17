@@ -174,7 +174,7 @@ export default function QRSheetPage() {
                 type="url"
                 value={config.appUrl}
                 onChange={e => setConfig(c => ({ ...c, appUrl: e.target.value }))}
-                placeholder="https://app.bayrequest.ca"
+                placeholder="https://bayrequest.vercel.app"
                 className="w-full bg-[#0f1117] border border-[#2a2d3a] rounded-xl px-3 py-2.5 text-sm text-white font-sans placeholder:text-gray-700"
               />
               <p className="text-xs text-gray-700 mt-1">

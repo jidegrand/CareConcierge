@@ -96,7 +96,7 @@ export default function QRPanel({ tenantId }: Props) {
             <div>
               <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">App URL</label>
               <input value={appUrl} onChange={e => { setAppUrl(e.target.value); setRooms([]) }}
-                placeholder="https://app.bayrequest.ca"
+                placeholder="https://bayrequest.vercel.app"
                 className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[var(--clinical-blue)] transition-all" />
             </div>
           </div>

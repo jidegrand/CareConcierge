@@ -154,7 +154,7 @@ export default function UserGuidePage() {
             <div>
               <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">User Guide</h1>
               <p className="text-sm text-[var(--text-secondary)]">
-                Everything you need to know to use BayRequest — from responding to patient requests to reading shift reports.
+                Everything you need to know to use Care Concierge — from responding to patient requests to reading shift reports.
               </p>
             </div>
 
@@ -261,7 +261,7 @@ export default function UserGuidePage() {
             {/* Patient QR Page */}
             <GuideSection id="patient-qr" title="Patient QR Page">
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Patients access BayRequest by scanning a QR code posted in their bay. The QR page is designed for one-tap use — no login required, no app to install.
+                Patients access Care Concierge by scanning a QR code posted in their bay. The QR page is designed for one-tap use — no login required, no app to install.
               </p>
               <ScreenshotPlaceholder label="Patient QR page — request buttons" aspect="9/16" />
               <Step n={1} title="Print QR codes">
