@@ -130,7 +130,8 @@ export default function UserGuidePage() {
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 The dashboard is your main workspace. All active patient requests appear here in real-time, grouped by status: <strong className="text-[var(--text-primary)]">Pending</strong>, <strong className="text-[var(--text-primary)]">In Progress</strong>, and <strong className="text-[var(--text-primary)]">Resolved</strong>.
               </p>
-              <ScreenshotPlaceholder label="Dashboard — request queue" />
+              <img src="/screenshot/dashboard.png" alt="Dashboard request queue"
+                className="w-full rounded-xl border border-[var(--border)] shadow-sm" />
               <div className="space-y-3">
                 <Step n={1} title="Acknowledge a request">
                   Click <strong>Acknowledge</strong> on a pending request card to claim it. The request moves to In Progress and the patient is notified that someone is on the way.
