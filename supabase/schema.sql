@@ -370,6 +370,9 @@ CREATE POLICY "tenant_settings_manager_update" ON tenant_settings
 CREATE POLICY "sites_select" ON sites
   FOR SELECT USING (tenant_id = current_tenant_id());
 
+CREATE POLICY "sites_select_super_admin" ON sites
+  FOR SELECT USING (current_user_role() = 'super_admin');
+
 CREATE POLICY "sites_insert_admin" ON sites
   FOR INSERT WITH CHECK (
     tenant_id = current_tenant_id()
@@ -379,11 +382,39 @@ CREATE POLICY "sites_insert_admin" ON sites
 CREATE POLICY "sites_insert_super_admin" ON sites
   FOR INSERT WITH CHECK (current_user_role() = 'super_admin');
 
+CREATE POLICY "sites_update_admin" ON sites
+  FOR UPDATE
+  USING (
+    tenant_id = current_tenant_id()
+    AND current_user_role() IN ('tenant_admin')
+  )
+  WITH CHECK (
+    tenant_id = current_tenant_id()
+    AND current_user_role() IN ('tenant_admin')
+  );
+
+CREATE POLICY "sites_update_super_admin" ON sites
+  FOR UPDATE
+  USING (current_user_role() = 'super_admin')
+  WITH CHECK (current_user_role() = 'super_admin');
+
+CREATE POLICY "sites_delete_admin" ON sites
+  FOR DELETE USING (
+    tenant_id = current_tenant_id()
+    AND current_user_role() IN ('tenant_admin')
+  );
+
+CREATE POLICY "sites_delete_super_admin" ON sites
+  FOR DELETE USING (current_user_role() = 'super_admin');
+
 -- ── Units: scoped to tenant via site ─────────────────────────────────────────
 CREATE POLICY "units_select" ON units
   FOR SELECT USING (
     site_id IN (SELECT id FROM sites WHERE tenant_id = current_tenant_id())
   );
+
+CREATE POLICY "units_select_super_admin" ON units
+  FOR SELECT USING (current_user_role() = 'super_admin');
 
 CREATE POLICY "units_insert_admin" ON units
   FOR INSERT WITH CHECK (
@@ -394,11 +425,53 @@ CREATE POLICY "units_insert_admin" ON units
 CREATE POLICY "units_insert_super_admin" ON units
   FOR INSERT WITH CHECK (current_user_role() = 'super_admin');
 
+CREATE POLICY "units_update_admin" ON units
+  FOR UPDATE
+  USING (
+    site_id IN (SELECT id FROM sites WHERE tenant_id = current_tenant_id())
+    AND current_user_role() IN ('tenant_admin', 'site_manager', 'nurse_manager')
+  )
+  WITH CHECK (
+    site_id IN (SELECT id FROM sites WHERE tenant_id = current_tenant_id())
+    AND current_user_role() IN ('tenant_admin', 'site_manager', 'nurse_manager')
+  );
+
+CREATE POLICY "units_update_super_admin" ON units
+  FOR UPDATE
+  USING (current_user_role() = 'super_admin')
+  WITH CHECK (current_user_role() = 'super_admin');
+
+CREATE POLICY "units_delete_admin" ON units
+  FOR DELETE USING (
+    site_id IN (SELECT id FROM sites WHERE tenant_id = current_tenant_id())
+    AND current_user_role() IN ('tenant_admin', 'site_manager', 'nurse_manager')
+  );
+
+CREATE POLICY "units_delete_super_admin" ON units
+  FOR DELETE USING (current_user_role() = 'super_admin');
+
 -- ── Rooms: publicly readable by room UUID (patient QR access) ─────────────────
 -- Patients access rooms via UUID — no auth — so we allow public SELECT on rooms.
 -- No PHI is exposed: only room name, unit name, site name, tenant name.
+-- Staff also need SELECT to see inactive rooms in the admin panel.
 CREATE POLICY "rooms_public_select" ON rooms
   FOR SELECT USING (active = true);
+
+CREATE POLICY "rooms_select_staff" ON rooms
+  FOR SELECT USING (
+    unit_id IN (
+      SELECT u.id FROM units u
+      JOIN sites s ON u.site_id = s.id
+      WHERE s.tenant_id = current_tenant_id()
+    )
+    AND current_user_role() IN (
+      'tenant_admin', 'site_manager', 'nurse_manager',
+      'charge_nurse', 'nurse', 'volunteer', 'viewer'
+    )
+  );
+
+CREATE POLICY "rooms_select_super_admin" ON rooms
+  FOR SELECT USING (current_user_role() = 'super_admin');
 
 CREATE POLICY "rooms_insert_admin" ON rooms
   FOR INSERT WITH CHECK (
