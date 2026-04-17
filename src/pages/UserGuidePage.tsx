@@ -207,7 +207,7 @@ export default function UserGuidePage() {
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 The Patient Feed shows a chronological stream of every request event — new requests, acknowledgements, and resolutions — across all bays in your unit. Use it to get a bird's-eye view of activity without switching bays.
               </p>
-              <ScreenshotPlaceholder label="Patient Feed — live event stream" />
+              <Screenshot src="/screenshot/PatientFeed.png" alt="Patient Feed — live event stream" />
               <Step n={1} title="Filter by bay, event type, or request type">
                 Use the filter bar at the top to narrow the feed to a specific bay or event kind (new request, acknowledged, resolved).
               </Step>
