@@ -163,7 +163,7 @@ export default function UserGuidePage() {
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Care Concierge is a real-time patient request management system. Patients scan a QR code at their bedside to submit requests (water, blanket, nurse, etc.). Staff see those requests instantly on the dashboard and can acknowledge, assign, and resolve them without leaving the floor.
               </p>
-              <ScreenshotPlaceholder label="App overview — full workflow" aspect="16/7" />
+              <Screenshot src="/screenshot/Overview.png" alt="App overview — full workflow" />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   { icon: '📱', title: 'Patient scans QR', desc: 'Submits a request from their bed without needing a call button.' },
