@@ -85,8 +85,8 @@ export default function LoginPage() {
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
               </svg>
             </div>
-            <span className="text-2xl font-semibold text-[var(--text-primary)] tracking-tight">
-              {PRODUCT_NAME.split(' ')[0]}<span className="text-[var(--clinical-blue)]"> {PRODUCT_NAME.split(' ').slice(1).join(' ')}</span>
+            <span className="text-2xl font-semibold tracking-tight">
+              <span className="text-[var(--clinical-blue-dk)]">{PRODUCT_NAME.split(' ')[0]} </span><span className="text-[var(--clinical-blue)]">{PRODUCT_NAME.split(' ').slice(1).join(' ')}</span>
             </span>
           </div>
           <p className="text-sm text-[var(--text-muted)] font-mono tracking-wider uppercase">
