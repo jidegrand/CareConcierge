@@ -196,7 +196,7 @@ export default function UserGuidePage() {
                   On any in-progress card, click <strong>Reassign →</strong> and pick a colleague from the dropdown to hand off the request.
                 </Step>
               </div>
-              <ScreenshotPlaceholder label="Dashboard — acknowledging a request" />
+              <Screenshot src="/screenshot/acknowledgment.png" alt="Dashboard — acknowledging a request" />
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 <strong>Overdue alerts:</strong> Cards with an orange pulsing border have exceeded the configured response target. Prioritise these first.
               </div>
