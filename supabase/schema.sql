@@ -334,6 +334,34 @@ CREATE TRIGGER on_pending_invite_created_profile
   AFTER INSERT OR UPDATE OF email, tenant_id, unit_id, role ON public.pending_invites
   FOR EACH ROW EXECUTE FUNCTION private.handle_pending_invite();
 
+CREATE OR REPLACE FUNCTION private.seed_default_request_types_for_tenant()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, private
+AS $$
+BEGIN
+  INSERT INTO public.request_types (tenant_id, id, label, icon, color, urgent, active, sort_order, system)
+  VALUES
+    (NEW.id, 'water',       'Water',             '💧', '#3B82F6', false, true, 0, false),
+    (NEW.id, 'blanket',     'Blanket',           '🛏️', '#8B5CF6', false, true, 1, false),
+    (NEW.id, 'pain',        'Pain / Discomfort', '⚠️', '#EF4444', true,  true, 2, false),
+    (NEW.id, 'medication',  'Medication',        '💊', '#F59E0B', true,  true, 3, false),
+    (NEW.id, 'bathroom',    'Bathroom Help',     '🚶', '#10B981', false, true, 4, false),
+    (NEW.id, 'nurse',       'Call Nurse',        '🔔', '#EC4899', true,  true, 5, true),
+    (NEW.id, 'food',        'Food / Snack',      '🍽️', '#6366F1', false, true, 6, false),
+    (NEW.id, 'temperature', 'Too Hot / Cold',    '🌡️', '#14B8A6', false, true, 7, false)
+  ON CONFLICT (tenant_id, id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS seed_default_request_types_on_tenant_insert ON public.tenants;
+CREATE TRIGGER seed_default_request_types_on_tenant_insert
+  AFTER INSERT ON public.tenants
+  FOR EACH ROW EXECUTE FUNCTION private.seed_default_request_types_for_tenant();
+
 -- ── Tenants: users can only see their own tenant ──────────────────────────────
 CREATE POLICY "tenant_select" ON tenants
   FOR SELECT USING (id = current_tenant_id());
