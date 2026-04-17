@@ -33,6 +33,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function HomeRedirect() {
+  const { session, profile, loading } = useAuth()
+  if (loading) return (
+    <div className="min-h-screen bg-[var(--page-bg)] flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-[var(--clinical-blue)] border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+  if (!session) return <Navigate to="/login" replace />
+  if (profile?.role === 'super_admin' && !profile?.tenant_id) return <Navigate to="/platform" replace />
+  return <Navigate to="/dashboard" replace />
+}
+
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const auth = useAuthProvider()
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>
@@ -86,7 +98,7 @@ export default function App() {
           <Route path="/admin/*"    element={<ProtectedRoute><AdminPage       /></ProtectedRoute>} />
           <Route path="/settings"   element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
           <Route path="/support"    element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
-          <Route path="*"           element={<Navigate to="/dashboard" replace />} />
+          <Route path="*"           element={<HomeRedirect />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -40,53 +40,75 @@ export function useAuthProvider(): AuthContextValue {
   }
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
 
-    if (error || !data) {
+      if (error || !data) {
+        setProfile(null)
+        return false
+      }
+
+      const nextProfile = data as UserProfile
+      if (nextProfile.active === false) {
+        await handleInactiveProfile()
+        return false
+      }
+
+      setProfile(nextProfile)
+      return true
+    } catch {
       setProfile(null)
       return false
     }
-
-    const nextProfile = data as UserProfile
-    if (!nextProfile.active) {
-      await handleInactiveProfile()
-      return false
-    }
-
-    setProfile(nextProfile)
-    return true
   }
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      if (session?.user) {
-        await fetchProfile(session.user.id)
-      } else {
-        setProfile(null)
-      }
-      setLoading(false)
-    })
+    let cancelled = false
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session)
-        if (session?.user) {
-          await fetchProfile(session.user.id)
+    const syncSession = async (nextSession: Session | null) => {
+      if (cancelled) return
+
+      setSession(nextSession)
+
+      try {
+        if (nextSession?.user) {
+          await fetchProfile(nextSession.user.id)
         } else {
           setProfile(null)
         }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    // Get initial session
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => syncSession(session))
+      .catch(() => {
+        if (cancelled) return
+        setSession(null)
+        setProfile(null)
         setLoading(false)
+      })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, nextSession) => {
+        // Supabase warns that awaiting other client calls inside this callback can deadlock.
+        window.setTimeout(() => {
+          void syncSession(nextSession)
+        }, 0)
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
   }, [])
 
   useEffect(() => {

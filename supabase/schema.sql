@@ -98,7 +98,7 @@ CREATE TABLE user_profiles (
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   unit_id     UUID REFERENCES units(id),    -- NULL = access to all units in tenant
   role        TEXT NOT NULL DEFAULT 'nurse'
-              CHECK (role IN ('tenant_admin', 'site_manager', 'charge_nurse', 'nurse', 'viewer')),
+              CHECK (role IN ('super_admin', 'tenant_admin', 'nurse_manager', 'site_manager', 'charge_nurse', 'nurse', 'volunteer', 'viewer')),
   full_name   TEXT,
   active      BOOLEAN NOT NULL DEFAULT true,
   created_at  TIMESTAMPTZ DEFAULT now()
@@ -134,21 +134,70 @@ ALTER TABLE request_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Helper function: get current user's tenant_id
+CREATE SCHEMA IF NOT EXISTS private;
+
+CREATE OR REPLACE FUNCTION private.current_tenant_id()
+RETURNS UUID LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth, private AS $$
+  SELECT tenant_id FROM public.user_profiles WHERE id = auth.uid() AND COALESCE(active, true) = true
+$$;
+
 CREATE OR REPLACE FUNCTION current_tenant_id()
 RETURNS UUID LANGUAGE sql STABLE SET search_path = public, auth AS $$
-  SELECT tenant_id FROM user_profiles WHERE id = auth.uid() AND active = true
+  SELECT private.current_tenant_id()
 $$;
 
 -- Helper function: get current user's role
+CREATE OR REPLACE FUNCTION private.current_user_role()
+RETURNS TEXT LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth, private AS $$
+  SELECT role FROM public.user_profiles WHERE id = auth.uid() AND COALESCE(active, true) = true
+$$;
+
 CREATE OR REPLACE FUNCTION current_user_role()
 RETURNS TEXT LANGUAGE sql STABLE SET search_path = public, auth AS $$
-  SELECT role FROM user_profiles WHERE id = auth.uid() AND active = true
+  SELECT private.current_user_role()
 $$;
 
 -- Helper function: get current user's unit_id
+CREATE OR REPLACE FUNCTION private.current_unit_id()
+RETURNS UUID LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth, private AS $$
+  SELECT unit_id FROM public.user_profiles WHERE id = auth.uid() AND COALESCE(active, true) = true
+$$;
+
 CREATE OR REPLACE FUNCTION current_unit_id()
 RETURNS UUID LANGUAGE sql STABLE SET search_path = public, auth AS $$
-  SELECT unit_id FROM user_profiles WHERE id = auth.uid() AND active = true
+  SELECT private.current_unit_id()
+$$;
+
+-- Helper function: manager and super admin checks
+CREATE OR REPLACE FUNCTION private.is_manager_or_above()
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth, private AS $$
+  SELECT role IN ('super_admin', 'tenant_admin', 'nurse_manager', 'site_manager', 'charge_nurse')
+  FROM public.user_profiles
+  WHERE id = auth.uid() AND COALESCE(active, true) = true
+$$;
+
+CREATE OR REPLACE FUNCTION private.is_super_admin()
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth, private AS $$
+  SELECT role = 'super_admin'
+  FROM public.user_profiles
+  WHERE id = auth.uid() AND COALESCE(active, true) = true
+$$;
+
+GRANT USAGE ON SCHEMA private TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.current_tenant_id() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.current_user_role() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.current_unit_id() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.is_manager_or_above() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.is_super_admin() TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION is_manager_or_above()
+RETURNS BOOLEAN LANGUAGE sql STABLE SET search_path = public, auth AS $$
+  SELECT private.is_manager_or_above()
+$$;
+
+CREATE OR REPLACE FUNCTION is_super_admin()
+RETURNS BOOLEAN LANGUAGE sql STABLE SET search_path = public, auth AS $$
+  SELECT private.is_super_admin()
 $$;
 
 -- ── Tenants: users can only see their own tenant ──────────────────────────────

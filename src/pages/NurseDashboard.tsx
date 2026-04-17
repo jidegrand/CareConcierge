@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { Navigate } from 'react-router-dom'
 import NurseShell from '@/components/NurseShell'
 import { useRequests } from '@/hooks/useRequests'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
 import { useTenantContext } from '@/hooks/useTenantContext'
+import { useAuth } from '@/hooks/useAuth'
 import { usePrefs } from '@/hooks/usePrefs'
 import { useOverdueAlerts } from '@/hooks/useOverdueAlerts'
 import { timeAgo } from '@/lib/constants'
@@ -133,7 +135,8 @@ function useAssignableStaff(unitId: string | undefined, tenantId: string | undef
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function NurseDashboard() {
-  const { tenantId, tenantName, unitId } = useTenantContext()
+  const { profile } = useAuth()
+  const { tenantId, tenantName, unitId, loading: tenantLoading } = useTenantContext()
   const { requestTypes, requestTypeMap } = useRequestTypes(tenantId)
   const {
     requests, loading, connected, stats,
@@ -169,12 +172,26 @@ export default function NurseDashboard() {
   }, [pending])
   const unitName     = requests[0]?.room?.unit?.name ?? (unitId ? 'Assigned Unit' : `${tenantName ?? 'Tenant'} · All Units`)
 
+  if (tenantLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--page-bg)' }}>
+        <div className="w-6 h-6 border-2 border-[var(--clinical-blue)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   if (!tenantId) {
+    if (profile?.role === 'super_admin') {
+      return <Navigate to="/platform" replace />
+    }
     return (
       <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--page-bg)' }}>
-        <p className="text-sm text-[var(--text-secondary)]">
-          Sign in to a tenant-assigned account to access the request queue.
-        </p>
+        <div className="text-center max-w-sm">
+          <p className="text-sm font-medium text-[var(--text-primary)] mb-1">No tenant assigned</p>
+          <p className="text-sm text-[var(--text-secondary)]">
+            This account isn&apos;t linked to an organization. Contact your administrator to have your account assigned to a tenant.
+          </p>
+        </div>
       </div>
     )
   }
