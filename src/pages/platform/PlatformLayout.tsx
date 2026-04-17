@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
+import { NavLink, Link, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import PlatformShell from '@/components/PlatformShell'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenants, useTenantLicenses, type OrganizationWithStats } from '@/hooks/useAdminData'
@@ -118,7 +118,19 @@ export default function PlatformLayout() {
             ))}
           </nav>
 
-          <div className="px-4 pt-4 border-t border-[var(--border)]">
+          <div className="px-2 pb-3 border-b border-[var(--border)] mb-1">
+            <Link
+              to="/super-admin-guide"
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--page-bg)] hover:text-[var(--text-primary)] transition-all"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2l7 4v6c0 5-3 8-7 10-4-2-7-5-7-10V6l7-4z"/>
+              </svg>
+              Super Admin Guide
+            </Link>
+          </div>
+
+          <div className="px-4 pt-4">
             <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-1">Selected organization</p>
             <div className="flex items-center gap-2 flex-wrap mt-1">
               <p className="text-sm font-semibold text-[var(--text-primary)]">{selectedOrganization?.name ?? 'None selected'}</p>

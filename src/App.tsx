@@ -25,6 +25,7 @@ const PlatformLicensingPage = lazy(() => import('@/pages/platform/PlatformLicens
 const PlatformAccessControlPage = lazy(() => import('@/pages/platform/PlatformAccessControlPage'))
 const PlatformGlobalReportsPage = lazy(() => import('@/pages/platform/PlatformGlobalReportsPage'))
 const PlatformAuditLogsPage = lazy(() => import('@/pages/platform/PlatformAuditLogsPage'))
+const SuperAdminGuidePage = lazy(() => import('@/pages/platform/SuperAdminGuidePage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth()
@@ -109,6 +110,7 @@ export default function App() {
           <Route path="/support"    element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
           <Route path="/guide"       element={<ProtectedRoute><UserGuidePage   /></ProtectedRoute>} />
           <Route path="/admin-guide" element={<ProtectedRoute><AdminGuidePage  /></ProtectedRoute>} />
+          <Route path="/super-admin-guide" element={<ProtectedRoute><PlatformModuleLoader fullscreen><SuperAdminGuidePage /></PlatformModuleLoader></ProtectedRoute>} />
           <Route path="*"           element={<HomeRedirect />} />
         </Routes>
       </AuthProvider>
