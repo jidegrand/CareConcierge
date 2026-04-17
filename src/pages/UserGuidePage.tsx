@@ -281,7 +281,7 @@ export default function UserGuidePage() {
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Access <strong>Settings</strong> from the bottom of the left sidebar. Here you can update your profile, manage notification preferences, change your password, and adjust display preferences like dark mode and overdue thresholds.
               </p>
-              <ScreenshotPlaceholder label="Settings — profile tab" />
+              <Screenshot src="/screenshot/settings.png" alt="Settings — profile tab" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 {[
                   { tab: 'Profile', desc: 'Update your display name and view your role.' },
