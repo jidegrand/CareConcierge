@@ -15,6 +15,7 @@ import ReportsPage     from '@/pages/ReportsPage'
 import AdminPage       from '@/pages/AdminPage'
 import SettingsPage    from '@/pages/SettingsPage'
 import UserGuidePage   from '@/pages/UserGuidePage'
+import PatientGuidePage from '@/pages/PatientGuidePage'
 
 const PlatformLayout = lazy(() => import('@/pages/platform/PlatformLayout'))
 const PlatformOverviewPage = lazy(() => import('@/pages/platform/PlatformOverviewPage'))
@@ -83,6 +84,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/r/:roomId"  element={<PatientPage />} />
+          <Route path="/patient-guide" element={<PatientGuidePage />} />
           <Route path="/login"      element={<LoginPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/set-password"   element={<SetPasswordPage />} />
