@@ -233,6 +233,7 @@ export default function UserGuidePage() {
                 The Reports page provides shift and date-range analytics: total requests, average acknowledgement and resolution time, request type breakdown, and staff performance.
               </p>
               <Screenshot src="/screenshot/reports.png" alt="Reports — analytics dashboard" />
+              <Screenshot src="/screenshot/newReports.png" alt="Reports — detailed view" />
               <Step n={1} title="Set a date range">
                 Use the date pickers at the top to select any range. All metrics and charts update instantly.
               </Step>
