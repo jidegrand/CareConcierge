@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthContext, useAuthProvider, useAuth } from '@/hooks/useAuth'
+import { NotificationsProvider } from '@/hooks/useNotifications'
 import LoginPage       from '@/pages/LoginPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
 import SetPasswordPage from '@/pages/SetPasswordPage'
@@ -13,6 +14,7 @@ import QRSheetPage     from '@/pages/QRSheetPage'
 import ReportsPage     from '@/pages/ReportsPage'
 import AdminPage       from '@/pages/AdminPage'
 import SettingsPage    from '@/pages/SettingsPage'
+import UserGuidePage   from '@/pages/UserGuidePage'
 
 const PlatformLayout = lazy(() => import('@/pages/platform/PlatformLayout'))
 const PlatformOverviewPage = lazy(() => import('@/pages/platform/PlatformOverviewPage'))
@@ -41,13 +43,17 @@ function HomeRedirect() {
     </div>
   )
   if (!session) return <Navigate to="/login" replace />
-  if (profile?.role === 'super_admin' && !profile?.tenant_id) return <Navigate to="/platform" replace />
+  if (profile?.role === 'super_admin') return <Navigate to="/platform" replace />
   return <Navigate to="/dashboard" replace />
 }
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const auth = useAuthProvider()
-  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={auth}>
+      <NotificationsProvider>{children}</NotificationsProvider>
+    </AuthContext.Provider>
+  )
 }
 
 function PlatformModuleLoader({
@@ -98,6 +104,7 @@ export default function App() {
           <Route path="/admin/*"    element={<ProtectedRoute><AdminPage       /></ProtectedRoute>} />
           <Route path="/settings"   element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
           <Route path="/support"    element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
+          <Route path="/guide"      element={<ProtectedRoute><UserGuidePage   /></ProtectedRoute>} />
           <Route path="*"           element={<HomeRedirect />} />
         </Routes>
       </AuthProvider>

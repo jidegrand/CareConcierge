@@ -135,7 +135,7 @@ function useAssignableStaff(unitId: string | undefined, tenantId: string | undef
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function NurseDashboard() {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const { tenantId, tenantName, unitId, loading: tenantLoading } = useTenantContext()
   const { requestTypes, requestTypeMap } = useRequestTypes(tenantId)
   const {
@@ -181,6 +181,20 @@ export default function NurseDashboard() {
   }
 
   if (!tenantId) {
+    if (user && !profile) {
+      return (
+        <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--page-bg)' }}>
+          <div className="text-center max-w-sm">
+            <div className="w-6 h-6 border-2 border-[var(--clinical-blue)] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-sm font-medium text-[var(--text-primary)] mb-1">Finalizing your account</p>
+            <p className="text-sm text-[var(--text-secondary)]">
+              We&apos;re still linking your access. If this message lasts more than a minute, ask your administrator to resend your invite.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
     if (profile?.role === 'super_admin') {
       return <Navigate to="/platform" replace />
     }

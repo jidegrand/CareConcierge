@@ -41,6 +41,7 @@ export type Permission =
   | 'page.admin'
   | 'page.qrsheet'
   | 'page.settings'
+  | 'page.guide'
   | 'admin.sites'
   | 'admin.rooms'
   | 'admin.users'
@@ -68,6 +69,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports.view', 'reports.export',
     'staffing.view', 'staffing.manage',
     'settings.profile', 'settings.notifications', 'settings.security', 'settings.preferences',
+    'page.guide',
   ],
   tenant_admin: [
     'requests.view', 'requests.acknowledge', 'requests.resolve', 'requests.create',
@@ -78,6 +80,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports.view', 'reports.export',
     'staffing.view', 'staffing.manage',
     'settings.profile', 'settings.notifications', 'settings.security', 'settings.preferences',
+    'page.guide',
   ],
   nurse_manager: [
     'requests.view', 'requests.acknowledge', 'requests.resolve', 'requests.create',
@@ -87,6 +90,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports.view', 'reports.export',
     'staffing.view', 'staffing.manage',
     'settings.profile', 'settings.notifications', 'settings.security', 'settings.preferences',
+    'page.guide',
   ],
   site_manager: [
     'requests.view', 'requests.acknowledge', 'requests.resolve', 'requests.create',
@@ -96,6 +100,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports.view', 'reports.export',
     'staffing.view', 'staffing.manage',
     'settings.profile', 'settings.notifications', 'settings.security', 'settings.preferences',
+    'page.guide',
   ],
   charge_nurse: [
     'requests.view', 'requests.acknowledge', 'requests.resolve', 'requests.create',
@@ -105,22 +110,26 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports.view', 'reports.export',
     'staffing.view',
     'settings.profile', 'settings.notifications', 'settings.security', 'settings.preferences',
+    'page.guide',
   ],
   nurse: [
     'requests.view', 'requests.acknowledge', 'requests.resolve',
     'page.dashboard', 'page.feed', 'page.baymap', 'page.staffing', 'page.settings',
     'staffing.view',
     'settings.profile', 'settings.notifications', 'settings.security', 'settings.preferences',
+    'page.guide',
   ],
   volunteer: [
     'requests.view', 'requests.acknowledge',
     'page.dashboard', 'page.feed', 'page.baymap', 'page.settings',
     'settings.profile', 'settings.notifications',
+    'page.guide',
   ],
   viewer: [
     'requests.view',
     'page.dashboard', 'page.feed', 'page.baymap', 'page.settings',
     'settings.profile',
+    'page.guide',
   ],
 }
 
@@ -153,6 +162,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/staffing',  label: 'Staffing',     perm: 'page.staffing', section: 'main' },
   { path: '/reports',   label: 'Reports',      perm: 'page.reports',  section: 'main' },
   { path: '/settings',  label: 'Settings',     perm: 'page.settings', section: 'bottom' },
+  { path: '/guide',     label: 'User Guide',   perm: 'page.guide',    section: 'bottom' },
 ]
 
 export function isAtLeast(role: UserRole | string | undefined, minRole: UserRole): boolean {
