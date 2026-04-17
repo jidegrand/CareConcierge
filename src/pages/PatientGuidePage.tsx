@@ -56,8 +56,23 @@ export default function PatientGuidePage() {
           </div>
         </Card>
 
-        {/* Step 3 — Urgent */}
-        <Card step={3} color="red" title="For urgent help — press Call Nurse">
+        {/* Step 3 — Submit */}
+        <Card step={3} color="blue" title="Patient submits a request">
+          <p className="text-gray-600 text-sm leading-relaxed mb-4">
+            When a request button is tapped, it is sent to staff immediately. The page switches to a live status screen — no confirmation needed, no waiting to find out if it was received.
+          </p>
+          <img
+            src="/screenshot/Patientrequestreceived.jpeg"
+            alt="Request submitted — status screen showing request received"
+            className="w-full max-w-xs mx-auto rounded-2xl shadow-md border border-gray-200 block"
+          />
+          <Tip>
+            Each tap sends one request. To submit a different request, go back and tap another button.
+          </Tip>
+        </Card>
+
+        {/* Step 4 — Urgent */}
+        <Card step={4} color="red" title="For urgent help — press Call Nurse">
           <p className="text-gray-600 text-sm leading-relaxed">
             At the top of the page there is a large red <strong>Call Nurse</strong> button. Use this for urgent assistance, pain relief, or any situation that needs immediate attention. It alerts staff right away.
           </p>
@@ -75,8 +90,8 @@ export default function PatientGuidePage() {
           </div>
         </Card>
 
-        {/* Step 4 — Track */}
-        <Card step={4} color="blue" title="Track your request in real time">
+        {/* Step 5 — Track */}
+        <Card step={5} color="blue" title="Track your request in real time">
           <p className="text-gray-600 text-sm leading-relaxed">
             After tapping a request, you'll see a live status screen. It automatically updates as staff respond — no need to refresh.
           </p>
@@ -126,8 +141,8 @@ export default function PatientGuidePage() {
           </div>
         </Card>
 
-        {/* Step 5 — Cancel */}
-        <Card step={5} color="gray" title="Changed your mind? Cancel the request">
+        {/* Step 6 — Cancel */}
+        <Card step={6} color="gray" title="Changed your mind? Cancel the request">
           <p className="text-gray-600 text-sm leading-relaxed">
             If you no longer need assistance, tap <strong>Cancel request</strong> on the status screen. This removes the request so staff can focus on others who need help.
           </p>
@@ -137,7 +152,7 @@ export default function PatientGuidePage() {
         </Card>
 
         {/* Language note */}
-        <Card step={6} color="gray" title="Change the language">
+        <Card step={7} color="gray" title="Change the language">
           <p className="text-gray-600 text-sm leading-relaxed">
             Tap the <strong>Language</strong> selector at the top right of the page to switch the request labels to your preferred language. Your choice is remembered for next time.
           </p>
