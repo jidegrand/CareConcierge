@@ -221,11 +221,11 @@ export default function SuperAdminGuidePage() {
                 <div className="space-y-2 text-xs">
                   <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
                     <p className="font-semibold text-[var(--text-primary)] mb-1">Site URL</p>
-                    <p className="text-[var(--text-secondary)]">Set to your production URL, e.g. <InlineCode>https://bayrequest.vercel.app</InlineCode></p>
+                    <p className="text-[var(--text-secondary)]">Set to your production URL: <InlineCode>https://care.extendihealth.com</InlineCode></p>
                   </div>
                   <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
                     <p className="font-semibold text-[var(--text-primary)] mb-1">Redirect URLs</p>
-                    <p className="text-[var(--text-secondary)]">Add <InlineCode>https://bayrequest.vercel.app/**</InlineCode> and <InlineCode>http://localhost:5173/**</InlineCode> for local development</p>
+                    <p className="text-[var(--text-secondary)]">Add <InlineCode>https://care.extendihealth.com/**</InlineCode>, <InlineCode>https://*.care.extendihealth.com/**</InlineCode> (for tenant subdomains), and <InlineCode>http://localhost:5173/**</InlineCode> for local development</p>
                   </div>
                   <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
                     <p className="font-semibold text-[var(--text-primary)] mb-1">Email provider</p>
@@ -284,12 +284,12 @@ vercel link`}</Code>
                   <EnvRow
                     name="VITE_APP_URL"
                     desc="The canonical URL of your deployment"
-                    example="https://bayrequest.vercel.app"
+                    example="https://care.extendihealth.com"
                   />
                   <EnvRow
                     name="VITE_ROOT_DOMAIN"
-                    desc="Domain used to build QR code URLs"
-                    example="bayrequest.vercel.app"
+                    desc="Domain used to build patient-facing QR code URLs"
+                    example="care.extendihealth.com"
                   />
                 </div>
               </Step>
@@ -312,7 +312,7 @@ vercel link`}</Code>
 
               <Step n={6} title="Verify the deployment">
                 <p className="mb-2">After the deploy command completes, run <InlineCode>vercel inspect</InlineCode> on the returned URL to confirm the deployment is READY:</p>
-                <Code>{`vercel inspect https://bayrequest-xxxx.vercel.app`}</Code>
+                <Code>{`vercel inspect https://care.extendihealth.com`}</Code>
                 <p className="mt-2">Then open the URL in a browser and confirm the login page loads. Navigate to <InlineCode>/platform</InlineCode> to access the super admin console.</p>
               </Step>
             </GuideSection>
@@ -502,8 +502,9 @@ WHERE id = (
                   ]},
                   { category: 'Vercel', items: [
                     'All 4 env vars set in Vercel dashboard for Production environment',
+                    'VITE_APP_URL=https://care.extendihealth.com and VITE_ROOT_DOMAIN=care.extendihealth.com set on Vercel',
                     'vercel --prod run and deployment status is READY',
-                    'Login page loads at the production URL',
+                    'Login page loads at care.extendihealth.com',
                     'vercel.json rewrite rule present (SPA routing works)',
                   ]},
                   { category: 'Platform', items: [

@@ -10,7 +10,7 @@ interface Props { tenantId: string }
 export default function QRPanel({ tenantId }: Props) {
   const { sites, loading } = useSites(tenantId)
   const [selectedUnit, setSelectedUnit] = useState('')
-  const [appUrl,       setAppUrl]       = useState(import.meta.env.VITE_APP_URL ?? window.location.origin)
+  const [appUrl,       setAppUrl]       = useState(window.location.origin)
   const [generating,   setGenerating]   = useState(false)
   const [rooms,        setRooms]        = useState<RoomWithQR[]>([])
   const [unitMeta,     setUnitMeta]     = useState<{ unitName: string; siteName: string } | null>(null)
@@ -96,7 +96,7 @@ export default function QRPanel({ tenantId }: Props) {
             <div>
               <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">App URL</label>
               <input value={appUrl} onChange={e => { setAppUrl(e.target.value); setRooms([]) }}
-                placeholder="https://bayrequest.vercel.app"
+                placeholder="https://care.extendihealth.com"
                 className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[var(--clinical-blue)] transition-all" />
             </div>
           </div>
