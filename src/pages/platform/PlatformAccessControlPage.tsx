@@ -101,41 +101,41 @@ export default function PlatformAccessControlPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-bold text-[var(--text-primary)]">Access Control</h3>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">Manage platform administrators and organization access roles</p>
         </div>
         <button
           onClick={openAddSuperAdmin}
-          className="px-3.5 py-2 rounded-xl bg-[#5B21B6] text-white text-sm font-medium hover:bg-[#4C1D95] transition-colors"
+          className="w-full rounded-xl bg-[#5B21B6] px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-[#4C1D95] sm:w-auto"
         >
           + Add Super Admin
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <AccessStat label="Super Admins" value={counts.superAdmins} color="#5B21B6" />
         <AccessStat label="Admins" value={counts.admins} color="#1D4ED8" />
         <AccessStat label="Clinicians" value={counts.clinicians} color="#059669" />
         <AccessStat label="Support" value={counts.support} color="#D97706" />
       </div>
 
-      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 mb-4 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 flex-1">
+      <div className="mb-4 flex flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-1 items-center gap-3">
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by name or organization…"
-            className="w-full max-w-xs border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
+            className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all lg:max-w-xs"
           />
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:flex-shrink-0">
           <span className="text-xs text-[var(--text-muted)]">Role</span>
           <select
             value={roleFilter}
             onChange={(event) => setRoleFilter(event.target.value)}
-            className="min-w-[180px] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
+            className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all sm:min-w-[180px]"
           >
             <option value="all">All roles</option>
             {ALL_ROLES.map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
@@ -150,7 +150,8 @@ export default function PlatformAccessControlPage() {
         {loading ? (
           <PanelLoading label="Loading access roster…" />
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px]">
             <thead>
               <tr className="bg-[var(--page-bg)] border-b border-[var(--border)]">
                 {['User', 'Role', 'Organization', 'Unit', 'Joined', 'Actions'].map((header) => (
@@ -180,13 +181,14 @@ export default function PlatformAccessControlPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
 
       {showAddSuperAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
-          <div className="bg-white rounded-2xl shadow-lift w-full max-w-md animate-bounce-in">
+          <div className="bg-white rounded-2xl shadow-lift w-full max-w-md max-h-[90vh] overflow-y-auto animate-bounce-in">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h3 className="text-sm font-bold text-[var(--text-primary)]">Add Super Admin</h3>
               <button onClick={() => setShowAddSuperAdmin(false)} className="w-7 h-7 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)]">✕</button>
@@ -234,7 +236,7 @@ export default function PlatformAccessControlPage() {
                   </div>
                   {inviteError && <Banner tone="error" message={inviteError} />}
                 </div>
-                <div className="flex justify-end gap-2 px-5 py-4 border-t border-[var(--border)]">
+                <div className="flex flex-col-reverse gap-2 px-5 py-4 border-t border-[var(--border)] sm:flex-row sm:justify-end">
                   <button onClick={() => setShowAddSuperAdmin(false)}
                     className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
                     Cancel
@@ -255,7 +257,7 @@ export default function PlatformAccessControlPage() {
 
       {editUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
-          <div className="bg-white rounded-2xl shadow-lift w-full max-w-md animate-bounce-in">
+          <div className="bg-white rounded-2xl shadow-lift w-full max-w-md max-h-[90vh] overflow-y-auto animate-bounce-in">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h3 className="text-sm font-bold text-[var(--text-primary)]">Edit Access</h3>
               <button onClick={() => setEditUser(null)} className="w-7 h-7 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)]">✕</button>
@@ -300,7 +302,7 @@ export default function PlatformAccessControlPage() {
               </div>
               {saveError && <Banner tone="error" message={saveError} />}
             </div>
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-[var(--border)]">
+            <div className="flex flex-col-reverse gap-2 px-5 py-4 border-t border-[var(--border)] sm:flex-row sm:justify-end">
               <button onClick={() => setEditUser(null)}
                 className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
                 Cancel

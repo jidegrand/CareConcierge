@@ -91,22 +91,22 @@ export default function PlatformLayout() {
 
   return (
     <PlatformShell>
-      <div className="flex h-full overflow-hidden">
-        <aside className="w-64 flex-shrink-0 bg-[var(--surface)] border-r border-[var(--border)] flex flex-col py-6">
-          <div className="px-4 mb-4">
+      <div className="flex h-full flex-col lg:flex-row lg:overflow-hidden">
+        <aside className="w-full bg-[var(--surface)] border-b border-[var(--border)] lg:w-64 lg:flex-shrink-0 lg:border-b-0 lg:border-r lg:flex lg:flex-col lg:py-6">
+          <div className="px-4 pt-4 lg:mb-4 lg:pt-0">
             <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">ExtendiHealth Platform</p>
             <p className="mt-2 text-sm text-[var(--text-secondary)] leading-relaxed">
               Global control plane for organization lifecycle, licensing, access policy, and system reporting.
             </p>
           </div>
 
-          <nav className="flex-1 px-2 space-y-0.5">
+          <nav className="flex gap-2 overflow-x-auto px-4 py-4 lg:flex-1 lg:flex-col lg:space-y-0.5 lg:px-2 lg:py-0">
             {PLATFORM_NAV.map((entry) => (
               <NavLink
                 key={entry.path}
                 to={`${entry.path}${navSearch}`}
                 className={({ isActive }) =>
-                  `w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${
+                  `flex items-center whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left lg:w-full ${
                     isActive
                       ? 'bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)]'
                       : 'text-[var(--text-secondary)] hover:bg-[var(--page-bg)] hover:text-[var(--text-primary)]'
@@ -118,10 +118,10 @@ export default function PlatformLayout() {
             ))}
           </nav>
 
-          <div className="px-2 pb-3 border-b border-[var(--border)] mb-1">
+          <div className="border-y border-[var(--border)] px-4 py-3 lg:mb-1 lg:border-y-0 lg:border-b lg:px-2 lg:pb-3 lg:pt-0">
             <Link
               to="/super-admin-guide"
-              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--page-bg)] hover:text-[var(--text-primary)] transition-all"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--page-bg)] hover:text-[var(--text-primary)] transition-all"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2l7 4v6c0 5-3 8-7 10-4-2-7-5-7-10V6l7-4z"/>
@@ -130,7 +130,7 @@ export default function PlatformLayout() {
             </Link>
           </div>
 
-          <div className="px-4 pt-4">
+          <div className="px-4 py-4 lg:pt-4">
             <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-1">Selected organization</p>
             <div className="flex items-center gap-2 flex-wrap mt-1">
               <p className="text-sm font-semibold text-[var(--text-primary)]">{selectedOrganization?.name ?? 'None selected'}</p>
@@ -153,16 +153,16 @@ export default function PlatformLayout() {
           </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto px-8 py-8">
-          <div className="mb-6 rounded-3xl border border-[var(--border)] bg-[var(--surface)] px-6 py-5">
-            <div className="flex items-center justify-between gap-4">
+        <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+          <div className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-4 sm:rounded-3xl sm:px-6 sm:py-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Global Scope</p>
                 <p className="text-sm text-[var(--text-secondary)] mt-1">
                   Manage organization lifecycle, licensing, platform access, and cross-tenant reporting outside the operational workspace.
                 </p>
               </div>
-              <div className="min-w-[300px]">
+              <div className="w-full xl:w-[320px] xl:flex-shrink-0">
                 <label className="block text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-1.5">Organization selector</label>
                 <select
                   value={selectedOrganizationId ?? ''}

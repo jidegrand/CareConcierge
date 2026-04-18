@@ -34,27 +34,28 @@ export default function PlatformShell({ children }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--page-bg)]" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      <header className="flex-shrink-0 h-16 px-6 border-b border-[var(--border)] bg-[var(--surface)] flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <header className="flex-shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <button
             onClick={() => navigate('/dashboard')}
-            className="w-10 h-10 rounded-xl bg-[var(--clinical-blue)] text-white flex items-center justify-center shadow-sm"
+            className="h-10 w-10 flex-shrink-0 rounded-xl bg-[var(--clinical-blue)] text-white flex items-center justify-center shadow-sm"
             title="Return to app"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
             </svg>
           </button>
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--text-muted)]">{COMPANY_NAME}</p>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold text-[var(--text-primary)]">Platform Console</h1>
-              <span className="text-xs text-[var(--text-muted)]">{PRODUCT_NAME}</span>
+            <div className="min-w-0">
+              <p className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--text-muted)] sm:text-[11px]">{COMPANY_NAME}</p>
+              <div className="flex min-w-0 items-center gap-2">
+                <h1 className="truncate text-base font-semibold text-[var(--text-primary)] sm:text-lg">Platform Console</h1>
+                <span className="hidden text-xs text-[var(--text-muted)] sm:inline">{PRODUCT_NAME}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <NotificationCenter />
           <span
             className="hidden sm:inline-flex text-[11px] font-bold px-2.5 py-1 rounded-full"
@@ -65,7 +66,7 @@ export default function PlatformShell({ children }: Props) {
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setProfileOpen(open => !open)}
-              className="flex items-center gap-3 rounded-full pl-1 pr-2 py-1 hover:bg-[var(--page-bg)] transition-colors"
+              className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1 hover:bg-[var(--page-bg)] transition-colors sm:gap-3"
               title="Open profile menu"
             >
               <div className="hidden md:block text-right">
@@ -94,7 +95,7 @@ export default function PlatformShell({ children }: Props) {
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-lg z-50">
+              <div className="absolute right-0 top-full z-50 mt-2 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-lg">
                 <div className="border-b border-[var(--border)] px-4 py-4">
                   <div className="flex items-center gap-3">
                     <div
@@ -149,6 +150,7 @@ export default function PlatformShell({ children }: Props) {
               </div>
             )}
           </div>
+        </div>
         </div>
       </header>
 

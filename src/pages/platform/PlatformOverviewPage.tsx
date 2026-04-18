@@ -64,7 +64,7 @@ export default function PlatformOverviewPage() {
         <p className="text-xs text-[var(--text-muted)] mt-0.5">System-wide view of every organization on the platform</p>
       </div>
 
-      <div className="grid grid-cols-5 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         {cards.map((card) => (
           <div key={card.label} className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4">
             <p className="text-2xl font-bold" style={{ color: card.color }}>{card.value}</p>
@@ -78,13 +78,13 @@ export default function PlatformOverviewPage() {
           <p className="text-sm font-bold text-[var(--text-primary)] mb-3">Needs Attention</p>
           <div className="space-y-2">
             {attentionItems.map((item, index) => (
-              <div key={index} className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm ${item.kind === 'error' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'}`}>
+              <div key={index} className={`flex flex-col items-start gap-2 rounded-xl px-4 py-3 text-sm sm:flex-row sm:items-center sm:gap-3 ${item.kind === 'error' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'}`}>
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.kind === 'error' ? 'bg-red-500' : 'bg-amber-500'}`} />
                 <span className={`font-semibold flex-shrink-0 ${item.kind === 'error' ? 'text-red-800' : 'text-amber-800'}`}>{item.label}</span>
                 <span className={item.kind === 'error' ? 'text-red-600' : 'text-amber-600'}>{item.detail}</span>
                 <button
                   onClick={() => navigate('/platform/licensing')}
-                  className={`ml-auto text-xs font-medium ${item.kind === 'error' ? 'text-red-700 hover:underline' : 'text-amber-700 hover:underline'}`}
+                  className={`text-xs font-medium sm:ml-auto ${item.kind === 'error' ? 'text-red-700 hover:underline' : 'text-amber-700 hover:underline'}`}
                 >
                   View license →
                 </button>
@@ -94,7 +94,7 @@ export default function PlatformOverviewPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-[1.35fr,1fr] gap-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr,1fr]">
         <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5">
           <p className="text-sm font-bold text-[var(--text-primary)] mb-4">Platform Modules</p>
           <div className="space-y-3 text-sm text-[var(--text-secondary)]">

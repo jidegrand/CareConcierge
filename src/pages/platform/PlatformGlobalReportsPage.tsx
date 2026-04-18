@@ -32,7 +32,7 @@ export default function PlatformGlobalReportsPage() {
 
   return (
     <div>
-      <div className="flex items-end justify-between gap-4 mb-5">
+      <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <h3 className="text-base font-bold text-[var(--text-primary)]">Global Reports</h3>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
@@ -41,7 +41,7 @@ export default function PlatformGlobalReportsPage() {
               : 'Cross-organization operational reporting for the entire platform'}
           </p>
         </div>
-        <div className="flex items-end gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <DateField label="Start date" value={rangeStart} onChange={setRangeStart} />
           <DateField label="End date" value={rangeEnd} onChange={setRangeEnd} />
         </div>
@@ -104,7 +104,7 @@ export default function PlatformGlobalReportsPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 mb-6">
+      <div className="mb-6 flex flex-wrap gap-2">
         {(['7d', '30d', '90d'] as const).map((preset) => (
           <button
             key={preset}
@@ -132,7 +132,7 @@ export default function PlatformGlobalReportsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-5 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         <ReportCard label="Requests" value={reports.totalRequests} color="#1D6FA8" />
         <ReportCard label="Urgent" value={reports.urgentRequests} color="#DC2626" />
         <ReportCard label="Resolved" value={reports.resolvedRequests} color="#059669" />
@@ -140,7 +140,7 @@ export default function PlatformGlobalReportsPage() {
         <ReportCard label="Avg Resolution (min)" value={reports.avgResolutionMinutes ?? '—'} color="#D97706" />
       </div>
 
-      <div className="grid grid-cols-[1.2fr,0.9fr] gap-4 mb-4">
+      <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr,0.9fr]">
         <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5">
           <p className="text-sm font-bold text-[var(--text-primary)] mb-4">
             {scope === 'selected' ? 'Selected Organization Activity' : 'Organization Activity'}
@@ -177,7 +177,7 @@ export default function PlatformGlobalReportsPage() {
 
       <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5">
         <p className="text-sm font-bold text-[var(--text-primary)] mb-4">Daily Trend</p>
-        <div className="grid grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
           {reports.dailyTrend.slice(-14).map((day) => (
             <div key={day.date} className="rounded-xl border border-[var(--border)] bg-[var(--page-bg)] px-3 py-3">
               <p className="text-[11px] uppercase tracking-wider text-[var(--text-muted)]">{day.date.slice(5)}</p>
@@ -186,7 +186,7 @@ export default function PlatformGlobalReportsPage() {
             </div>
           ))}
           {reports.dailyTrend.length === 0 && (
-            <p className="text-sm text-[var(--text-muted)] col-span-7">No daily activity for the selected period.</p>
+            <p className="col-span-full text-sm text-[var(--text-muted)]">No daily activity for the selected period.</p>
           )}
         </div>
       </div>
@@ -205,13 +205,13 @@ function ReportCard({ label, value, color }: { label: string; value: number | st
 
 function DateField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <div>
+    <div className="w-full">
       <label className="block text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-1.5">{label}</label>
       <input
         type="date"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
+        className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
       />
     </div>
   )

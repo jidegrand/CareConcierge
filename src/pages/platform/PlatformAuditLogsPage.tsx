@@ -31,7 +31,7 @@ export default function PlatformAuditLogsPage() {
 
   return (
     <div>
-      <div className="flex items-end justify-between gap-4 mb-5">
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h3 className="text-base font-bold text-[var(--text-primary)]">Audit Logs</h3>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
@@ -40,7 +40,7 @@ export default function PlatformAuditLogsPage() {
               : 'Traceable platform changes across all organizations'}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setScope('all')}
             className={`px-3 py-2 rounded-xl border text-sm transition-colors ${
@@ -65,7 +65,7 @@ export default function PlatformAuditLogsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-5 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         <AuditStat label="Events Loaded" value={stats.total} color="#1D6FA8" />
         <AuditStat label="Last 24 Hours" value={stats.last24Hours} color="#DC2626" />
         <AuditStat label="Last 7 Days" value={stats.last7Days} color="#5B21B6" />
@@ -73,7 +73,7 @@ export default function PlatformAuditLogsPage() {
         <AuditStat label="Admins Active" value={stats.activeAdmins} color="#D97706" />
       </div>
 
-      <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5 mb-4 flex items-center justify-between gap-4">
+      <div className="mb-4 flex flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-sm font-bold text-[var(--text-primary)]">Event Filters</p>
           <p className="text-xs text-[var(--text-muted)] mt-1">Filter by audit target to zero in on organization, licensing, or access changes.</p>
@@ -81,7 +81,7 @@ export default function PlatformAuditLogsPage() {
         <select
           value={typeFilter}
           onChange={(event) => setTypeFilter(event.target.value)}
-          className="min-w-[240px] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
+          className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all lg:min-w-[240px] lg:w-auto"
         >
           <option value="all">All target types</option>
           {targetTypes.map(type => (
@@ -105,7 +105,8 @@ export default function PlatformAuditLogsPage() {
             <p className="text-sm text-[var(--text-muted)] mt-1">Organization, licensing, and access changes will appear here automatically.</p>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px]">
             <thead>
               <tr className="bg-[var(--page-bg)] border-b border-[var(--border)]">
                 {['Time', 'Actor', 'Action', 'Organization', 'Summary'].map((header) => (
@@ -145,7 +146,8 @@ export default function PlatformAuditLogsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
     </div>

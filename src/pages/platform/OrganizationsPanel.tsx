@@ -96,7 +96,7 @@ export default function OrganizationsPanel({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-bold text-[var(--text-primary)]">Organizations</h3>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
@@ -105,13 +105,13 @@ export default function OrganizationsPanel({
         </div>
         <button
           onClick={() => { setModal({ kind: 'create' }); setFormError(null) }}
-          className="px-3.5 py-2 rounded-xl bg-[var(--clinical-blue)] text-white text-sm font-medium hover:bg-[var(--clinical-blue-dk)] transition-colors"
+          className="w-full rounded-xl bg-[var(--clinical-blue)] px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--clinical-blue-dk)] sm:w-auto"
         >
           + Add Organization
         </button>
       </div>
 
-      <div className="grid grid-cols-5 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         <SummaryCard label="Organizations" value={totals.organizations} color="#5B21B6" />
         <SummaryCard label="Sites" value={totals.sites} color="#1D6FA8" />
         <SummaryCard label="Units" value={totals.units} color="#D97706" />
@@ -131,7 +131,7 @@ export default function OrganizationsPanel({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by name or slug…"
-            className="w-full max-w-xs border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
+            className="w-full max-w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all sm:max-w-xs"
           />
         </div>
       )}
@@ -149,7 +149,8 @@ export default function OrganizationsPanel({
         </div>
       ) : (
         <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px]">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--page-bg)]">
                 {['Organization', 'Slug', 'Footprint', 'Catalog', 'Created', 'Actions'].map((header) => (
@@ -223,7 +224,8 @@ export default function OrganizationsPanel({
                 )
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       )}
 
@@ -242,7 +244,7 @@ export default function OrganizationsPanel({
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
-          <div className="bg-white rounded-2xl shadow-lift w-full max-w-md animate-bounce-in">
+          <div className="bg-white rounded-2xl shadow-lift w-full max-w-md max-h-[90vh] overflow-y-auto animate-bounce-in">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h3 className="text-sm font-bold text-[var(--text-primary)]">Delete Organization</h3>
               <button
@@ -280,7 +282,7 @@ export default function OrganizationsPanel({
                 <p className="mt-4 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{deleteError}</p>
               )}
             </div>
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-[var(--border)]">
+            <div className="flex flex-col-reverse gap-2 px-5 py-4 border-t border-[var(--border)] sm:flex-row sm:justify-end">
               <button
                 onClick={() => setDeleteTarget(null)}
                 className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors"
@@ -349,7 +351,7 @@ function OrganizationModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
-      <div className="bg-white rounded-2xl shadow-lift w-full max-w-md animate-bounce-in">
+      <div className="bg-white rounded-2xl shadow-lift w-full max-w-md max-h-[90vh] overflow-y-auto animate-bounce-in">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-bold text-[var(--text-primary)]">{title}</h3>
           <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)] transition-colors">
@@ -393,7 +395,7 @@ function OrganizationModal({
           </div>
           {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
         </div>
-        <div className="flex justify-end gap-2 px-5 py-4 border-t border-[var(--border)]">
+        <div className="flex flex-col-reverse gap-2 px-5 py-4 border-t border-[var(--border)] sm:flex-row sm:justify-end">
           <button onClick={onClose} className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
             Cancel
           </button>

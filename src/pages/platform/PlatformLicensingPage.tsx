@@ -38,7 +38,7 @@ export default function PlatformLicensingPage() {
         <p className="text-xs text-[var(--text-muted)] mt-0.5">Manage activation status, plans, capacity limits, and organization entitlements</p>
       </div>
 
-      <div className="grid grid-cols-5 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         <StatCard label="Active" value={counts.active} color="#059669" />
         <StatCard label="Trial" value={counts.trial} color="#1D6FA8" />
         <StatCard label="Suspended" value={counts.suspended} color="#DC2626" />
@@ -48,7 +48,7 @@ export default function PlatformLicensingPage() {
 
       {error && <Banner tone="error" message={error} />}
 
-      <div className="grid grid-cols-[1.1fr,1.2fr] gap-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr,1.2fr]">
         <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden">
           <div className="px-5 py-4 border-b border-[var(--border)]">
             <p className="text-sm font-bold text-[var(--text-primary)]">Organization Licenses</p>
@@ -56,7 +56,8 @@ export default function PlatformLicensingPage() {
           {loading ? (
             <PanelLoading label="Loading licenses…" />
           ) : (
-            <table className="w-full">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px]">
               <thead>
                 <tr className="bg-[var(--page-bg)] border-b border-[var(--border)]">
                   {['Organization', 'Plan', 'Status', 'Expires'].map((header) => (
@@ -94,7 +95,8 @@ export default function PlatformLicensingPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
 
@@ -188,7 +190,7 @@ function LicenseEditor({
 
   return (
     <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5">
-      <div className="flex items-start justify-between gap-2 mb-4">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-bold text-[var(--text-primary)]">{license.organizationName}</p>
           <p className="text-xs text-[var(--text-muted)]">Slug: {license.organizationSlug}</p>
@@ -210,7 +212,7 @@ function LicenseEditor({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <SelectField label="Plan" value={form.plan} onChange={value => setForm(prev => ({ ...prev, plan: value as LicensePlan }))}>
           <option value="pilot">Pilot</option>
           <option value="standard">Standard</option>
@@ -233,7 +235,7 @@ function LicenseEditor({
 
       <div className="mt-4">
         <p className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-2">Entitlements</p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {[
             ['custom_requests', 'Custom requests'],
             ['global_reports', 'Global reports'],
@@ -266,7 +268,7 @@ function LicenseEditor({
       {error && <Banner tone="error" message={error} />}
       {message && <Banner tone="success" message={message} />}
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button onClick={handleReset}
           className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
           Reset form
@@ -276,7 +278,7 @@ function LicenseEditor({
           Remove stored license
         </button>
         <button onClick={handleSave} disabled={saving}
-          className="ml-auto px-4 py-2 rounded-xl bg-[var(--clinical-blue)] text-white text-sm font-medium disabled:opacity-50 hover:bg-[var(--clinical-blue-dk)] transition-colors">
+          className="px-4 py-2 rounded-xl bg-[var(--clinical-blue)] text-white text-sm font-medium disabled:opacity-50 hover:bg-[var(--clinical-blue-dk)] transition-colors sm:ml-auto">
           {saving ? 'Saving…' : 'Save license'}
         </button>
       </div>
