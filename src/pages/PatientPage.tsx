@@ -34,7 +34,7 @@ interface ActiveRequestRow {
   created_at: string
 }
 
-const PATIENT_IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000
+const PATIENT_IDLE_TIMEOUT_MS = 60 * 60 * 1000
 const PATIENT_IDLE_CHECK_MS = 60 * 1000
 
 const normalizeRedirectUrl = (value: string | null | undefined) => {

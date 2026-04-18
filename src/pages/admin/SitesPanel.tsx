@@ -393,7 +393,7 @@ function modalFields(m: NonNullable<ModalState>) {
   if (m.kind === 'create-site' || m.kind === 'edit-site') {
     return [
       { key: 'name',        label: 'Name',                 placeholder: 'Enter name' },
-      { key: 'hospitalUrl', label: 'Hospital website URL', placeholder: 'https://www.yourhospital.org', hint: 'Patients will be redirected here after 2 hours of inactivity.' },
+      { key: 'hospitalUrl', label: 'Hospital website URL', placeholder: 'https://www.yourhospital.org', hint: 'Patients will be redirected here after 1 hour of inactivity.' },
     ]
   }
   if (m.kind === 'edit-room') {
