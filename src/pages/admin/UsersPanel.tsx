@@ -38,6 +38,7 @@ export default function UsersPanel({ tenantId }: Props) {
   const [editUser,    setEditUser]    = useState<UserWithMeta | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole,  setInviteRole]  = useState<Role>('nurse')
+  const [inviteSite,  setInviteSite]  = useState('')
   const [inviteUnit,  setInviteUnit]  = useState('')
   const [inviteSent,  setInviteSent]  = useState(false)
   const [saving,      setSaving]      = useState(false)
@@ -45,16 +46,18 @@ export default function UsersPanel({ tenantId }: Props) {
 
   // Flat list of all units across sites for selector
   const allUnits = sites.flatMap(s =>
-    (s.units ?? []).map(u => ({ id: u.id, label: `${s.name} — ${u.name}` }))
+    (s.units ?? []).map(u => ({ id: u.id, siteId: s.id, label: `${s.name} — ${u.name}` }))
   )
+  const siteOptions = sites.map(site => ({ id: site.id, label: site.name }))
   const activeUsers = users.filter(user => user.active).length
   const inactiveUsers = users.length - activeUsers
+  const unitsForSite = (siteId: string) => allUnits.filter(unit => !siteId || unit.siteId === siteId)
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) return
     setErr(null); setSaving(true)
     try {
-      await inviteUser(inviteEmail.trim(), inviteRole, inviteUnit || null)
+      await inviteUser(inviteEmail.trim(), inviteRole, inviteSite || null, inviteUnit || null)
       setInviteSent(true)
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Invite failed')
@@ -66,7 +69,7 @@ export default function UsersPanel({ tenantId }: Props) {
     if (!editUser) return
     setErr(null); setSaving(true)
     try {
-      await updateRole(editUser.id, editUser.role, editUser.unit_id)
+      await updateRole(editUser.id, editUser.role, editUser.site_id, editUser.unit_id)
       setEditUser(null)
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Update failed')
@@ -98,7 +101,7 @@ export default function UsersPanel({ tenantId }: Props) {
             {activeUsers} active{inactiveUsers > 0 ? `, ${inactiveUsers} inactive` : ''}{pendingInvites.length > 0 ? `, ${pendingInvites.length} pending` : ''}
           </p>
         </div>
-        <button onClick={() => { setShowInvite(true); setInviteSent(false); setInviteEmail('') }}
+        <button onClick={() => { setShowInvite(true); setInviteSent(false); setInviteEmail(''); setInviteSite(''); setInviteUnit('') }}
           className="px-3.5 py-2 rounded-xl bg-[var(--clinical-blue)] text-white text-sm font-medium hover:bg-[var(--clinical-blue-dk)] transition-colors">
           + Invite User
         </button>
@@ -117,7 +120,7 @@ export default function UsersPanel({ tenantId }: Props) {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--page-bg)]">
-                {['User', 'Role', 'Unit', 'Actions'].map(h => (
+                {['User', 'Role', 'Site', 'Unit', 'Actions'].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                     {h}
                   </th>
@@ -148,6 +151,11 @@ export default function UsersPanel({ tenantId }: Props) {
                         style={{ background: rc.bg, color: rc.text }}>
                         {ROLE_LABELS[inv.role] ?? inv.role}
                       </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        {inv.site_name ?? <span className="text-[var(--text-muted)] italic">All sites</span>}
+                      </p>
                     </td>
                     <td className="px-4 py-3.5">
                       <p className="text-sm text-[var(--text-secondary)]">
@@ -204,6 +212,11 @@ export default function UsersPanel({ tenantId }: Props) {
                           </span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        {u.site_name ?? <span className="text-[var(--text-muted)] italic">All sites</span>}
+                      </p>
                     </td>
                     <td className="px-4 py-3.5">
                       <p className="text-sm text-[var(--text-secondary)]">
@@ -278,11 +291,23 @@ export default function UsersPanel({ tenantId }: Props) {
                     </select>
                   </div>
                   <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Site scope <span className="text-[var(--text-muted)] normal-case">(optional)</span></label>
+                    <select value={inviteSite} onChange={e => {
+                      const nextSite = e.target.value
+                      setInviteSite(nextSite)
+                      setInviteUnit(current => unitsForSite(nextSite).some(unit => unit.id === current) ? current : '')
+                    }}
+                      className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all">
+                      <option value="">All sites</option>
+                      {siteOptions.map(site => <option key={site.id} value={site.id}>{site.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Assign to unit <span className="text-[var(--text-muted)] normal-case">(optional)</span></label>
                     <select value={inviteUnit} onChange={e => setInviteUnit(e.target.value)}
                       className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all">
                       <option value="">All units</option>
-                      {allUnits.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
+                      {unitsForSite(inviteSite).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
                     </select>
                   </div>
                   {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
@@ -322,12 +347,28 @@ export default function UsersPanel({ tenantId }: Props) {
                 </select>
               </div>
               <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Site</label>
+                <select value={editUser.site_id ?? ''}
+                  onChange={e => {
+                    const nextSite = e.target.value || null
+                    setEditUser(u => {
+                      if (!u) return u
+                      const nextUnit = unitsForSite(nextSite ?? '').some(unit => unit.id === u.unit_id) ? u.unit_id : null
+                      return { ...u, site_id: nextSite, unit_id: nextUnit }
+                    })
+                  }}
+                  className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all">
+                  <option value="">All sites</option>
+                  {siteOptions.map(site => <option key={site.id} value={site.id}>{site.label}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Unit</label>
                 <select value={editUser.unit_id ?? ''}
                   onChange={e => setEditUser(u => u ? { ...u, unit_id: e.target.value || null } : u)}
                   className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all">
                   <option value="">All units</option>
-                  {allUnits.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
+                  {unitsForSite(editUser.site_id ?? '').map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
                 </select>
               </div>
               {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}

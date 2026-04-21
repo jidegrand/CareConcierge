@@ -115,6 +115,7 @@ export type UserRole =
 export interface UserProfile {
   id: string
   tenant_id: string
+  site_id: string | null
   unit_id: string | null
   role: UserRole
   full_name: string | null

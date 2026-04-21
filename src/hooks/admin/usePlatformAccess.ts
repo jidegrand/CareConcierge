@@ -2,17 +2,17 @@ import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildAppUrl } from '@/lib/tenant'
 import { getSingle, type MaybeArray } from '@/lib/utils'
-import type { UserProfile } from '@/types'
-
 export interface PlatformAccessUser {
   id: string
   full_name: string | null
   role: string
   tenant_id: string
+  site_id: string | null
   unit_id: string | null
   created_at: string
   organizationName: string
   organizationSlug: string
+  siteName: string | null
   unitName: string | null
 }
 
@@ -33,7 +33,7 @@ export function usePlatformAccess(enabled = true) {
 
     const { data, error: err } = await supabase
       .from('user_profiles')
-      .select(`id, tenant_id, unit_id, role, full_name, created_at, tenant:tenants (name, slug), unit:units (name)`)
+      .select(`id, tenant_id, site_id, unit_id, role, full_name, created_at, tenant:tenants (name, slug), site:sites (name), unit:units (name)`)
       .order('created_at', { ascending: false })
 
     if (err) {
@@ -42,19 +42,28 @@ export function usePlatformAccess(enabled = true) {
       return
     }
 
-    const mapped = ((data ?? []) as Array<UserProfile & {
+    const mapped = ((data ?? []) as Array<{
+      id: string
+      full_name: string | null
+      role: string
+      tenant_id: string
+      site_id: string | null
+      unit_id: string | null
       created_at: string
       tenant?: MaybeArray<{ name: string; slug: string }>
+      site?: MaybeArray<{ name: string }>
       unit?: MaybeArray<{ name: string }>
     }>).map((entry) => ({
       id: entry.id,
       full_name: entry.full_name,
       role: entry.role,
       tenant_id: entry.tenant_id,
+      site_id: entry.site_id,
       unit_id: entry.unit_id,
       created_at: entry.created_at,
       organizationName: getSingle(entry.tenant)?.name ?? 'Unknown organization',
       organizationSlug: getSingle(entry.tenant)?.slug ?? 'unknown',
+      siteName: getSingle(entry.site)?.name ?? null,
       unitName: getSingle(entry.unit)?.name ?? null,
     }))
 
@@ -64,7 +73,7 @@ export function usePlatformAccess(enabled = true) {
 
   useEffect(() => { fetch() }, [fetch])
 
-  const updateAccess = async (userId: string, values: { role: string; unit_id: string | null }) => {
+  const updateAccess = async (userId: string, values: { role: string; site_id: string | null; unit_id: string | null }) => {
     const { error: err } = await supabase.from('user_profiles').update(values).eq('id', userId)
     if (err) throw new Error(err.message)
     await fetch()
@@ -73,7 +82,7 @@ export function usePlatformAccess(enabled = true) {
   const inviteSuperAdmin = async (email: string, tenantId: string) => {
     const { error: inviteErr } = await supabase
       .from('pending_invites')
-      .insert({ email: email.trim().toLowerCase(), tenant_id: tenantId, role: 'super_admin', unit_id: null })
+      .insert({ email: email.trim().toLowerCase(), tenant_id: tenantId, role: 'super_admin', site_id: null, unit_id: null })
     if (inviteErr) throw new Error(inviteErr.message)
 
     const { error: otpErr } = await supabase.auth.signInWithOtp({

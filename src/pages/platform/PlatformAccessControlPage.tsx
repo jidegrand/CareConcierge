@@ -54,10 +54,19 @@ export default function PlatformAccessControlPage() {
     support: users.filter(user => user.role === 'volunteer' || user.role === 'viewer').length,
   }), [users])
 
+  const siteOptions = sites.map(site => ({
+    id: site.id,
+    label: site.name,
+  }))
+
   const unitOptions = sites.flatMap(site => (site.units ?? []).map(unit => ({
     id: unit.id,
+    siteId: site.id,
     label: `${site.name} — ${unit.name}`,
   })))
+
+  const unitsForSite = (siteId: string | null | undefined) =>
+    unitOptions.filter(unit => !siteId || unit.siteId === siteId)
 
   const handleSave = async () => {
     if (!editUser) return
@@ -67,6 +76,7 @@ export default function PlatformAccessControlPage() {
     try {
       await updateAccess(editUser.id, {
         role: editUser.role,
+        site_id: editUser.role === 'super_admin' ? null : editUser.site_id,
         unit_id: editUser.role === 'super_admin' ? null : editUser.unit_id,
       })
       setMessage('Access updated.')
@@ -154,7 +164,7 @@ export default function PlatformAccessControlPage() {
             <table className="w-full min-w-[860px]">
             <thead>
               <tr className="bg-[var(--page-bg)] border-b border-[var(--border)]">
-                {['User', 'Role', 'Organization', 'Unit', 'Joined', 'Actions'].map((header) => (
+                {['User', 'Role', 'Organization', 'Site', 'Unit', 'Joined', 'Actions'].map((header) => (
                   <th key={header} className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{header}</th>
                 ))}
               </tr>
@@ -168,6 +178,7 @@ export default function PlatformAccessControlPage() {
                   </td>
                   <td className="px-4 py-3.5"><RolePill role={user.role} /></td>
                   <td className="px-4 py-3.5 text-sm text-[var(--text-secondary)]">{user.organizationName}</td>
+                  <td className="px-4 py-3.5 text-sm text-[var(--text-secondary)]">{user.siteName ?? 'All sites'}</td>
                   <td className="px-4 py-3.5 text-sm text-[var(--text-secondary)]">{user.unitName ?? 'All units'}</td>
                   <td className="px-4 py-3.5 text-xs text-[var(--text-muted)]">{fmtDate(user.created_at)}</td>
                   <td className="px-4 py-3.5">
@@ -289,6 +300,27 @@ export default function PlatformAccessControlPage() {
                 )}
               </div>
               <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Site scope</label>
+                <select
+                  value={editUser.site_id ?? ''}
+                  onChange={(event) => {
+                    const nextSiteId = event.target.value || null
+                    setEditUser(current => {
+                      if (!current) return current
+                      const nextUnitId = unitsForSite(nextSiteId).some(unit => unit.id === current.unit_id)
+                        ? current.unit_id
+                        : null
+                      return { ...current, site_id: nextSiteId, unit_id: nextUnitId }
+                    })
+                  }}
+                  disabled={editUser.role === 'super_admin'}
+                  className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white disabled:bg-[var(--page-bg)] focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
+                >
+                  <option value="">All sites</option>
+                  {siteOptions.map(site => <option key={site.id} value={site.id}>{site.label}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Unit scope</label>
                 <select
                   value={editUser.unit_id ?? ''}
@@ -297,7 +329,7 @@ export default function PlatformAccessControlPage() {
                   className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white disabled:bg-[var(--page-bg)] focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
                 >
                   <option value="">All units</option>
-                  {unitOptions.map(unit => <option key={unit.id} value={unit.id}>{unit.label}</option>)}
+                  {unitsForSite(editUser.site_id).map(unit => <option key={unit.id} value={unit.id}>{unit.label}</option>)}
                 </select>
               </div>
               {saveError && <Banner tone="error" message={saveError} />}

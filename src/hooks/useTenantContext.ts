@@ -8,6 +8,7 @@ interface TenantContextValue {
   tenantId: string | undefined
   tenantName: string | undefined
   tenantSlug: string | undefined
+  siteId: string | undefined
   unitId: string | undefined
   loading: boolean
   appOrigin: string
@@ -75,6 +76,7 @@ export function useTenantContext(): TenantContextValue {
     tenantId: profile?.tenant_id ?? tenant?.id,
     tenantName: tenant?.name,
     tenantSlug: tenant?.slug ?? getTenantSlugFromHostname() ?? undefined,
+    siteId: profile?.site_id ?? undefined,
     unitId: profile?.unit_id ?? undefined,
     loading: authLoading || loading,
     appOrigin: getAppOrigin(),

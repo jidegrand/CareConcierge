@@ -10,6 +10,7 @@ import { useOverdueAlerts } from '@/hooks/useOverdueAlerts'
 import { timeAgo } from '@/lib/constants'
 import { supabase } from '@/lib/supabase'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
+import StaffChatPanel from '@/components/StaffChatPanel'
 import HandoverReportModal from '@/pages/HandoverReportModal'
 import type { Request, RequestTypeConfig } from '@/types'
 type Tab = 'all' | 'pending' | 'in-progress' | 'resolved'
@@ -149,6 +150,7 @@ export default function NurseDashboard() {
   const assignableStaff = useAssignableStaff(unitId, tenantId)
   const prefs = usePrefs()
   const [showHandover, setShowHandover] = useState(false)
+  const [showStaffChat, setShowStaffChat] = useState(false)
   const overdueIds = useOverdueAlerts(
     requests,
     prefs.overdueThreshold,
@@ -237,17 +239,27 @@ export default function NurseDashboard() {
           </p>
 
           {/* Tabs */}
-          <div className="flex items-center gap-2 mb-5">
-            {(['all','pending','in-progress','resolved'] as Tab[]).map(t => (
-              <button key={t} onClick={() => setTab(t)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                  tab === t
-                    ? 'bg-[var(--clinical-blue)] text-white border-[var(--clinical-blue)] shadow-sm'
-                    : 'bg-white text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--border-strong)]'
-                }`}>
-                {t === 'in-progress' ? 'In Progress' : t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
+          <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {(['all','pending','in-progress','resolved'] as Tab[]).map(t => (
+                <button key={t} onClick={() => setTab(t)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap ${
+                    tab === t
+                      ? 'bg-[var(--clinical-blue)] text-white border-[var(--clinical-blue)] shadow-sm'
+                      : 'bg-white text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--border-strong)]'
+                  }`}>
+                  {t === 'in-progress' ? 'In Progress' : t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowStaffChat(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-white px-4 py-2 text-sm font-semibold text-[var(--text-primary)] transition-all hover:border-[var(--clinical-blue)] hover:bg-[var(--clinical-blue-lt)] hover:text-[var(--clinical-blue)]">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              Staff Chat
+            </button>
           </div>
 
           {loading && (
@@ -502,6 +514,8 @@ export default function NurseDashboard() {
           onClose={() => setShowHandover(false)}
         />
       )}
+
+      <StaffChatPanel open={showStaffChat} onClose={() => setShowStaffChat(false)} />
     </NurseShell>
   )
 }
