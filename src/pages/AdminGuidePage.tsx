@@ -177,7 +177,7 @@ export default function AdminGuidePage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   { icon: '🏥', title: 'Sites & Rooms',   desc: 'Define your hospitals, wings, units, and individual patient rooms.' },
-                  { icon: '👥', title: 'Staff Users',     desc: 'Invite nurses by email, assign roles, and set their unit.' },
+                  { icon: '👥', title: 'Staff Users',     desc: 'Invite nurses by email, assign roles, and scope them to a site or unit.' },
                   { icon: '📋', title: 'Request Types',   desc: 'Control which request buttons appear on the patient QR page.' },
                 ].map(card => (
                   <div key={card.title} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -236,18 +236,21 @@ export default function AdminGuidePage() {
               <Step n={1} title="Invite a staff member">
                 Go to <strong>Admin → Users</strong> and click <strong>Invite user</strong>. Enter their email address and select their role. They will receive an email with a sign-in link.
               </Step>
-              <Step n={2} title="Assign a unit">
-                After inviting, or by clicking a user row, set their <strong>Assigned unit</strong> from the dropdown. This scopes what requests and rooms they see on the dashboard.
+              <Step n={2} title="Assign site scope first">
+                Choose an optional <strong>Site scope</strong> during invite or when editing a user later. This limits which staff, rooms, requests, and chat threads that person can access.
               </Step>
-              <Step n={3} title="Change a user's role">
+              <Step n={3} title="Assign a unit when needed">
+                If the user should only work inside one ward, also choose an <strong>Assigned unit</strong>. Unit scope sits inside site scope and narrows the dashboard even further.
+              </Step>
+              <Step n={4} title="Change a user's role">
                 Click any user row to open their detail panel. Select a new role from the dropdown and save. Role changes take effect on the user's next page load.
               </Step>
-              <Step n={4} title="Deactivate a user">
+              <Step n={5} title="Deactivate a user">
                 Toggle the <strong>Active</strong> switch off to immediately revoke access. The user's history is preserved — they can be reactivated at any time.
               </Step>
 
               <Note>
-                Invites expire after 24 hours. If a nurse missed their invite email, open the Admin portal, find the user, and click <strong>Resend invite</strong>.
+                If someone was invited with the wrong site or unit, open their row and correct the scope there. For missed invites, cancel the pending invite and send a new one with the right access.
               </Note>
 
               {/* Roles quick-ref inline */}
@@ -257,9 +260,9 @@ export default function AdminGuidePage() {
                 </div>
                 <div className="divide-y divide-[var(--border)]">
                   {[
-                    { role: 'Tenant Admin',  can: 'Invite anyone across any site or unit' },
-                    { role: 'Site Manager',  can: 'Invite users within their site' },
-                    { role: 'Nurse Manager', can: 'Invite nurses within their unit' },
+                    { role: 'Tenant Admin',  can: 'Invite anyone across any site or unit, including site-wide users' },
+                    { role: 'Site Manager',  can: 'Invite users within their own site' },
+                    { role: 'Nurse Manager', can: 'Invite users within their allowed site and unit scope' },
                   ].map(r => (
                     <div key={r.role} className="flex items-center gap-3 px-4 py-3">
                       <span className="text-xs font-semibold text-[var(--text-primary)] w-32 flex-shrink-0">{r.role}</span>
@@ -352,6 +355,9 @@ export default function AdminGuidePage() {
               <Step n={3} title="Generate a handover report">
                 From the main Dashboard, click the <strong>Handover Report</strong> button in the right panel. This generates a structured end-of-shift summary including all active requests, staff activity, and key metrics.
               </Step>
+              <Note>
+                Report visibility follows the user's assigned scope. Site-scoped managers only see data for their site, while unit-scoped managers see only their unit.
+              </Note>
 
               <div className="rounded-xl border border-[var(--border)] overflow-hidden text-sm">
                 <div className="px-4 py-2.5 bg-[var(--page-bg)] border-b border-[var(--border)]">
@@ -387,43 +393,43 @@ export default function AdminGuidePage() {
                     role: 'Tenant Admin',
                     badge: { bg: '#EDE9FE', text: '#5B21B6' },
                     desc: 'Full access to everything: Admin portal, all sites, all users, all reports. Typically the IT lead or operations manager for the organisation.',
-                    can: ['Manage all sites, units, and rooms', 'Invite and manage all staff', 'Configure request types', 'Access all reports and exports', 'Manage patient feedback settings'],
+                    can: ['Manage all sites, units, and rooms', 'Invite and manage all staff', 'Assign site-wide or unit-specific access', 'Configure request types', 'Access all reports and exports', 'Manage patient feedback settings'],
                   },
                   {
                     role: 'Site Manager',
                     badge: { bg: '#DBEAFE', text: '#1D4ED8' },
                     desc: 'Manages one hospital site. Can add units and rooms, invite staff within their site, and view reports for their site.',
-                    can: ['Manage units and rooms within their site', 'Invite staff to their site', 'View reports for their site', 'Access staffing and bay map'],
+                    can: ['Manage units and rooms within their site', 'Invite staff to their site', 'Scope users to that site or a unit inside it', 'View reports for their site', 'Access staffing and bay map'],
                   },
                   {
                     role: 'Nurse Manager',
                     badge: { bg: '#DBEAFE', text: '#1D4ED8' },
-                    desc: 'Manages one unit. Can add rooms, invite nurses to their unit, view staffing, and access reports.',
+                    desc: 'Manages one unit or a tightly scoped area. Can add rooms, invite nurses to their unit, view staffing, and access reports.',
                     can: ['Manage rooms within their unit', 'Invite nurses to their unit', 'View reports for their unit', 'Access staffing page'],
                   },
                   {
                     role: 'Charge Nurse',
                     badge: { bg: '#DBEAFE', text: '#1D4ED8' },
-                    desc: 'Senior nurse with dashboard access. Can acknowledge and resolve requests, reassign, and view staffing. No admin portal access.',
-                    can: ['Dashboard, feed, bay map', 'Acknowledge, resolve, and reassign requests', 'View staffing page'],
+                    desc: 'Senior nurse with dashboard access. Can acknowledge and resolve requests, reassign, use staff chat, and view staffing. No admin portal access.',
+                    can: ['Dashboard, feed, bay map', 'Acknowledge, resolve, and reassign requests', 'Use staff chat within their scope', 'View staffing page'],
                   },
                   {
                     role: 'Nurse',
                     badge: { bg: '#ECFDF5', text: '#065F46' },
                     desc: 'Front-line staff. Sees and acts on patient requests. No management features.',
-                    can: ['Dashboard, feed, bay map', 'Acknowledge and resolve requests'],
+                    can: ['Dashboard, feed, bay map', 'Acknowledge and resolve requests', 'Use staff chat within their scope'],
                   },
                   {
                     role: 'Volunteer',
                     badge: { bg: '#FEF3C7', text: '#92400E' },
                     desc: 'Limited access for volunteers. Can see and action non-urgent requests.',
-                    can: ['Dashboard and feed (read + acknowledge)', 'No reassign, no reports'],
+                    can: ['Dashboard and feed (read + acknowledge)', 'Use staff chat within their scope', 'No reassign, no reports'],
                   },
                   {
                     role: 'Viewer',
                     badge: { bg: '#F3F4F6', text: '#374151' },
                     desc: 'Read-only. Can see the dashboard and feed but cannot take any action on requests.',
-                    can: ['Dashboard and feed (read-only)'],
+                    can: ['Dashboard and feed (read-only)', 'May use scoped staff chat if enabled for their workflow'],
                   },
                 ].map(r => (
                   <div key={r.role} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">

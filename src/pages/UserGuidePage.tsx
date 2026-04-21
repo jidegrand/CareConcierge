@@ -85,6 +85,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 const SECTIONS = [
   { id: 'overview',   label: 'Overview' },
   { id: 'dashboard',  label: 'Dashboard' },
+  { id: 'staff-chat', label: 'Staff Chat' },
   { id: 'feed',       label: 'Patient Feed' },
   { id: 'baymap',     label: 'Bay Map' },
   { id: 'staffing',   label: 'Staffing' },
@@ -151,6 +152,7 @@ export default function UserGuidePage() {
                 {[
                   { icon: '📱', title: 'Patient scans QR', desc: 'Submits a request from their bed without needing a call button.' },
                   { icon: '🔔', title: 'Staff gets alerted', desc: 'Request appears on the dashboard with a sound alert.' },
+                  { icon: '💬', title: 'Team coordinates', desc: 'Use Staff Chat to hand off work to coworkers within your allowed site scope.' },
                   { icon: '✅', title: 'Request resolved', desc: 'Staff acknowledges and resolves — patient sees live status.' },
                 ].map(card => (
                   <div key={card.title} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -178,10 +180,34 @@ export default function UserGuidePage() {
                 <Step n={3} title="Reassign to another staff member">
                   On any in-progress card, click <strong>Reassign →</strong> and pick a colleague from the dropdown to hand off the request.
                 </Step>
+                <Step n={4} title="Open Staff Chat">
+                  Click <strong>Staff Chat</strong> near the top of the dashboard to message coworkers who share your current site access. Use it for quick handoffs, follow-up questions, and coordination.
+                </Step>
               </div>
               <Screenshot src="/screenshot/acknowledgment.png" alt="Dashboard — acknowledging a request" />
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 <strong>Overdue alerts:</strong> Cards with an orange pulsing border have exceeded the configured response target. Prioritise these first.
+              </div>
+            </GuideSection>
+
+            {/* Staff Chat */}
+            <GuideSection id="staff-chat" title="Staff Chat">
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                Staff Chat is built for quick team coordination. It lets you message coworkers directly without leaving the dashboard, but only within the site scope your account is allowed to access.
+              </p>
+              <div className="space-y-3">
+                <Step n={1} title="Start a new conversation">
+                  Open <strong>Staff Chat</strong> from the dashboard. The left side shows existing conversations and a list of available staff in your scope. Click a name to open a direct thread.
+                </Step>
+                <Step n={2} title="Send a handoff or update">
+                  Use chat for short operational messages such as "I picked up Bay 4" or "Can you cover Room 12 while I am in a discharge?" Messages appear in real time for the other staff member.
+                </Step>
+                <Step n={3} title="Read by scope">
+                  If you are assigned to a specific site, you only see chats and contacts for that site. Users with broader access may see site-wide staff across the organisation.
+                </Step>
+              </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <strong>Best use:</strong> Staff Chat is for coordination between caregivers. Patient requests should still be acknowledged and resolved from the live queue so reporting stays accurate.
               </div>
             </GuideSection>
 
@@ -223,7 +249,7 @@ export default function UserGuidePage() {
                 The <strong>Roster</strong> tab lists staff with role badges. The <strong>Workload</strong> tab shows a bar chart of resolved-today counts to spot imbalances.
               </Step>
               <Step n={2} title="Manage a staff member (managers only)">
-                Click a staff row to view their profile and, if you have the permission, update their unit assignment or role.
+                Click a staff row to view their profile and current scope. Site-scoped staff only appear for users who are allowed to see that site.
               </Step>
             </GuideSection>
 
