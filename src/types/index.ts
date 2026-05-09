@@ -33,6 +33,15 @@ export interface TenantSetting {
   tenant_id: string
   patient_feedback_enabled: boolean
   patient_idle_redirect_url: string | null
+  logo_url?: string | null
+  primary_color?: string | null
+  secondary_color?: string | null
+  default_language?: string | null
+  enable_patient_feedback?: boolean | null
+  enable_qr_codes?: boolean | null
+  onboarding_completed?: boolean | null
+  onboarding_step?: string | null
+  settings?: Record<string, unknown> | null
   created_at: string
   updated_at: string
 }
@@ -43,6 +52,11 @@ export interface Site {
   name: string
   slug: string
   hospital_url: string | null
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  zip?: string | null
+  phone?: string | null
   created_at: string
 }
 
@@ -52,6 +66,7 @@ export interface Unit {
   name: string
   slug: string
   room_naming_template: string
+  capacity?: number | null
   created_at: string
 }
 

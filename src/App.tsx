@@ -27,6 +27,15 @@ const PlatformGlobalReportsPage = lazy(() => import('@/pages/platform/PlatformGl
 const PlatformAuditLogsPage = lazy(() => import('@/pages/platform/PlatformAuditLogsPage'))
 const SuperAdminGuidePage = lazy(() => import('@/pages/platform/SuperAdminGuidePage'))
 
+// Tenant Admin Portal
+const TenantAdminShell = lazy(() => import('@/pages/tenant-admin/TenantAdminShell'))
+const TenantDashboardPage = lazy(() => import('@/pages/tenant-admin/TenantDashboardPage'))
+const TenantSettingsPage = lazy(() => import('@/pages/tenant-admin/SettingsPage'))
+const TenantUsersPage = lazy(() => import('@/pages/tenant-admin/UsersPage'))
+const TenantSitesPage = lazy(() => import('@/pages/tenant-admin/SitesAndUnitsPage'))
+const TenantLicensingPage = lazy(() => import('@/pages/tenant-admin/LicensingPage'))
+const TenantAuditLogsPage = lazy(() => import('@/pages/tenant-admin/AuditLogsPage'))
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth()
   if (loading) return (
@@ -47,6 +56,7 @@ function HomeRedirect() {
   )
   if (!session) return <Navigate to="/login" replace />
   if (profile?.role === 'super_admin') return <Navigate to="/platform" replace />
+  if (profile?.role === 'tenant_admin') return <Navigate to="/tenant-admin" replace />
   return <Navigate to="/dashboard" replace />
 }
 
@@ -80,6 +90,27 @@ function PlatformModuleLoader({
   )
 }
 
+function TenantAdminModuleLoader({
+  children,
+  fullscreen = false,
+}: {
+  children: React.ReactNode
+  fullscreen?: boolean
+}) {
+  return (
+    <Suspense fallback={
+      <div className={`${fullscreen ? 'min-h-screen bg-[var(--page-bg)]' : 'min-h-[240px]'} flex items-center justify-center`}>
+        <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4 text-sm text-[var(--text-secondary)]">
+          <div className="w-5 h-5 border-2 border-[var(--clinical-blue)] border-t-transparent rounded-full animate-spin" />
+          Loading organization admin…
+        </div>
+      </div>
+    }>
+      {children}
+    </Suspense>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -104,6 +135,15 @@ export default function App() {
             <Route path="access-control" element={<PlatformModuleLoader><PlatformAccessControlPage /></PlatformModuleLoader>} />
             <Route path="global-reports" element={<PlatformModuleLoader><PlatformGlobalReportsPage /></PlatformModuleLoader>} />
             <Route path="audit-logs" element={<PlatformModuleLoader><PlatformAuditLogsPage /></PlatformModuleLoader>} />
+          </Route>
+          <Route path="/tenant-admin" element={<ProtectedRoute><TenantAdminModuleLoader fullscreen><TenantAdminShell /></TenantAdminModuleLoader></ProtectedRoute>}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<TenantAdminModuleLoader><TenantDashboardPage /></TenantAdminModuleLoader>} />
+            <Route path="settings" element={<TenantAdminModuleLoader><TenantSettingsPage /></TenantAdminModuleLoader>} />
+            <Route path="users" element={<TenantAdminModuleLoader><TenantUsersPage /></TenantAdminModuleLoader>} />
+            <Route path="sites" element={<TenantAdminModuleLoader><TenantSitesPage /></TenantAdminModuleLoader>} />
+            <Route path="licensing" element={<TenantAdminModuleLoader><TenantLicensingPage /></TenantAdminModuleLoader>} />
+            <Route path="audit-logs" element={<TenantAdminModuleLoader><TenantAuditLogsPage /></TenantAdminModuleLoader>} />
           </Route>
           <Route path="/admin/*"    element={<ProtectedRoute><AdminPage       /></ProtectedRoute>} />
           <Route path="/settings"   element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
