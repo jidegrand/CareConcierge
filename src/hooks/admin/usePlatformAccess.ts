@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildAppUrl } from '@/lib/tenant'
+import { formatInviteEmailError } from '@/lib/invites'
 import { getSingle, type MaybeArray } from '@/lib/utils'
 export interface PlatformAccessUser {
   id: string
@@ -80,16 +81,20 @@ export function usePlatformAccess(enabled = true) {
   }
 
   const inviteSuperAdmin = async (email: string, tenantId: string) => {
-    const { error: inviteErr } = await supabase
-      .from('pending_invites')
-      .insert({ email: email.trim().toLowerCase(), tenant_id: tenantId, role: 'super_admin', site_id: null, unit_id: null })
-    if (inviteErr) throw new Error(inviteErr.message)
+    const normalizedEmail = email.trim().toLowerCase()
 
     const { error: otpErr } = await supabase.auth.signInWithOtp({
-      email,
+      email: normalizedEmail,
       options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/set-password') },
     })
-    if (otpErr) throw new Error(otpErr.message)
+    if (otpErr) {
+      throw new Error(formatInviteEmailError(otpErr.message))
+    }
+
+    const { error: inviteErr } = await supabase
+      .from('pending_invites')
+      .insert({ email: normalizedEmail, tenant_id: tenantId, role: 'super_admin', site_id: null, unit_id: null })
+    if (inviteErr) throw new Error(inviteErr.message)
 
     await fetch()
   }

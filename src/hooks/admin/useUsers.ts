@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildAppUrl } from '@/lib/tenant'
+import { formatInviteEmailError } from '@/lib/invites'
 import type { UserProfile } from '@/types'
 
 export interface UserWithMeta extends UserProfile {
@@ -82,6 +83,14 @@ export function useUsers(tenantId: string | undefined) {
     if (!tenantId) throw new Error('No tenant')
     const normalizedEmail = email.trim().toLowerCase()
 
+    const { error: otpErr } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/set-password') },
+    })
+    if (otpErr) {
+      throw new Error(formatInviteEmailError(otpErr.message))
+    }
+
     const { error: inviteErr } = await supabase
       .from('pending_invites')
       .insert({
@@ -92,12 +101,6 @@ export function useUsers(tenantId: string | undefined) {
         unit_id: unitId || null,
       })
     if (inviteErr) throw new Error(inviteErr.message)
-
-    const { error: otpErr } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/set-password') },
-    })
-    if (otpErr) throw new Error(otpErr.message)
 
     await fetch()
   }
