@@ -229,9 +229,22 @@ export default function SuperAdminGuidePage() {
                   </div>
                   <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
                     <p className="font-semibold text-[var(--text-primary)] mb-1">Email provider</p>
-                    <p className="text-[var(--text-secondary)]">The built-in Supabase email provider works for low-volume. For production, configure a custom SMTP provider under <strong>Authentication → SMTP Settings</strong> (SendGrid, Resend, Postmark, etc.)</p>
+                    <p className="text-[var(--text-secondary)]">The built-in Supabase email provider is only for early testing. For production, use Resend SMTP under <strong>Authentication → Email → SMTP Settings</strong>.</p>
+                  </div>
+                  <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
+                    <p className="font-semibold text-[var(--text-primary)] mb-1">Resend SMTP settings</p>
+                    <p className="text-[var(--text-secondary)]">
+                      Verify the sending domain in Resend, then use <InlineCode>smtp.resend.com</InlineCode>, port <InlineCode>587</InlineCode>, username <InlineCode>resend</InlineCode>, and a Resend API key as the password. Use <InlineCode>no-reply@care.extendihealth.com</InlineCode> as the sender when the domain is verified.
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
+                    <p className="font-semibold text-[var(--text-primary)] mb-1">Auth email templates</p>
+                    <p className="text-[var(--text-secondary)]">
+                      Copy <InlineCode>supabase/email-templates/magic-link.html</InlineCode> into the Supabase <strong>Magic Link</strong> template with subject <InlineCode>Your Care Concierge access link</InlineCode>. Copy <InlineCode>supabase/email-templates/recovery.html</InlineCode> into <strong>Reset Password</strong> with subject <InlineCode>Reset your Care Concierge password</InlineCode>.
+                    </p>
                   </div>
                 </div>
+                <Warning>Staff invites and global admin invites use the Magic Link template because the app sends them with <InlineCode>signInWithOtp</InlineCode>. Keep <InlineCode>{'{{ .ConfirmationURL }}'}</InlineCode> in the template, and disable provider link tracking so the Supabase verification URL is not rewritten.</Warning>
               </Step>
 
               <Step n={5} title="Copy your API keys">
@@ -345,7 +358,7 @@ WHERE id = (
               </Step>
 
               <Note>
-                To add more super admins later, use <strong>Platform Console → Access Control → Add super admin</strong>. They receive an invite email and set their password on first login.
+                To add more global admins later, use <strong>Platform Console → Access Control → Add Global Admin</strong>. They receive an invite email and set their password on first login.
               </Note>
             </GuideSection>
 
@@ -417,8 +430,8 @@ WHERE id = (
                 The Access Control panel is the master user directory across all organizations. Use it to invite platform-level admins, view every user in the system, and make role corrections that can't be done from within a tenant workspace.
               </p>
 
-              <Step n={1} title="Add a Super Admin">
-                Click <strong>Add super admin</strong>. Enter the email — the user receives an invite and lands on <InlineCode>/platform</InlineCode> on first login. Use this for additional {COMPANY_NAME} engineers or operations staff.
+              <Step n={1} title="Add a Global Admin">
+                Click <strong>Add Global Admin</strong>. Enter the email — the user receives an invite and lands on <InlineCode>/platform</InlineCode> on first login. Use this for additional {COMPANY_NAME} engineers or operations staff.
               </Step>
 
               <Step n={2} title="Change a user's role or organization">
@@ -498,7 +511,8 @@ WHERE id = (
                     'Full schema + all migrations applied (no errors in SQL Editor)',
                     'Realtime replication enabled on the requests table',
                     'Auth Site URL and redirect URLs configured correctly',
-                    'Production SMTP provider configured (not Supabase built-in)',
+                    'Resend SMTP configured with a verified sender domain',
+                    'Magic Link and Reset Password email templates copied into Supabase',
                   ]},
                   { category: 'Vercel', items: [
                     'All 4 env vars set in Vercel dashboard for Production environment',
