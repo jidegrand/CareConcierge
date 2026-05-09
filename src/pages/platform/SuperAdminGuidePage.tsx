@@ -93,6 +93,7 @@ const SECTIONS = [
   { id: 'vercel',       label: 'Vercel Deployment' },
   { id: 'first-admin',  label: 'First Super Admin' },
   { id: 'orgs',         label: 'Organizations' },
+  { id: 'tenant-admin', label: 'Tenant Admin Portal' },
   { id: 'licensing',    label: 'Licensing' },
   { id: 'access',       label: 'Access Control' },
   { id: 'reports',      label: 'Global Reports' },
@@ -362,6 +363,91 @@ WHERE id = (
               </Note>
             </GuideSection>
 
+            {/* ── Tenant Admin Portal ─────────────────────────────── */}
+            <GuideSection id="tenant-admin" title="Tenant Admin Portal">
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                Each tenant organization has access to a dedicated <strong className="text-[var(--text-primary)]">Tenant Admin Portal</strong> at <InlineCode>/tenant-admin</InlineCode>. This is a self-service workspace where tenant admins manage their own organization without needing to contact {COMPANY_NAME} support. The portal enforces row-level security — tenant admins can only see and modify their own organization's data.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                {[
+                  { icon: '⚙️', title: 'Settings', desc: 'Update branding, logo, and preferences' },
+                  { icon: '👥', title: 'Users & Roles', desc: 'Invite staff, assign roles, manage access' },
+                  { icon: '🏥', title: 'Sites & Units', desc: 'Create locations and departments' },
+                  { icon: '📋', title: 'Licensing', desc: 'View plan, usage limits, and expiry' },
+                  { icon: '📝', title: 'Audit Logs', desc: 'Track all organization activity' },
+                  { icon: '📊', title: 'Dashboard', desc: 'Overview of setup status and usage' },
+                ].map(c => (
+                  <div key={c.title} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+                    <div className="text-xl mb-1">{c.icon}</div>
+                    <p className="text-sm font-medium text-[var(--text-primary)]">{c.title}</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">{c.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              <Step n={1} title="Tenant Admin access">
+                <p className="mb-2">When you invite a user as <strong>Tenant Admin</strong>, they are redirected to <InlineCode>/tenant-admin/dashboard</InlineCode> on first login. They cannot access the Platform Console (<InlineCode>/platform</InlineCode>) — that is super admin only.</p>
+              </Step>
+
+              <Step n={2} title="Organization isolation via RLS">
+                <p className="mb-2">The Tenant Admin Portal enforces strict data isolation using PostgreSQL Row Level Security. Every page query is automatically filtered by the tenant's <InlineCode>tenant_id</InlineCode>. Tenant admins cannot:</p>
+                <ul className="mt-2 space-y-1.5">
+                  {[
+                    'View another organization\'s settings, users, or sites',
+                    'Access audit logs from other tenants',
+                    'See licensing data for other organizations',
+                    'Modify RLS policies (read-only to them)',
+                  ].map(item => (
+                    <li key={item} className="flex gap-2 text-xs">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--clinical-blue)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Step>
+
+              <Step n={3} title="Portal pages">
+                <div className="mt-3 space-y-3">
+                  {[
+                    { path: '/tenant-admin/dashboard', name: 'Dashboard', desc: 'Organization overview, onboarding status, quick stats' },
+                    { path: '/tenant-admin/settings', name: 'Settings', desc: 'Organization name, branding, logo upload, preferences' },
+                    { path: '/tenant-admin/users', name: 'Users & Roles', desc: 'Invite staff, view active users, manage roles' },
+                    { path: '/tenant-admin/sites', name: 'Sites & Units', desc: 'Create and manage sites (hospitals) and units (departments)' },
+                    { path: '/tenant-admin/licensing', name: 'Licensing', desc: 'View plan type, current usage vs. limits, expiry date' },
+                    { path: '/tenant-admin/audit-logs', name: 'Audit Logs', desc: 'Immutable log of all organization activity with filtering and CSV export' },
+                  ].map(item => (
+                    <div key={item.path} className="flex gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded bg-[var(--page-bg)] border border-[var(--border)] flex items-center justify-center">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--clinical-blue)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-[var(--text-primary)]">{item.name}</p>
+                        <p className="text-xs text-[var(--text-secondary)]">{item.desc}</p>
+                        <p className="text-[10px] font-mono text-[var(--text-muted)] mt-1">{item.path}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Step>
+
+              <Step n={4} title="Testing the Tenant Admin Portal">
+                <p className="mb-2">After inviting a Tenant Admin, verify their experience:</p>
+                <ol className="space-y-2 text-xs text-[var(--text-secondary)] list-decimal list-inside">
+                  <li>Confirm they receive an invite email and can sign in</li>
+                  <li>Verify they land on <InlineCode>/tenant-admin/dashboard</InlineCode></li>
+                  <li>Check that they can view their organization's settings (not other orgs)</li>
+                  <li>Test creating a site and unit</li>
+                  <li>Confirm they cannot navigate to <InlineCode>/platform</InlineCode> (403 Forbidden)</li>
+                  <li>Verify audit logs record their activity</li>
+                </ol>
+              </Step>
+
+              <Note>
+                The Tenant Admin Portal is built with React, TypeScript, and Supabase. All data queries respect tenant isolation through RLS policies on the database. No data for other organizations will ever be visible, even in network requests or browser dev tools.
+              </Note>
+            </GuideSection>
+
             {/* ── Organizations ───────────────────────────────────── */}
             <GuideSection id="orgs" title="Organizations">
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
@@ -383,6 +469,10 @@ WHERE id = (
               <Step n={4} title="Open the operational workspace for the new org">
                 From the organization selector at the top of the Platform Console, select the new org and click <strong>Open operational admin workspace</strong>. This takes you to <InlineCode>/admin?tenantId=…</InlineCode> where you can verify the org's sites, rooms, and request types are in order before handing over to the client.
               </Step>
+
+              <Note>
+                <strong>Tenant Admin Portal:</strong> After creating an organization and inviting the Tenant Admin, they can manage most of their organization settings directly via the Tenant Admin Portal at <InlineCode>/tenant-admin</InlineCode>. You only need to intervene from the Platform Console for licensing updates, capacity increases, or role corrections. See the <strong>Tenant Admin Portal</strong> section for details.
+              </Note>
             </GuideSection>
 
             {/* ── Licensing ───────────────────────────────────────── */}
@@ -526,6 +616,16 @@ WHERE id = (
                     'Client organization created with a license record',
                     'License status is active or trial with a valid expiry',
                     'Tenant Admin invited and invite email confirmed delivered',
+                  ]},
+                  { category: 'Tenant Admin Portal', items: [
+                    'Tenant Admin Portal at /tenant-admin loads without errors',
+                    'Tenant Admin can navigate all 6 portal pages (Dashboard, Settings, Users, Sites, Licensing, Audit Logs)',
+                    'Settings page allows logo upload and organization name update',
+                    'Users & Roles page allows staff invitations and role assignments',
+                    'Sites & Units page allows creating sites and units for the organization',
+                    'Licensing page correctly displays plan, limits, and expiry (matches super admin view)',
+                    'Audit Logs page shows organizational activity and CSV export works',
+                    'Tenant Admin cannot access /platform or other organization\'s data (RLS verified)',
                   ]},
                   { category: 'Client Setup', items: [
                     'Tenant Admin signed in and reached /admin',
