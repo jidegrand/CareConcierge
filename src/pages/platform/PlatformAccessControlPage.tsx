@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePlatformAccess, useSites, useTenants, type PlatformAccessUser } from '@/hooks/useAdminData'
 import { usePlatformContext } from '@/pages/platform/usePlatformContext'
 
@@ -27,7 +27,7 @@ function isValidEmail(value: string) {
 }
 
 export default function PlatformAccessControlPage() {
-  const { selectedOrganizationId, selectedOrganization } = usePlatformContext()
+  const { selectedOrganizationId } = usePlatformContext()
   const { users, loading, error, updateAccess, inviteSuperAdmin } = usePlatformAccess(true)
   const { sites } = useSites(selectedOrganizationId)
   const { tenants } = useTenants(true)
@@ -76,10 +76,24 @@ export default function PlatformAccessControlPage() {
   const unitsForSite = (siteId: string | null | undefined) =>
     unitOptions.filter(unit => !siteId || unit.siteId === siteId)
 
-  const inviteOrganization = tenants.find(t => t.id === inviteTenantId)
   const inviteEmailValid = isValidEmail(inviteEmail)
   const canReviewGlobalAdmin = inviteEmailValid && Boolean(inviteTenantId)
   const canSendGlobalAdminInvite = canReviewGlobalAdmin && globalAccessConfirmed
+
+  const globalAdminProfileTenantId = useMemo(() => {
+    const platformTenant = tenants.find(t => (
+      t.name.toLowerCase().includes('extendihealth') ||
+      t.slug.toLowerCase().includes('extendihealth')
+    ))
+    const existingGlobalAdminTenantId = users.find(user => user.role === 'super_admin')?.tenant_id
+    return platformTenant?.id ?? existingGlobalAdminTenantId ?? tenants[0]?.id ?? ''
+  }, [tenants, users])
+
+  useEffect(() => {
+    if (showAddGlobalAdmin && !inviteTenantId && globalAdminProfileTenantId) {
+      setInviteTenantId(globalAdminProfileTenantId)
+    }
+  }, [showAddGlobalAdmin, inviteTenantId, globalAdminProfileTenantId])
 
   const handleSave = async () => {
     if (!editUser) return
@@ -118,8 +132,7 @@ export default function PlatformAccessControlPage() {
 
   const openAddGlobalAdmin = () => {
     setInviteEmail('')
-    const extendiHealth = tenants.find(t => t.name.toLowerCase().includes('extendihealth'))
-    setInviteTenantId(selectedOrganizationId ?? extendiHealth?.id ?? tenants[0]?.id ?? '')
+    setInviteTenantId(globalAdminProfileTenantId)
     setInviteStep('details')
     setInviteSent(false)
     setInviteError(null)
@@ -263,10 +276,6 @@ export default function PlatformAccessControlPage() {
                       <span className="text-[var(--text-muted)]">Email</span>
                       <strong className="break-all text-right text-[var(--text-primary)]">{inviteEmail.trim().toLowerCase()}</strong>
                     </div>
-                    <div className="mt-2 flex items-start justify-between gap-3">
-                      <span className="text-[var(--text-muted)]">Profile organization</span>
-                      <strong className="text-right text-[var(--text-primary)]">{inviteOrganization?.name ?? selectedOrganization?.name ?? 'Selected organization'}</strong>
-                    </div>
                   </div>
                   <label className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                     <input
@@ -314,21 +323,9 @@ export default function PlatformAccessControlPage() {
                       <p className="mt-1.5 text-xs text-red-600">Enter a valid email address.</p>
                     )}
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Profile organization</label>
-                    <select
-                      value={inviteTenantId}
-                      onChange={e => {
-                        setInviteTenantId(e.target.value)
-                        setInviteError(null)
-                      }}
-                      className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#5B21B6] transition-all"
-                    >
-                      <option value="">Select organization…</option>
-                      {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                    <p className="mt-1.5 text-xs text-[var(--text-muted)]">This anchors their staff profile; global admins are not limited to this organization.</p>
-                  </div>
+                  {!inviteTenantId && (
+                    <Banner tone="error" message="Create an organization before inviting a global admin." />
+                  )}
                   {inviteError && <Banner tone="error" message={inviteError} />}
                 </div>
                 <div className="flex flex-col-reverse gap-2 px-5 py-4 border-t border-[var(--border)] sm:flex-row sm:justify-end">
