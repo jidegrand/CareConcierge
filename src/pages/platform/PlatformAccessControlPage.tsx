@@ -3,7 +3,7 @@ import { usePlatformAccess, useSites, useTenants, type PlatformAccessUser } from
 import { usePlatformContext } from '@/pages/platform/usePlatformContext'
 
 const ALL_ROLES = [
-  { value: 'super_admin',   label: 'Super Admin' },
+  { value: 'super_admin',   label: 'Global Admin' },
   { value: 'tenant_admin',  label: 'Tenant Admin' },
   { value: 'nurse_manager', label: 'Nurse Manager' },
   { value: 'site_manager',  label: 'Site Manager' },
@@ -16,12 +16,18 @@ const ALL_ROLES = [
 // Roles available to assign in the edit modal (excludes super_admin — use invite flow)
 const EDIT_ROLES = ALL_ROLES.filter(r => r.value !== 'super_admin')
 
+type GlobalAdminInviteStep = 'details' | 'review' | 'sent'
+
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+}
+
 export default function PlatformAccessControlPage() {
-  const { selectedOrganizationId } = usePlatformContext()
+  const { selectedOrganizationId, selectedOrganization } = usePlatformContext()
   const { users, loading, error, updateAccess, inviteSuperAdmin } = usePlatformAccess(true)
   const { sites } = useSites(selectedOrganizationId)
   const { tenants } = useTenants(true)
@@ -31,12 +37,14 @@ export default function PlatformAccessControlPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [showAddSuperAdmin, setShowAddSuperAdmin] = useState(false)
+  const [showAddGlobalAdmin, setShowAddGlobalAdmin] = useState(false)
+  const [inviteStep, setInviteStep] = useState<GlobalAdminInviteStep>('details')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteTenantId, setInviteTenantId] = useState('')
   const [inviteSent, setInviteSent] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviting, setInviting] = useState(false)
+  const [globalAccessConfirmed, setGlobalAccessConfirmed] = useState(false)
 
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -68,6 +76,11 @@ export default function PlatformAccessControlPage() {
   const unitsForSite = (siteId: string | null | undefined) =>
     unitOptions.filter(unit => !siteId || unit.siteId === siteId)
 
+  const inviteOrganization = tenants.find(t => t.id === inviteTenantId)
+  const inviteEmailValid = isValidEmail(inviteEmail)
+  const canReviewGlobalAdmin = inviteEmailValid && Boolean(inviteTenantId)
+  const canSendGlobalAdminInvite = canReviewGlobalAdmin && globalAccessConfirmed
+
   const handleSave = async () => {
     if (!editUser) return
     setSaving(true)
@@ -87,26 +100,36 @@ export default function PlatformAccessControlPage() {
     setSaving(false)
   }
 
-  const handleInviteSuperAdmin = async () => {
-    if (!inviteEmail.trim() || !inviteTenantId) return
+  const handleInviteGlobalAdmin = async () => {
+    if (!canSendGlobalAdminInvite) return
     setInviting(true)
     setInviteError(null)
+    setMessage(null)
     try {
-      await inviteSuperAdmin(inviteEmail.trim(), inviteTenantId)
+      await inviteSuperAdmin(inviteEmail.trim().toLowerCase(), inviteTenantId)
       setInviteSent(true)
+      setInviteStep('sent')
+      setGlobalAccessConfirmed(false)
     } catch (err: unknown) {
       setInviteError(err instanceof Error ? err.message : 'Invite failed')
     }
     setInviting(false)
   }
 
-  const openAddSuperAdmin = () => {
+  const openAddGlobalAdmin = () => {
     setInviteEmail('')
     const extendiHealth = tenants.find(t => t.name.toLowerCase().includes('extendihealth'))
-    setInviteTenantId(extendiHealth?.id ?? tenants[0]?.id ?? '')
+    setInviteTenantId(selectedOrganizationId ?? extendiHealth?.id ?? tenants[0]?.id ?? '')
+    setInviteStep('details')
     setInviteSent(false)
     setInviteError(null)
-    setShowAddSuperAdmin(true)
+    setGlobalAccessConfirmed(false)
+    setShowAddGlobalAdmin(true)
+  }
+
+  const closeAddGlobalAdmin = () => {
+    setShowAddGlobalAdmin(false)
+    setInviteError(null)
   }
 
   return (
@@ -114,18 +137,18 @@ export default function PlatformAccessControlPage() {
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-bold text-[var(--text-primary)]">Access Control</h3>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">Manage platform administrators and organization access roles</p>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">Manage global platform admins and organization access roles</p>
         </div>
         <button
-          onClick={openAddSuperAdmin}
+          onClick={openAddGlobalAdmin}
           className="w-full rounded-xl bg-[#5B21B6] px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-[#4C1D95] sm:w-auto"
         >
-          + Add Super Admin
+          + Add Global Admin
         </button>
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <AccessStat label="Super Admins" value={counts.superAdmins} color="#5B21B6" />
+        <AccessStat label="Global Admins" value={counts.superAdmins} color="#5B21B6" />
         <AccessStat label="Admins" value={counts.admins} color="#1D4ED8" />
         <AccessStat label="Clinicians" value={counts.clinicians} color="#059669" />
         <AccessStat label="Support" value={counts.support} color="#D97706" />
@@ -197,13 +220,18 @@ export default function PlatformAccessControlPage() {
         )}
       </div>
 
-      {showAddSuperAdmin && (
+      {showAddGlobalAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
           <div className="bg-white rounded-2xl shadow-lift w-full max-w-md max-h-[90vh] overflow-y-auto animate-bounce-in">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">Add Super Admin</h3>
-              <button onClick={() => setShowAddSuperAdmin(false)} className="w-7 h-7 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)]">✕</button>
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">Add Global Admin</h3>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">Invite trusted platform operators with full cross-tenant access.</p>
+              </div>
+              <button onClick={closeAddGlobalAdmin} className="w-7 h-7 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)]">✕</button>
             </div>
+
+            <InviteProgress step={inviteStep} />
 
             {inviteSent ? (
               <div className="px-5 py-8 text-center">
@@ -214,13 +242,59 @@ export default function PlatformAccessControlPage() {
                 </div>
                 <p className="font-semibold text-[var(--text-primary)] mb-1">Invite sent!</p>
                 <p className="text-sm text-[var(--text-muted)]">
-                  A sign-in link was sent to <strong>{inviteEmail}</strong>. They'll have Super Admin access on first login.
+                  A sign-in link was sent to <strong>{inviteEmail}</strong>. They&apos;ll have global platform admin access on first login.
                 </p>
-                <button onClick={() => setShowAddSuperAdmin(false)}
+                <button onClick={closeAddGlobalAdmin}
                   className="mt-4 px-4 py-2 rounded-xl bg-[#5B21B6] text-white text-sm font-medium hover:bg-[#4C1D95] transition-colors">
                   Done
                 </button>
               </div>
+            ) : inviteStep === 'review' ? (
+              <>
+                <div className="px-5 py-4 space-y-4">
+                  <div className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-purple-700">Global platform scope</p>
+                    <p className="mt-1 text-sm text-purple-900">
+                      This person will be able to open the Platform Console, manage organizations, licensing, access control, reports, and audit logs.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--page-bg)] px-4 py-3 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-[var(--text-muted)]">Email</span>
+                      <strong className="break-all text-right text-[var(--text-primary)]">{inviteEmail.trim().toLowerCase()}</strong>
+                    </div>
+                    <div className="mt-2 flex items-start justify-between gap-3">
+                      <span className="text-[var(--text-muted)]">Profile organization</span>
+                      <strong className="text-right text-[var(--text-primary)]">{inviteOrganization?.name ?? selectedOrganization?.name ?? 'Selected organization'}</strong>
+                    </div>
+                  </div>
+                  <label className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <input
+                      type="checkbox"
+                      checked={globalAccessConfirmed}
+                      onChange={e => setGlobalAccessConfirmed(e.target.checked)}
+                      className="mt-1 h-4 w-4 flex-shrink-0 rounded border-amber-300"
+                    />
+                    <span>I confirm this person should have unrestricted global admin access across every organization on the platform.</span>
+                  </label>
+                  {inviteError && <Banner tone="error" message={inviteError} />}
+                </div>
+                <div className="flex flex-col-reverse gap-2 px-5 py-4 border-t border-[var(--border)] sm:flex-row sm:justify-end">
+                  <button
+                    onClick={() => { setInviteStep('details'); setInviteError(null) }}
+                    className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleInviteGlobalAdmin}
+                    disabled={inviting || !canSendGlobalAdminInvite}
+                    className="px-4 py-2 rounded-xl bg-[#5B21B6] text-white text-sm font-medium disabled:opacity-50 hover:bg-[#4C1D95] transition-colors"
+                  >
+                    {inviting ? 'Sending…' : 'Send invite'}
+                  </button>
+                </div>
+              </>
             ) : (
               <>
                 <div className="px-5 py-4 space-y-4">
@@ -229,35 +303,45 @@ export default function PlatformAccessControlPage() {
                     <input
                       type="email"
                       value={inviteEmail}
-                      onChange={e => setInviteEmail(e.target.value)}
-                      placeholder="admin@example.com"
+                      onChange={e => {
+                        setInviteEmail(e.target.value)
+                        setInviteError(null)
+                      }}
+                      placeholder="operator@example.com"
                       className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#5B21B6] focus:ring-2 focus:ring-[#5B21B6]/10 transition-all"
                     />
+                    {inviteEmail.trim() && !inviteEmailValid && (
+                      <p className="mt-1.5 text-xs text-red-600">Enter a valid email address.</p>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Associated organization</label>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Profile organization</label>
                     <select
                       value={inviteTenantId}
-                      onChange={e => setInviteTenantId(e.target.value)}
+                      onChange={e => {
+                        setInviteTenantId(e.target.value)
+                        setInviteError(null)
+                      }}
                       className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#5B21B6] transition-all"
                     >
                       <option value="">Select organization…</option>
                       {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
+                    <p className="mt-1.5 text-xs text-[var(--text-muted)]">This anchors their staff profile; global admins are not limited to this organization.</p>
                   </div>
                   {inviteError && <Banner tone="error" message={inviteError} />}
                 </div>
                 <div className="flex flex-col-reverse gap-2 px-5 py-4 border-t border-[var(--border)] sm:flex-row sm:justify-end">
-                  <button onClick={() => setShowAddSuperAdmin(false)}
+                  <button onClick={closeAddGlobalAdmin}
                     className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
                     Cancel
                   </button>
                   <button
-                    onClick={handleInviteSuperAdmin}
-                    disabled={inviting || !inviteEmail.trim() || !inviteTenantId}
+                    onClick={() => { setInviteStep('review'); setInviteError(null) }}
+                    disabled={!canReviewGlobalAdmin}
                     className="px-4 py-2 rounded-xl bg-[#5B21B6] text-white text-sm font-medium disabled:opacity-50 hover:bg-[#4C1D95] transition-colors"
                   >
-                    {inviting ? 'Sending…' : 'Send invite'}
+                    Review access
                   </button>
                 </div>
               </>
@@ -285,7 +369,7 @@ export default function PlatformAccessControlPage() {
                 {editUser.role === 'super_admin' ? (
                   <div className="flex items-center gap-2">
                     <div className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] px-3.5 py-2.5 text-sm text-[var(--text-secondary)]">
-                      Super Admin
+                      Global Admin
                     </div>
                     <span className="text-xs text-[var(--text-muted)]">Use invite flow to change</span>
                   </div>
@@ -362,7 +446,7 @@ function AccessStat({ label, value, color }: { label: string; value: number; col
 
 function RolePill({ role }: { role: string }) {
   const labels: Record<string, { bg: string; text: string; label: string }> = {
-    super_admin:  { bg: '#EDE9FE', text: '#5B21B6', label: 'Super Admin' },
+    super_admin:  { bg: '#EDE9FE', text: '#5B21B6', label: 'Global Admin' },
     tenant_admin: { bg: '#EDE9FE', text: '#5B21B6', label: 'Tenant Admin' },
     nurse_manager:{ bg: '#DBEAFE', text: '#1D4ED8', label: 'Nurse Manager' },
     site_manager: { bg: '#DBEAFE', text: '#1D4ED8', label: 'Site Manager' },
@@ -373,6 +457,37 @@ function RolePill({ role }: { role: string }) {
   }
   const config = labels[role] ?? { bg: '#E5E7EB', text: '#374151', label: role }
   return <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: config.bg, color: config.text }}>{config.label}</span>
+}
+
+function InviteProgress({ step }: { step: GlobalAdminInviteStep }) {
+  const steps: Array<{ id: GlobalAdminInviteStep; label: string }> = [
+    { id: 'details', label: 'Details' },
+    { id: 'review', label: 'Review' },
+    { id: 'sent', label: 'Sent' },
+  ]
+  const currentIndex = steps.findIndex(entry => entry.id === step)
+
+  return (
+    <div className="border-b border-[var(--border)] px-5 py-3">
+      <div className="grid grid-cols-3 gap-2">
+        {steps.map((entry, index) => {
+          const active = index <= currentIndex
+          return (
+            <div key={entry.id} className="flex items-center gap-2">
+              <span
+                className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${
+                  active ? 'bg-[#5B21B6] text-white' : 'bg-[var(--page-bg)] text-[var(--text-muted)]'
+                }`}
+              >
+                {index + 1}
+              </span>
+              <span className={`text-xs font-medium ${active ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>{entry.label}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 function Banner({ tone, message }: { tone: 'error' | 'success'; message: string }) {
