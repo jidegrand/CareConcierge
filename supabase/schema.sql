@@ -58,7 +58,7 @@ CREATE TABLE rooms (
 -- ── 5. REQUESTS ───────────────────────────────────────────────────────────────
 CREATE TABLE requests (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  room_id         UUID NOT NULL REFERENCES rooms(id),
+  room_id         UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
   type            TEXT NOT NULL,       -- water | blanket | pain | medication | bathroom | nurse | food | temperature
   status          TEXT NOT NULL DEFAULT 'pending'
                   CHECK (status IN ('pending', 'acknowledged', 'resolved')),

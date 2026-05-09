@@ -7,6 +7,7 @@ export interface OrganizationWithStats extends Tenant {
   siteCount: number
   unitCount: number
   roomCount: number
+  requestCount: number
   userCount: number
   requestTypeCount: number
 }
@@ -30,6 +31,14 @@ const normalizeOptionalUrl = (value: string | undefined) => {
   }
 }
 
+function formatTenantDeleteError(message: string) {
+  if (/requests_room_id_fkey|request.*room/i.test(message)) {
+    return 'This organization still has request history tied to its rooms. Apply the delete organization cascade migration, then try again.'
+  }
+
+  return message
+}
+
 export function useTenants(enabled = true) {
   const [tenants, setTenants] = useState<OrganizationWithStats[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,14 +54,15 @@ export function useTenants(enabled = true) {
     setLoading(true)
     setError(null)
 
-    const [tenantsRes, sitesRes, usersRes, requestTypesRes] = await Promise.all([
+    const [tenantsRes, sitesRes, usersRes, requestTypesRes, requestsRes] = await Promise.all([
       supabase.from('tenants').select('id, name, slug, organization_url, created_at').order('created_at'),
       supabase.from('sites').select('tenant_id, units(id, rooms(id))'),
       supabase.from('user_profiles').select('id, tenant_id').eq('active', true),
       supabase.from('request_types').select('id, tenant_id'),
+      supabase.from('requests').select('id, room:rooms(unit:units(site:sites(tenant_id)))'),
     ])
 
-    const firstError = tenantsRes.error ?? sitesRes.error ?? usersRes.error ?? requestTypesRes.error
+    const firstError = tenantsRes.error ?? sitesRes.error ?? usersRes.error ?? requestTypesRes.error ?? requestsRes.error
     if (firstError) {
       setError(firstError.message)
       setLoading(false)
@@ -66,6 +76,19 @@ export function useTenants(enabled = true) {
     }[]
     const userRows = (usersRes.data ?? []) as { tenant_id: string }[]
     const requestTypeRows = (requestTypesRes.data ?? []) as { tenant_id: string }[]
+    const requestRows = (requestsRes.data ?? []) as {
+      room?: {
+        unit?: {
+          site?: { tenant_id?: string } | { tenant_id?: string }[] | null
+        } | { site?: { tenant_id?: string } | { tenant_id?: string }[] | null }[] | null
+      } | null
+    }[]
+
+    const getRequestTenantId = (row: typeof requestRows[number]) => {
+      const unit = Array.isArray(row.room?.unit) ? row.room?.unit[0] : row.room?.unit
+      const site = Array.isArray(unit?.site) ? unit?.site[0] : unit?.site
+      return site?.tenant_id
+    }
 
     const tenantSummaries = tenantRows.map((tenant) => {
       const tenantSites = siteRows.filter(site => site.tenant_id === tenant.id)
@@ -80,6 +103,7 @@ export function useTenants(enabled = true) {
         siteCount,
         unitCount,
         roomCount,
+        requestCount: requestRows.filter(request => getRequestTenantId(request) === tenant.id).length,
         userCount: userRows.filter(user => user.tenant_id === tenant.id).length,
         requestTypeCount: requestTypeRows.filter(rt => rt.tenant_id === tenant.id).length,
       }
@@ -115,7 +139,7 @@ export function useTenants(enabled = true) {
 
   const deleteTenant = async (id: string) => {
     const { error: err } = await supabase.from('tenants').delete().eq('id', id)
-    if (err) throw new Error(err.message)
+    if (err) throw new Error(formatTenantDeleteError(err.message))
     await fetch()
   }
 

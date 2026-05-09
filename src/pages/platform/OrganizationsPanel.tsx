@@ -39,6 +39,7 @@ export default function OrganizationsPanel({
   const [deleteTarget, setDeleteTarget] = useState<OrganizationWithStats | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
 
   const totals = useMemo(() => organizations.reduce((acc, organization) => ({
     organizations: acc.organizations + 1,
@@ -77,6 +78,7 @@ export default function OrganizationsPanel({
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return
+    if (deleteConfirmation.trim() !== deleteTarget.name) return
     setDeleting(true)
     setDeleteError(null)
     try {
@@ -86,10 +88,17 @@ export default function OrganizationsPanel({
         if (fallback) onSelectOrganization(fallback.id)
       }
       setDeleteTarget(null)
+      setDeleteConfirmation('')
     } catch (err: unknown) {
       setDeleteError(err instanceof Error ? err.message : 'Unable to delete organization')
     }
     setDeleting(false)
+  }
+
+  const closeDeleteModal = () => {
+    setDeleteTarget(null)
+    setDeleteError(null)
+    setDeleteConfirmation('')
   }
 
   if (loading) return <PanelLoading label="Loading organizations…" />
@@ -213,7 +222,7 @@ export default function OrganizationsPanel({
                         </button>
                         <span className="text-[var(--border)]">·</span>
                         <button
-                          onClick={() => { setDeleteTarget(organization); setDeleteError(null) }}
+                          onClick={() => { setDeleteTarget(organization); setDeleteError(null); setDeleteConfirmation('') }}
                           className="text-xs font-medium text-red-500 hover:underline"
                         >
                           Delete
@@ -248,7 +257,7 @@ export default function OrganizationsPanel({
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h3 className="text-sm font-bold text-[var(--text-primary)]">Delete Organization</h3>
               <button
-                onClick={() => setDeleteTarget(null)}
+                onClick={closeDeleteModal}
                 className="w-7 h-7 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)] transition-colors"
               >
                 ✕
@@ -269,13 +278,44 @@ export default function OrganizationsPanel({
                     Delete "{deleteTarget.name}"?
                   </p>
                   <p className="text-sm text-[var(--text-secondary)] mt-1.5 leading-relaxed">
-                    This will permanently remove the organization and all its sites, units, rooms, request types, and users. This action cannot be undone.
+                    This will permanently remove the organization and all its sites, units, rooms, requests, feedback, request types, and users. This action cannot be undone.
                   </p>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-lg border border-[var(--border)] bg-[var(--page-bg)] px-3 py-2">
+                      <span className="font-semibold text-[var(--text-primary)]">{deleteTarget.siteCount}</span>
+                      <span className="ml-1 text-[var(--text-muted)]">sites</span>
+                    </div>
+                    <div className="rounded-lg border border-[var(--border)] bg-[var(--page-bg)] px-3 py-2">
+                      <span className="font-semibold text-[var(--text-primary)]">{deleteTarget.roomCount}</span>
+                      <span className="ml-1 text-[var(--text-muted)]">rooms</span>
+                    </div>
+                    <div className="rounded-lg border border-[var(--border)] bg-[var(--page-bg)] px-3 py-2">
+                      <span className="font-semibold text-[var(--text-primary)]">{deleteTarget.requestCount}</span>
+                      <span className="ml-1 text-[var(--text-muted)]">requests</span>
+                    </div>
+                    <div className="rounded-lg border border-[var(--border)] bg-[var(--page-bg)] px-3 py-2">
+                      <span className="font-semibold text-[var(--text-primary)]">{deleteTarget.userCount}</span>
+                      <span className="ml-1 text-[var(--text-muted)]">users</span>
+                    </div>
+                  </div>
                   {deleteTarget.userCount > 0 && (
                     <p className="mt-2 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                       Warning: {deleteTarget.userCount} user{deleteTarget.userCount !== 1 ? 's' : ''} will lose access immediately.
                     </p>
                   )}
+                  <label className="mt-4 block">
+                    <span className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+                      Type {deleteTarget.name} to confirm
+                    </span>
+                    <input
+                      value={deleteConfirmation}
+                      onChange={(event) => {
+                        setDeleteConfirmation(event.target.value)
+                        setDeleteError(null)
+                      }}
+                      className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all"
+                    />
+                  </label>
                 </div>
               </div>
               {deleteError && (
@@ -284,14 +324,14 @@ export default function OrganizationsPanel({
             </div>
             <div className="flex flex-col-reverse gap-2 px-5 py-4 border-t border-[var(--border)] sm:flex-row sm:justify-end">
               <button
-                onClick={() => setDeleteTarget(null)}
+                onClick={closeDeleteModal}
                 className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirm}
-                disabled={deleting}
+                disabled={deleting || deleteConfirmation.trim() !== deleteTarget.name}
                 className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium disabled:opacity-50 hover:bg-red-700 transition-colors"
               >
                 {deleting ? 'Deleting…' : 'Delete organization'}
