@@ -91,6 +91,7 @@ const SECTIONS = [
   { id: 'overview',     label: 'Overview' },
   { id: 'supabase',     label: 'Supabase Setup' },
   { id: 'vercel',       label: 'Vercel Deployment' },
+  { id: 'subdomains',   label: 'Subdomain Setup' },
   { id: 'first-admin',  label: 'First Super Admin' },
   { id: 'orgs',         label: 'Organizations' },
   { id: 'tenant-admin', label: 'Tenant Admin Portal' },
@@ -329,6 +330,104 @@ vercel link`}</Code>
                 <Code>{`vercel inspect https://care.extendihealth.com`}</Code>
                 <p className="mt-2">Then open the URL in a browser and confirm the login page loads. Navigate to <InlineCode>/platform</InlineCode> to access the super admin console.</p>
               </Step>
+            </GuideSection>
+
+            {/* ── Subdomain Setup ────────────────────────────────── */}
+            <GuideSection id="subdomains" title="Subdomain Setup">
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                Each organization gets its own subdomain (e.g., <InlineCode>conrad.extendihealth.com</InlineCode>). This provides a branded, memorable URL while maintaining strict data isolation via Row Level Security. The platform uses a wildcard DNS record and certificate to serve all tenant subdomains from the same Vercel deployment.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                {[
+                  { icon: '🌐', title: 'Admin Domain', desc: 'care.extendihealth.com (super-admin only)' },
+                  { icon: '🏥', title: 'Tenant Domains', desc: 'yourname.extendihealth.com (org-scoped)' },
+                  { icon: '🔐', title: 'SSL Certificate', desc: 'Wildcard *.extendihealth.com (auto-provisioned)' },
+                  { icon: '📡', title: 'DNS Record', desc: '*.extendihealth.com → CNAME to Vercel' },
+                ].map(c => (
+                  <div key={c.title} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+                    <div className="text-xl mb-1">{c.icon}</div>
+                    <p className="text-sm font-medium text-[var(--text-primary)]">{c.title}</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">{c.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              <Step n={1} title="Configure wildcard DNS">
+                <p className="mb-2">Add a wildcard CNAME record to your DNS provider (Route53, Cloudflare, GoDaddy, etc.):</p>
+                <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
+                  <p className="font-mono text-[10px] text-[var(--text-secondary)]">*.extendihealth.com  CNAME  care.extendihealth.com</p>
+                </div>
+                <Note>
+                  This single record routes <strong>all</strong> subdomains (conrad.extendihealth.com, st-marys.extendihealth.com, etc.) to the Vercel deployment. Propagation typically takes 5-30 minutes.
+                </Note>
+              </Step>
+
+              <Step n={2} title="Verify wildcard certificate on Vercel">
+                <p className="mb-2">In Vercel dashboard, go to <strong>Project Settings → Domains</strong>:</p>
+                <div className="space-y-2 text-xs">
+                  <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
+                    <p className="font-semibold text-[var(--text-primary)] mb-1">Step 1: Add root domain</p>
+                    <p className="text-[var(--text-secondary)]">Add <InlineCode>extendihealth.com</InlineCode> (Vercel will auto-verify DNS)</p>
+                  </div>
+                  <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
+                    <p className="font-semibold text-[var(--text-primary)] mb-1">Step 2: Add wildcard domain</p>
+                    <p className="text-[var(--text-secondary)]">Add <InlineCode>*.extendihealth.com</InlineCode> — Vercel auto-provisions a wildcard SSL certificate</p>
+                  </div>
+                  <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
+                    <p className="font-semibold text-[var(--text-primary)] mb-1">Step 3: Test resolution</p>
+                    <p className="text-[var(--text-secondary)]">Open <InlineCode>https://test.extendihealth.com</InlineCode> in a browser. Should show your app (404 org not found is OK). Check SSL cert details — should be valid for <strong>*.extendihealth.com</strong>.</p>
+                  </div>
+                </div>
+              </Step>
+
+              <Step n={3} title="Create organization slug">
+                <p className="mb-2">When creating an organization, assign a <strong>URL slug</strong> — the subdomain name:</p>
+                <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5 text-xs space-y-2">
+                  <p><strong className="text-[var(--text-primary)]">Slug rules:</strong></p>
+                  <ul className="list-disc list-inside space-y-1 text-[var(--text-secondary)]">
+                    <li>Lowercase, alphanumeric + hyphens only (e.g., <InlineCode>st-marys-medical</InlineCode>)</li>
+                    <li>3-63 characters</li>
+                    <li>Must be unique across all organizations</li>
+                    <li>No spaces or special characters</li>
+                  </ul>
+                </div>
+                <p className="mt-3 text-sm text-[var(--text-secondary)]"><strong>Examples:</strong></p>
+                <div className="mt-2 space-y-1.5 text-xs font-mono">
+                  <div className="flex justify-between items-center px-3 py-2 bg-[var(--page-bg)] rounded border border-[var(--border)]">
+                    <span>Conrad Hospital</span>
+                    <span className="text-[var(--clinical-blue)]">→ conrad.extendihealth.com</span>
+                  </div>
+                  <div className="flex justify-between items-center px-3 py-2 bg-[var(--page-bg)] rounded border border-[var(--border)]">
+                    <span>St. Mary's Medical Center</span>
+                    <span className="text-[var(--clinical-blue)]">→ st-marys.extendihealth.com</span>
+                  </div>
+                  <div className="flex justify-between items-center px-3 py-2 bg-[var(--page-bg)] rounded border border-[var(--border)]">
+                    <span>General Hospital Group</span>
+                    <span className="text-[var(--clinical-blue)]">→ general-hospital.extendihealth.com</span>
+                  </div>
+                </div>
+              </Step>
+
+              <Step n={4} title="Test the subdomain">
+                <p className="mb-2">After creating an organization with a slug:</p>
+                <ol className="space-y-2 text-xs text-[var(--text-secondary)] list-decimal list-inside">
+                  <li>Wait 1-2 minutes for DNS propagation</li>
+                  <li>Open <InlineCode>https://yourslug.extendihealth.com</InlineCode> in a browser</li>
+                  <li>Verify the app loads (you'll see login if not authenticated)</li>
+                  <li>Check SSL certificate — should be valid, issued to <InlineCode>*.extendihealth.com</InlineCode></li>
+                  <li>Sign in as the Tenant Admin for that org</li>
+                  <li>Verify you land on <InlineCode>/tenant-admin</InlineCode> (org-scoped portal)</li>
+                </ol>
+              </Step>
+
+              <Warning>
+                <strong>Slug collision prevention:</strong> If two organizations have similar names (e.g., both "General Hospital"), the system prevents slug collisions by appending a number: <InlineCode>general-hospital</InlineCode> and <InlineCode>general-hospital-2</InlineCode>. Always verify the slug is unique before creating the org.
+              </Warning>
+
+              <Note>
+                <strong>Backward compatibility:</strong> During the transition period, the old single-domain approach (<InlineCode>care.extendihealth.com/admin?tenantId=UUID</InlineCode>) still works. Slugs are optional at first. Gradually migrate organizations to their branded subdomains.
+              </Note>
             </GuideSection>
 
             {/* ── First Super Admin ───────────────────────────────── */}
@@ -603,6 +702,8 @@ WHERE id = (
                     'Auth Site URL and redirect URLs configured correctly',
                     'Resend SMTP configured with a verified sender domain',
                     'Magic Link and Reset Password email templates copied into Supabase',
+                    'Wildcard DNS record added: *.extendihealth.com CNAME to Vercel',
+                    'Wildcard SSL certificate provisioned on Vercel (*.extendihealth.com)',
                   ]},
                   { category: 'Vercel', items: [
                     'All 4 env vars set in Vercel dashboard for Production environment',
@@ -612,10 +713,14 @@ WHERE id = (
                     'vercel.json rewrite rule present (SPA routing works)',
                   ]},
                   { category: 'Platform', items: [
-                    'Super admin account created and can access /platform',
-                    'Client organization created with a license record',
+                    'Super admin account created and can access /platform (care.extendihealth.com)',
+                    'Client organization created with license record and unique slug',
+                    'Organization slug is valid (lowercase, alphanumeric, no spaces)',
+                    'Subdomain resolves correctly (e.g., yourname.extendihealth.com)',
+                    'SSL certificate is valid for wildcard (*.extendihealth.com)',
                     'License status is active or trial with a valid expiry',
                     'Tenant Admin invited and invite email confirmed delivered',
+                    'Tenant Admin can access their subdomain and lands on /tenant-admin',
                   ]},
                   { category: 'Tenant Admin Portal', items: [
                     'Tenant Admin Portal at /tenant-admin loads without errors',

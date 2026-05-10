@@ -36,12 +36,15 @@ export default function PlatformLayout() {
   useEffect(() => {
     if (!isSuperAdmin) return
     if (tenants.length === 0) return
-    if (!selectedOrganizationId || !tenants.some(entry => entry.id === selectedOrganizationId)) {
+    // Only auto-select if no organization is currently selected
+    if (!selectedOrganizationId) {
       const next = new URLSearchParams(searchParams)
       next.set('orgId', tenants[0].id)
       setSearchParams(next, { replace: true })
     }
-  }, [isSuperAdmin, tenants, selectedOrganizationId, searchParams, setSearchParams])
+    // If a selection exists but is no longer valid, don't auto-reset
+    // Let the user explicitly choose a new organization
+  }, [isSuperAdmin, tenants.length, selectedOrganizationId, searchParams, setSearchParams])
 
   const setSelectedOrganizationId = (tenantId: string | undefined) => {
     const next = new URLSearchParams(searchParams)
