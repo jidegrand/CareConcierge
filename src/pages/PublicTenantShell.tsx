@@ -37,10 +37,16 @@ export default function PublicTenantShell({ children }: PublicTenantShellProps) 
         const resolved = Array.isArray(data) ? data[0] : data
         const tenantId = (resolved as { id?: string } | null)?.id ?? null
         if (error || !tenantId) {
+          setSubdomainTenantId(null) // Mark resolution complete
           setSubdomainError(`No organization found for "${subdomain}". Check that the subdomain matches a registered organization slug.`)
         } else {
           setSubdomainTenantId(tenantId)
         }
+      })
+      .catch((err) => {
+        console.error('Error resolving tenant by slug:', err)
+        setSubdomainTenantId(null) // Mark resolution complete
+        setSubdomainError(`No organization found for "${subdomain}". Check that the subdomain matches a registered organization slug.`)
       })
   }, [onTenantSubdomain, subdomain])
 
