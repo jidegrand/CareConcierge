@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import NurseShell from '@/components/NurseShell'
 import SitesPanel from '@/pages/admin/SitesPanel'
@@ -10,6 +10,7 @@ import { useTenantContext } from '@/hooks/useTenantContext'
 import { useRequests } from '@/hooks/useRequests'
 import { useAdminStats } from '@/hooks/useAdminData'
 import { canAny } from '@/lib/roles'
+import { supabase } from '@/lib/supabase'
 
 type Tab = 'overview' | 'sites' | 'requests' | 'users' | 'qr'
 const ALL_TABS: { id: Tab; label: string; perm?: 'admin.users' | 'admin.users.own_unit' }[] = [
@@ -26,11 +27,20 @@ export default function AdminPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isSuperAdmin = profile?.role === 'super_admin'
-  const effectiveTenantId = isSuperAdmin ? (searchParams.get('tenantId') ?? tenantId) : tenantId
+  const urlTenantId = searchParams.get('tenantId') ?? undefined
+  const effectiveTenantId = isSuperAdmin ? (urlTenantId ?? tenantId) : tenantId
+
+  const [superAdminTenantName, setSuperAdminTenantName] = useState<string | undefined>()
+  useEffect(() => {
+    if (!isSuperAdmin || !urlTenantId) { setSuperAdminTenantName(undefined); return }
+    supabase.from('tenants').select('name').eq('id', urlTenantId).single()
+      .then(({ data }) => setSuperAdminTenantName(data?.name ?? undefined))
+  }, [isSuperAdmin, urlTenantId])
 
   const { requests, stats, connected, soundEnabled, setSoundEnabled } = useRequests(isSuperAdmin ? undefined : unitId, effectiveTenantId)
   const { stats: adminStats, loading: statsLoading } = useAdminStats(effectiveTenantId)
-  const unitName = requests[0]?.room?.unit?.name ?? tenantName ?? 'Admin'
+  const effectiveTenantName = isSuperAdmin ? (superAdminTenantName ?? urlTenantId) : tenantName
+  const unitName = requests[0]?.room?.unit?.name ?? effectiveTenantName ?? 'Admin'
   const [tab, setTab] = useState<Tab>('overview')
 
   const role     = profile?.role ?? 'nurse'
