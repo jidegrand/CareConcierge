@@ -83,7 +83,7 @@ export default function PlatformOverviewPage() {
                 <span className={`font-semibold flex-shrink-0 ${item.kind === 'error' ? 'text-red-800' : 'text-amber-800'}`}>{item.label}</span>
                 <span className={item.kind === 'error' ? 'text-red-600' : 'text-amber-600'}>{item.detail}</span>
                 <button
-                  onClick={() => navigate('/platform/licensing')}
+                  onClick={() => navigate(`/platform/licensing${selectedOrganizationId ? `?orgId=${selectedOrganizationId}` : ''}`)}
                   className={`text-xs font-medium sm:ml-auto ${item.kind === 'error' ? 'text-red-700 hover:underline' : 'text-amber-700 hover:underline'}`}
                 >
                   View license →
