@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthContext, useAuthProvider, useAuth } from '@/hooks/useAuth'
 import { isTenantSubdomain } from '@/lib/subdomain'
 import { NotificationsProvider } from '@/hooks/useNotifications'
-import PublicTenantShell from '@/pages/PublicTenantShell'
 import LoginPage       from '@/pages/LoginPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
 import SetPasswordPage from '@/pages/SetPasswordPage'
@@ -121,11 +120,11 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/r/:roomId"  element={<PublicTenantShell><PatientPage /></PublicTenantShell>} />
-          <Route path="/patient-guide" element={<PublicTenantShell><PatientGuidePage /></PublicTenantShell>} />
-          <Route path="/login"      element={<PublicTenantShell><LoginPage /></PublicTenantShell>} />
-          <Route path="/reset-password" element={<PublicTenantShell><ResetPasswordPage /></PublicTenantShell>} />
-          <Route path="/set-password"   element={<PublicTenantShell><SetPasswordPage /></PublicTenantShell>} />
+          <Route path="/r/:roomId"  element={<PatientPage />} />
+          <Route path="/patient-guide" element={<PatientGuidePage />} />
+          <Route path="/login"      element={<LoginPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/set-password"   element={<SetPasswordPage />} />
           <Route path="/dashboard"  element={<ProtectedRoute><NurseDashboard  /></ProtectedRoute>} />
           <Route path="/feed"       element={<ProtectedRoute><PatientFeedPage /></ProtectedRoute>} />
           <Route path="/bay-map"    element={<ProtectedRoute><BayMapPage      /></ProtectedRoute>} />
