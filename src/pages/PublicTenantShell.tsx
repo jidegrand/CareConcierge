@@ -33,10 +33,14 @@ export default function PublicTenantShell({ children }: PublicTenantShellProps) 
     }
     const resolve = async () => {
       try {
-        // RPC uses security definer to bypass RLS for unauthenticated reads
-        const { data, error } = await supabase.rpc('resolve_tenant_by_slug', { target_slug: subdomain })
-        const resolved = Array.isArray(data) ? data[0] : data
-        const tenantId = (resolved as { id?: string } | null)?.id ?? null
+        // Query tenants table directly to validate subdomain
+        const { data, error } = await supabase
+          .from('tenants')
+          .select('id')
+          .eq('slug', subdomain)
+          .single()
+
+        const tenantId = (data as { id?: string } | null)?.id ?? null
         if (error || !tenantId) {
           setSubdomainTenantId(null)
           setSubdomainError(`No organization found for "${subdomain}". Check that the subdomain matches a registered organization slug.`)
