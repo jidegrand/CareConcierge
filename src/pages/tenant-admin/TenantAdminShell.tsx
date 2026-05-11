@@ -36,7 +36,7 @@ export default function TenantAdminShell() {
   }, [onTenantSubdomain, subdomain])
 
   const resolving = authLoading || (onTenantSubdomain && subdomainTenantId === undefined)
-  const tenantId = subdomainTenantId ?? profile?.tenant_id ?? null
+  const tenantId = onTenantSubdomain ? subdomainTenantId : (profile?.tenant_id ?? null)
 
   if (resolving) {
     return (
