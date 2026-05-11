@@ -31,23 +31,25 @@ export default function PublicTenantShell({ children }: PublicTenantShellProps) 
       setSubdomainTenantId(null)
       return
     }
-    // Use RPC function to resolve tenant by slug (security definer bypasses RLS for unauthenticated reads)
-    supabase.rpc('resolve_tenant_by_slug', { target_slug: subdomain })
-      .then(({ data, error }) => {
+    const resolve = async () => {
+      try {
+        // RPC uses security definer to bypass RLS for unauthenticated reads
+        const { data, error } = await supabase.rpc('resolve_tenant_by_slug', { target_slug: subdomain })
         const resolved = Array.isArray(data) ? data[0] : data
         const tenantId = (resolved as { id?: string } | null)?.id ?? null
         if (error || !tenantId) {
-          setSubdomainTenantId(null) // Mark resolution complete
+          setSubdomainTenantId(null)
           setSubdomainError(`No organization found for "${subdomain}". Check that the subdomain matches a registered organization slug.`)
         } else {
           setSubdomainTenantId(tenantId)
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('Error resolving tenant by slug:', err)
-        setSubdomainTenantId(null) // Mark resolution complete
+        setSubdomainTenantId(null)
         setSubdomainError(`No organization found for "${subdomain}". Check that the subdomain matches a registered organization slug.`)
-      })
+      }
+    }
+    void resolve()
   }, [onTenantSubdomain, subdomain])
 
   const resolving = onTenantSubdomain && subdomainTenantId === undefined
