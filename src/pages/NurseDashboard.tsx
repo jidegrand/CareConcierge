@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import NurseShell from '@/components/NurseShell'
 import { useRequests } from '@/hooks/useRequests'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
@@ -137,6 +137,7 @@ function useAssignableStaff(unitId: string | undefined, tenantId: string | undef
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function NurseDashboard() {
   const { user, profile } = useAuth()
+  const navigate = useNavigate()
   const { tenantId, tenantName, unitId, loading: tenantLoading } = useTenantContext()
   const { requestTypes, requestTypeMap } = useRequestTypes(tenantId)
   const {
@@ -233,6 +234,27 @@ export default function NurseDashboard() {
 
         {/* ── Centre queue ─────────────────────────────────────────── */}
         <div className="flex-1 px-6 py-5 overflow-y-auto min-w-0">
+          {/* Tenant Admin shortcut banner */}
+          {profile?.role === 'tenant_admin' && (
+            <div className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-[var(--clinical-blue)]/30 bg-[var(--clinical-blue-lt)] px-5 py-4">
+              <div>
+                <p className="text-sm font-semibold text-[var(--clinical-blue)]">Organization Admin Portal</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Manage users, sites, licensing, and settings for {tenantName ?? 'your organization'}.
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/tenant-admin/dashboard')}
+                className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--clinical-blue)] text-white text-sm font-medium hover:bg-[var(--clinical-blue-dk)] transition-colors shadow-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+                Go to Admin Panel
+              </button>
+            </div>
+          )}
+
           <h2 className="text-2xl font-bold text-[var(--text-primary)]">Request Queue</h2>
           <p className="text-sm text-[var(--text-muted)] mt-0.5 mb-4">
             Monitoring active patient needs for {unitName}

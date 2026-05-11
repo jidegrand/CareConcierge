@@ -33,6 +33,7 @@ export type Permission =
   | 'requests.resolve'
   | 'requests.create'
   | 'page.platform'
+  | 'page.tenant_admin'
   | 'page.dashboard'
   | 'page.feed'
   | 'page.baymap'
@@ -61,7 +62,7 @@ export type Permission =
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   super_admin: [
     'requests.view', 'requests.acknowledge', 'requests.resolve', 'requests.create',
-    'page.platform',
+    'page.platform', 'page.tenant_admin',
     'page.dashboard', 'page.feed', 'page.baymap', 'page.staffing',
     'page.reports', 'page.admin', 'page.qrsheet', 'page.settings',
     'admin.sites', 'admin.rooms', 'admin.users', 'admin.users.own_unit',
@@ -73,6 +74,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   tenant_admin: [
     'requests.view', 'requests.acknowledge', 'requests.resolve', 'requests.create',
+    'page.tenant_admin',
     'page.dashboard', 'page.feed', 'page.baymap', 'page.staffing',
     'page.reports', 'page.admin', 'page.qrsheet', 'page.settings',
     'admin.sites', 'admin.rooms', 'admin.users', 'admin.users.own_unit',

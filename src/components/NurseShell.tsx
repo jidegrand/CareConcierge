@@ -33,12 +33,17 @@ export default function NurseShell({
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const profileRef = useRef<HTMLDivElement>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const profileRef  = useRef<HTMLDivElement>(null)
+  const settingsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false)
+      }
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setSettingsOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -64,9 +69,10 @@ export default function NurseShell({
   const bottomNav = NAV_ITEMS.filter(item => item.section === 'bottom' && can(role, item.perm))
 
   // Admin shows in main nav only for managers and above
-  const showAdmin = canAny(role, 'page.admin')
-  const showPlatform = canAny(role, 'page.platform')
-  const showQR    = canAny(role, 'page.qrsheet')
+  const showAdmin      = canAny(role, 'page.admin')
+  const showPlatform   = canAny(role, 'page.platform')
+  const showTenantAdmin = can(role, 'page.tenant_admin')
+  const showQR         = canAny(role, 'page.qrsheet')
 
   return (
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--page-bg)', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -91,8 +97,11 @@ export default function NurseShell({
               { label: 'Dashboard',    path: '/dashboard' },
               { label: 'Patient Feed', path: '/feed'      },
               { label: 'Bay Map',      path: '/bay-map'   },
+              ...(showPlatform    ? [{ label: 'Platform',  path: '/platform'      }] : []),
+              ...(showTenantAdmin ? [{ label: 'Org Admin', path: '/tenant-admin'  }] : []),
+              ...(!showTenantAdmin && showAdmin ? [{ label: 'Admin', path: '/admin' }] : []),
             ].map(({ label, path }) => {
-              const active = location.pathname === path
+              const active = location.pathname === path || location.pathname.startsWith(path + '/')
               return (
                 <button key={path} onClick={() => navigate(path)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
@@ -124,9 +133,42 @@ export default function NurseShell({
             className="hidden sm:flex relative w-9 h-9 rounded-full hover:bg-[var(--page-bg)] items-center justify-center text-[var(--text-muted)] transition-colors">
             {soundEnabled ? <VolumeOnIcon /> : <VolumeOffIcon />}
           </button>
-          <button className="hidden sm:flex w-9 h-9 rounded-full hover:bg-[var(--page-bg)] items-center justify-center text-[var(--text-muted)] transition-colors">
-            <HelpIcon />
-          </button>
+          {/* Settings dropdown */}
+          <div className="hidden sm:block relative" ref={settingsRef}>
+            <button
+              onClick={() => setSettingsOpen(o => !o)}
+              title="Settings & tools"
+              className="flex w-9 h-9 rounded-full hover:bg-[var(--page-bg)] items-center justify-center text-[var(--text-muted)] transition-colors">
+              <SettingsGearIcon />
+            </button>
+            {settingsOpen && (
+              <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-lg z-50 overflow-hidden py-1">
+                <button onClick={() => { navigate('/settings'); setSettingsOpen(false) }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--page-bg)] transition-colors text-left"
+                  style={{ color: 'var(--text-secondary)' }}>
+                  <NavIcon path="/settings" active={false} /> Settings
+                </button>
+                <button onClick={() => { navigate('/guide'); setSettingsOpen(false) }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--page-bg)] transition-colors text-left"
+                  style={{ color: 'var(--text-secondary)' }}>
+                  <HelpIcon /> User Guide
+                </button>
+                {showAdmin && (
+                  <button onClick={() => { navigate('/admin-guide'); setSettingsOpen(false) }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--page-bg)] transition-colors text-left"
+                    style={{ color: 'var(--text-secondary)' }}>
+                    <AdminIcon active={false} /> Admin Guide
+                  </button>
+                )}
+                <div className="border-t border-[var(--border)] my-1" />
+                <button onClick={() => { navigate('/support'); setSettingsOpen(false) }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-[var(--page-bg)] transition-colors text-left"
+                  style={{ color: 'var(--text-secondary)' }}>
+                  <SupportIcon /> Support
+                </button>
+              </div>
+            )}
+          </div>
           {/* Profile dropdown */}
           <div className="relative" ref={profileRef}>
             <button
@@ -279,6 +321,20 @@ export default function NurseShell({
                 }`}>
                 <span className="flex-shrink-0"><PlatformIcon active={location.pathname.startsWith('/platform')} /></span>
                 {sidebarOpen && 'Platform'}
+              </button>
+            )}
+
+            {/* Org Admin portal — tenant_admin */}
+            {showTenantAdmin && (
+              <button onClick={() => navigate('/tenant-admin')}
+                title={!sidebarOpen ? 'Org Admin' : undefined}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  location.pathname.startsWith('/tenant-admin')
+                    ? 'bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--page-bg)] hover:text-[var(--text-primary)]'
+                }`}>
+                <span className="flex-shrink-0"><OrgAdminIcon active={location.pathname.startsWith('/tenant-admin')} /></span>
+                {sidebarOpen && 'Org Admin'}
               </button>
             )}
 
@@ -463,6 +519,17 @@ export default function NurseShell({
                   Platform
                 </button>
               )}
+              {showTenantAdmin && (
+                <button onClick={() => { navigate('/tenant-admin'); setMobileNavOpen(false) }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    location.pathname.startsWith('/tenant-admin')
+                      ? 'bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)]'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--page-bg)] hover:text-[var(--text-primary)]'
+                  }`}>
+                  <span className="flex-shrink-0"><OrgAdminIcon active={location.pathname.startsWith('/tenant-admin')} /></span>
+                  Org Admin
+                </button>
+              )}
               {showAdmin && (
                 <button onClick={() => { navigate('/admin'); setMobileNavOpen(false) }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -557,6 +624,21 @@ function AdminIcon({ active }: { active: boolean }) {
     </svg>
   )
 }
+function OrgAdminIcon({ active }: { active: boolean }) {
+  const color = active ? 'var(--clinical-blue)' : 'var(--text-muted)'
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  )
+}
+const SettingsGearIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+)
 function PlatformIcon({ active }: { active: boolean }) {
   const color = active ? 'var(--clinical-blue)' : 'var(--text-muted)'
   return (
