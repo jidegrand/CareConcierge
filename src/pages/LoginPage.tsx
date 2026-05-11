@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { buildAppUrl } from '@/lib/tenant'
-import { getSubdomain, isTenantSubdomain } from '@/lib/subdomain'
 import { PRODUCT_NAME } from '@/lib/brand'
 
 type LoginMode = 'password' | 'magic'
@@ -12,11 +11,7 @@ const INACTIVE_ACCOUNT_NOTICE_KEY = 'bayrequest_inactive_account_notice'
 export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { tenantName, tenantSlug, loading: tenantLoading } = useTenantContext()
-  const onTenantSubdomain = isTenantSubdomain()
-  const subdomain = getSubdomain()
-  const postLoginPath = onTenantSubdomain ? '/tenant-admin' : '/dashboard'
-
+  const { tenantName, tenantSlug } = useTenantContext()
   const [mode, setMode]         = useState<LoginMode>('password')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -25,9 +20,6 @@ export default function LoginPage() {
   const [inactiveNotice, setInactiveNotice] = useState(false)
   const [magicSent, setMagicSent] = useState(false)
   const resetRequested = searchParams.get('reset') === 'requested'
-
-  // On a tenant subdomain where no org resolved → block login entirely
-  const tenantNotFound = onTenantSubdomain && !tenantLoading && !tenantName
 
   useEffect(() => {
     try {
@@ -46,61 +38,16 @@ export default function LoginPage() {
     if (mode === 'password') {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password })
       if (err) setError(err.message)
-      else navigate(postLoginPath, { replace: true })
+      else navigate('/dashboard', { replace: true })
     } else {
       const { error: err } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: buildAppUrl(postLoginPath) },
+        options: { emailRedirectTo: buildAppUrl('/dashboard') },
       })
       if (err) setError(err.message)
       else setMagicSent(true)
     }
     setLoading(false)
-  }
-
-  // While resolving tenant from subdomain slug
-  if (onTenantSubdomain && tenantLoading) {
-    return (
-      <div className="min-h-screen bg-page flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-[var(--clinical-blue)] border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  // Subdomain present but no matching org — block login, don't fall through
-  if (tenantNotFound) {
-    return (
-      <div className="min-h-screen bg-page flex items-center justify-center px-6">
-        <div className="w-full max-w-sm text-center">
-          <div className="inline-flex items-center gap-2 mb-6">
-            <div className="w-9 h-9 rounded-lg bg-[var(--clinical-blue)] flex items-center justify-center">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-              </svg>
-            </div>
-            <span className="text-2xl font-semibold tracking-tight">
-              <span className="text-[var(--clinical-blue-dk)]">{PRODUCT_NAME.split(' ')[0]} </span>
-              <span className="text-[var(--clinical-blue)]">{PRODUCT_NAME.split(' ').slice(1).join(' ')}</span>
-            </span>
-          </div>
-          <div className="bg-surface rounded-2xl shadow-lift border border-[var(--border)] p-8">
-            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-            </div>
-            <h2 className="text-base font-semibold text-[var(--text-primary)] mb-2">Organization not found</h2>
-            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-              No organization is registered for{' '}
-              <span className="font-mono text-[var(--text-primary)]">{subdomain}.extendihealth.com</span>.
-            </p>
-            <p className="text-xs text-[var(--text-muted)] mt-3">
-              Check the URL or contact your administrator.
-            </p>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   if (magicSent) {
