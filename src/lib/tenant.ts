@@ -4,7 +4,7 @@ export interface TenantIdentity {
   slug: string
 }
 
-const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'admin', 'api'])
+const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'admin', 'api', 'care'])
 
 function cleanHost(host: string) {
   return host.toLowerCase().split(':')[0]
