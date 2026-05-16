@@ -242,11 +242,11 @@ export default function SuperAdminGuidePage() {
                   <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
                     <p className="font-semibold text-[var(--text-primary)] mb-1">Auth email templates</p>
                     <p className="text-[var(--text-secondary)]">
-                      Copy <InlineCode>supabase/email-templates/magic-link.html</InlineCode> into the Supabase <strong>Magic Link</strong> template with subject <InlineCode>Your Care Concierge access link</InlineCode>. Copy <InlineCode>supabase/email-templates/recovery.html</InlineCode> into <strong>Reset Password</strong> with subject <InlineCode>Reset your Care Concierge password</InlineCode>.
+                      Copy <InlineCode>supabase/email-templates/invite.html</InlineCode> into the Supabase <strong>Invite user</strong> template with subject <InlineCode>You&apos;re invited to Care Concierge</InlineCode>. Copy <InlineCode>supabase/email-templates/recovery.html</InlineCode> into <strong>Reset Password</strong>, and copy <InlineCode>supabase/email-templates/magic-link.html</InlineCode> into <strong>Magic Link</strong> as the disabled safety template.
                     </p>
                   </div>
                 </div>
-                <Warning>Staff invites and global admin invites use the Magic Link template because the app sends them with <InlineCode>signInWithOtp</InlineCode>. Keep <InlineCode>{'{{ .ConfirmationURL }}'}</InlineCode> in the template, and disable provider link tracking so the Supabase verification URL is not rewritten.</Warning>
+                <Warning>Magic-link sign-in is disabled. Staff invites and global admin invites must use the <InlineCode>invite-user</InlineCode> Edge Function and the Supabase Invite user template. Disable provider link tracking so Supabase verification URLs are not rewritten.</Warning>
               </Step>
 
               <Step n={5} title="Copy your API keys">
@@ -562,7 +562,7 @@ WHERE id = (
               </Step>
 
               <Step n={3} title="Invite the Tenant Admin">
-                Go to <strong>Access Control</strong> and click <strong>Invite user</strong>. Enter the client's admin email, select their organisation, and assign the <strong>Tenant Admin</strong> role. They receive a magic-link email and land directly on <InlineCode>/admin</InlineCode> after signing in.
+                Go to <strong>Access Control</strong> and click <strong>Invite user</strong>. Enter the client's admin email, select their organisation, and assign the <strong>Tenant Admin</strong> role. They receive an invite email, set their password, and then land in the admin workspace after signing in.
               </Step>
 
               <Step n={4} title="Open the operational workspace for the new org">
@@ -701,7 +701,7 @@ WHERE id = (
                     'Realtime replication enabled on the requests table',
                     'Auth Site URL and redirect URLs configured correctly',
                     'Resend SMTP configured with a verified sender domain',
-                    'Magic Link and Reset Password email templates copied into Supabase',
+                    'Invite user, disabled Magic Link, and Reset Password email templates copied into Supabase',
                     'Wildcard DNS record added: *.extendihealth.com CNAME to Vercel',
                     'Wildcard SSL certificate provisioned on Vercel (*.extendihealth.com)',
                   ]},

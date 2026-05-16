@@ -83,18 +83,18 @@ export function usePlatformAccess(enabled = true) {
   const inviteSuperAdmin = async (email: string, tenantId: string) => {
     const normalizedEmail = email.trim().toLowerCase()
 
-    const { error: otpErr } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/set-password') },
+    const { data, error: inviteError } = await supabase.functions.invoke('invite-user', {
+      body: {
+        email: normalizedEmail,
+        role: 'super_admin',
+        tenantId,
+        siteId: null,
+        unitId: null,
+        redirectTo: buildAppUrl('/set-password'),
+      },
     })
-    if (otpErr) {
-      throw new Error(formatInviteEmailError(otpErr.message))
-    }
-
-    const { error: inviteErr } = await supabase
-      .from('pending_invites')
-      .insert({ email: normalizedEmail, tenant_id: tenantId, role: 'super_admin', site_id: null, unit_id: null })
-    if (inviteErr) throw new Error(inviteErr.message)
+    if (inviteError) throw new Error(formatInviteEmailError(inviteError.message))
+    if (data?.error) throw new Error(formatInviteEmailError(data.error))
 
     await fetch()
   }

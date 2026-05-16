@@ -1,0 +1,113 @@
+[
+  {
+    "supabase_slot": "Confirm sign up",
+    "subject_key": "mailer_subjects_confirmation",
+    "content_key": "mailer_templates_confirmation_content",
+    "subject": "Confirm your Care Concierge account",
+    "html_file": "confirmation.html",
+    "status": "fallback only; public signups should stay disabled"
+  },
+  {
+    "supabase_slot": "Invite user",
+    "subject_key": "mailer_subjects_invite",
+    "content_key": "mailer_templates_invite_content",
+    "subject": "You're invited to Care Concierge",
+    "html_file": "invite.html",
+    "status": "primary staff, tenant admin, and global admin invite template"
+  },
+  {
+    "supabase_slot": "Magic link",
+    "subject_key": "mailer_subjects_magic_link",
+    "content_key": "mailer_templates_magic_link_content",
+    "subject": "Magic link sign-in is disabled",
+    "html_file": "magic-link.html",
+    "status": "disabled sink; intentionally omits ConfirmationURL"
+  },
+  {
+    "supabase_slot": "Change email address",
+    "subject_key": "mailer_subjects_email_change",
+    "content_key": "mailer_templates_email_change_content",
+    "subject": "Confirm your Care Concierge email change",
+    "html_file": "email-change.html",
+    "status": "auth template"
+  },
+  {
+    "supabase_slot": "Reset password",
+    "subject_key": "mailer_subjects_recovery",
+    "content_key": "mailer_templates_recovery_content",
+    "subject": "Reset your Care Concierge password",
+    "html_file": "recovery.html",
+    "status": "auth template"
+  },
+  {
+    "supabase_slot": "Reauthentication",
+    "subject_key": "mailer_subjects_reauthentication",
+    "content_key": "mailer_templates_reauthentication_content",
+    "subject": "Confirm this Care Concierge security step",
+    "html_file": "reauthentication.html",
+    "status": "auth template"
+  },
+  {
+    "supabase_slot": "Password changed notification",
+    "enabled_key": "mailer_notifications_password_changed_enabled",
+    "subject_key": "mailer_subjects_password_changed_notification",
+    "content_key": "mailer_templates_password_changed_notification_content",
+    "subject": "Your Care Concierge password was changed",
+    "html_file": "password-changed-notification.html",
+    "status": "security notification"
+  },
+  {
+    "supabase_slot": "Email address changed notification",
+    "enabled_key": "mailer_notifications_email_changed_enabled",
+    "subject_key": "mailer_subjects_email_changed_notification",
+    "content_key": "mailer_templates_email_changed_notification_content",
+    "subject": "Your Care Concierge email address was changed",
+    "html_file": "email-changed-notification.html",
+    "status": "security notification"
+  },
+  {
+    "supabase_slot": "Phone number changed notification",
+    "enabled_key": "mailer_notifications_phone_changed_enabled",
+    "subject_key": "mailer_subjects_phone_changed_notification",
+    "content_key": "mailer_templates_phone_changed_notification_content",
+    "subject": "Your Care Concierge phone number was changed",
+    "html_file": "phone-changed-notification.html",
+    "status": "security notification"
+  },
+  {
+    "supabase_slot": "Identity linked notification",
+    "enabled_key": "mailer_notifications_identity_linked_enabled",
+    "subject_key": "mailer_subjects_identity_linked_notification",
+    "content_key": "mailer_templates_identity_linked_notification_content",
+    "subject": "A new identity was linked to your Care Concierge account",
+    "html_file": "identity-linked-notification.html",
+    "status": "security notification"
+  },
+  {
+    "supabase_slot": "Identity unlinked notification",
+    "enabled_key": "mailer_notifications_identity_unlinked_enabled",
+    "subject_key": "mailer_subjects_identity_unlinked_notification",
+    "content_key": "mailer_templates_identity_unlinked_notification_content",
+    "subject": "An identity was unlinked from your Care Concierge account",
+    "html_file": "identity-unlinked-notification.html",
+    "status": "security notification"
+  },
+  {
+    "supabase_slot": "MFA method added notification",
+    "enabled_key": "mailer_notifications_mfa_factor_enrolled_enabled",
+    "subject_key": "mailer_subjects_mfa_factor_enrolled_notification",
+    "content_key": "mailer_templates_mfa_factor_enrolled_notification_content",
+    "subject": "A Care Concierge MFA method was added",
+    "html_file": "mfa-factor-enrolled-notification.html",
+    "status": "security notification"
+  },
+  {
+    "supabase_slot": "MFA method removed notification",
+    "enabled_key": "mailer_notifications_mfa_factor_unenrolled_enabled",
+    "subject_key": "mailer_subjects_mfa_factor_unenrolled_notification",
+    "content_key": "mailer_templates_mfa_factor_unenrolled_notification_content",
+    "subject": "A Care Concierge MFA method was removed",
+    "html_file": "mfa-factor-unenrolled-notification.html",
+    "status": "security notification"
+  }
+]

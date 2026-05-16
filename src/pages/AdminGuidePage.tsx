@@ -230,11 +230,11 @@ export default function AdminGuidePage() {
             {/* Users */}
             <GuideSection id="users" title="Managing Users">
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Invite nurses, charge nurses, and managers by email. They receive a one-time sign-in link and are immediately added to your organisation. No passwords to manage — staff use magic link or password login.
+                Invite nurses, charge nurses, and managers by email. They receive a secure account setup invitation, create a password, and then use password sign-in going forward.
               </p>
 
               <Step n={1} title="Invite a staff member">
-                Go to <strong>Admin → Users</strong> and click <strong>Invite user</strong>. Enter their email address and select their role. They will receive an email with a sign-in link.
+                Go to <strong>Admin → Users</strong> and click <strong>Invite user</strong>. Enter their email address and select their role. They will receive an invite email that opens the password setup flow.
               </Step>
               <Step n={2} title="Assign site scope first">
                 Choose an optional <strong>Site scope</strong> during invite or when editing a user later. This limits which staff, rooms, requests, and chat threads that person can access.

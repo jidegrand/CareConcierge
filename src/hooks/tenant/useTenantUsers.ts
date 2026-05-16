@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { buildAppUrl } from '@/lib/tenant'
+import { formatInviteEmailError } from '@/lib/invites'
 import type { UserProfile } from '@/types'
 
 export interface TenantUser extends UserProfile {
@@ -60,8 +62,9 @@ export function useTenantUsers(tenantId: string) {
             email: email.trim().toLowerCase(),
             role,
             tenantId,
-            siteId,
-            unitId,
+            siteId: siteId || null,
+            unitId: unitId || null,
+            redirectTo: buildAppUrl('/set-password'),
           },
         })
 
@@ -71,7 +74,8 @@ export function useTenantUsers(tenantId: string) {
         await fetchUsers()
         return { success: true }
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to send invite'
+        const rawMessage = err instanceof Error ? err.message : 'Failed to send invite'
+        const message = formatInviteEmailError(rawMessage)
         setError(message)
         return { success: false, error: message }
       } finally {

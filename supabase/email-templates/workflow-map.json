@@ -1,0 +1,23 @@
+[
+  { "event": "account.deactivated", "subject": "Care Concierge account deactivated", "html_file": "workflow/account-deactivated.html" },
+  { "event": "account.reactivated", "subject": "Care Concierge account reactivated", "html_file": "workflow/account-reactivated.html" },
+  { "event": "access.changed", "subject": "Your Care Concierge access changed", "html_file": "workflow/access-changed.html" },
+  { "event": "invite.reminder", "subject": "Reminder: finish your Care Concierge setup", "html_file": "workflow/invite-reminder.html" },
+  { "event": "invite.cancelled", "subject": "Care Concierge invitation cancelled", "html_file": "workflow/invite-cancelled.html" },
+  { "event": "organization.welcome", "subject": "Your Care Concierge organization is ready", "html_file": "workflow/organization-welcome.html" },
+  { "event": "onboarding.nudge", "subject": "Continue your Care Concierge setup", "html_file": "workflow/onboarding-nudge.html" },
+  { "event": "license.activated", "subject": "Care Concierge license activated", "html_file": "workflow/license-activated.html" },
+  { "event": "license.expiring_soon", "subject": "Care Concierge license expiring soon", "html_file": "workflow/license-expiring-soon.html" },
+  { "event": "license.expired", "subject": "Care Concierge license expired", "html_file": "workflow/license-expired.html" },
+  { "event": "license.suspended", "subject": "Care Concierge license suspended", "html_file": "workflow/license-suspended.html" },
+  { "event": "usage.limit_warning", "subject": "Care Concierge usage limit warning", "html_file": "workflow/usage-limit-warning.html" },
+  { "event": "upgrade.request_admin", "subject": "Care Concierge upgrade requested", "html_file": "workflow/upgrade-request-admin.html" },
+  { "event": "upgrade.request_confirmation", "subject": "We received your Care Concierge upgrade request", "html_file": "workflow/upgrade-request-confirmation.html" },
+  { "event": "report.shift_handover", "subject": "Care Concierge shift handover summary", "html_file": "workflow/shift-handover-summary.html" },
+  { "event": "report.manager_daily_digest", "subject": "Care Concierge daily manager digest", "html_file": "workflow/manager-daily-digest.html" },
+  { "event": "report.scheduled_delivery", "subject": "Your scheduled Care Concierge report is ready", "html_file": "workflow/scheduled-report-delivery.html" },
+  { "event": "feedback.low_csat", "subject": "Low patient feedback alert", "html_file": "workflow/low-csat-alert.html" },
+  { "event": "request.overdue_urgent", "subject": "Urgent patient request overdue", "html_file": "workflow/overdue-urgent-escalation.html" },
+  { "event": "staff_chat.unread_digest", "subject": "Unread Care Concierge staff messages", "html_file": "workflow/unread-staff-chat-digest.html" },
+  { "event": "platform.audit_alert", "subject": "Care Concierge platform audit alert", "html_file": "workflow/platform-audit-alert.html" }
+]

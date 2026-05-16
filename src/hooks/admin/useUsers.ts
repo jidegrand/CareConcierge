@@ -83,24 +83,18 @@ export function useUsers(tenantId: string | undefined) {
     if (!tenantId) throw new Error('No tenant')
     const normalizedEmail = email.trim().toLowerCase()
 
-    const { error: otpErr } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: { shouldCreateUser: true, emailRedirectTo: buildAppUrl('/set-password') },
-    })
-    if (otpErr) {
-      throw new Error(formatInviteEmailError(otpErr.message))
-    }
-
-    const { error: inviteErr } = await supabase
-      .from('pending_invites')
-      .insert({
+    const { data, error: inviteError } = await supabase.functions.invoke('invite-user', {
+      body: {
         email: normalizedEmail,
-        tenant_id: tenantId,
         role,
-        site_id: siteId || null,
-        unit_id: unitId || null,
-      })
-    if (inviteErr) throw new Error(inviteErr.message)
+        tenantId,
+        siteId: siteId || null,
+        unitId: unitId || null,
+        redirectTo: buildAppUrl('/set-password'),
+      },
+    })
+    if (inviteError) throw new Error(formatInviteEmailError(inviteError.message))
+    if (data?.error) throw new Error(formatInviteEmailError(data.error))
 
     await fetch()
   }

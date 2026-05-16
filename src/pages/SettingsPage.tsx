@@ -309,7 +309,7 @@ function SecurityTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
       <Card>
         <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4">Change Password</p>
         <p className="text-xs text-[var(--text-muted)] mb-4">
-          Leave blank if you use magic link sign-in. Password must be at least 8 characters.
+          Password sign-in is required. Use at least 8 characters.
         </p>
         <form onSubmit={handlePassword} className="space-y-4">
           <Field label="New password">
