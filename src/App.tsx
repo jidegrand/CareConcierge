@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthContext, useAuthProvider, useAuth } from '@/hooks/useAuth'
 import { isTenantSubdomain } from '@/lib/subdomain'
 import { NotificationsProvider } from '@/hooks/useNotifications'
@@ -46,6 +46,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     </div>
   )
   if (!session) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+function isPasswordRecoveryUrl(searchString: string, hashString: string) {
+  const search = new URLSearchParams(searchString)
+  const hash = new URLSearchParams(hashString.replace(/^#/, ''))
+  return (hash.get('type') ?? search.get('type')) === 'recovery'
+}
+
+function AuthLinkRedirect({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+
+  if (location.pathname !== '/reset-password' && isPasswordRecoveryUrl(location.search, location.hash)) {
+    return <Navigate to={`/reset-password${location.search}${location.hash}`} replace />
+  }
+
   return <>{children}</>
 }
 
@@ -120,44 +136,46 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/r/:roomId"  element={<PublicTenantShell><PatientPage /></PublicTenantShell>} />
-          <Route path="/patient-guide" element={<PublicTenantShell><PatientGuidePage /></PublicTenantShell>} />
-          <Route path="/login"      element={<PublicTenantShell><LoginPage /></PublicTenantShell>} />
-          <Route path="/reset-password" element={<PublicTenantShell><ResetPasswordPage /></PublicTenantShell>} />
-          <Route path="/set-password"   element={<PublicTenantShell><SetPasswordPage /></PublicTenantShell>} />
-          <Route path="/dashboard"  element={<ProtectedRoute><NurseDashboard  /></ProtectedRoute>} />
-          <Route path="/feed"       element={<ProtectedRoute><PatientFeedPage /></ProtectedRoute>} />
-          <Route path="/bay-map"    element={<ProtectedRoute><BayMapPage      /></ProtectedRoute>} />
-          <Route path="/staffing"   element={<ProtectedRoute><StaffingPage    /></ProtectedRoute>} />
-          <Route path="/qr-sheet"   element={<ProtectedRoute><QRSheetPage     /></ProtectedRoute>} />
-          <Route path="/reports"    element={<ProtectedRoute><ReportsPage     /></ProtectedRoute>} />
-          <Route path="/platform" element={<ProtectedRoute><PlatformModuleLoader fullscreen><PlatformLayout /></PlatformModuleLoader></ProtectedRoute>}>
-            <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<PlatformModuleLoader><PlatformOverviewPage /></PlatformModuleLoader>} />
-            <Route path="organizations" element={<PlatformModuleLoader><PlatformOrganizationsPage /></PlatformModuleLoader>} />
-            <Route path="licensing" element={<PlatformModuleLoader><PlatformLicensingPage /></PlatformModuleLoader>} />
-            <Route path="access-control" element={<PlatformModuleLoader><PlatformAccessControlPage /></PlatformModuleLoader>} />
-            <Route path="global-reports" element={<PlatformModuleLoader><PlatformGlobalReportsPage /></PlatformModuleLoader>} />
-            <Route path="audit-logs" element={<PlatformModuleLoader><PlatformAuditLogsPage /></PlatformModuleLoader>} />
-          </Route>
-          <Route path="/tenant-admin" element={<ProtectedRoute><TenantAdminModuleLoader fullscreen><TenantAdminShell /></TenantAdminModuleLoader></ProtectedRoute>}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<TenantAdminModuleLoader><TenantDashboardPage /></TenantAdminModuleLoader>} />
-            <Route path="settings" element={<TenantAdminModuleLoader><TenantSettingsPage /></TenantAdminModuleLoader>} />
-            <Route path="users" element={<TenantAdminModuleLoader><TenantUsersPage /></TenantAdminModuleLoader>} />
-            <Route path="sites" element={<TenantAdminModuleLoader><TenantSitesPage /></TenantAdminModuleLoader>} />
-            <Route path="licensing" element={<TenantAdminModuleLoader><TenantLicensingPage /></TenantAdminModuleLoader>} />
-            <Route path="audit-logs" element={<TenantAdminModuleLoader><TenantAuditLogsPage /></TenantAdminModuleLoader>} />
-          </Route>
-          <Route path="/admin/*"    element={<ProtectedRoute><AdminPage       /></ProtectedRoute>} />
-          <Route path="/settings"   element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
-          <Route path="/support"    element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
-          <Route path="/guide"       element={<ProtectedRoute><UserGuidePage   /></ProtectedRoute>} />
-          <Route path="/admin-guide" element={<ProtectedRoute><AdminGuidePage  /></ProtectedRoute>} />
-          <Route path="/super-admin-guide" element={<ProtectedRoute><PlatformModuleLoader fullscreen><SuperAdminGuidePage /></PlatformModuleLoader></ProtectedRoute>} />
-          <Route path="*"           element={<HomeRedirect />} />
-        </Routes>
+        <AuthLinkRedirect>
+          <Routes>
+            <Route path="/r/:roomId"  element={<PublicTenantShell><PatientPage /></PublicTenantShell>} />
+            <Route path="/patient-guide" element={<PublicTenantShell><PatientGuidePage /></PublicTenantShell>} />
+            <Route path="/login"      element={<PublicTenantShell><LoginPage /></PublicTenantShell>} />
+            <Route path="/reset-password" element={<PublicTenantShell><ResetPasswordPage /></PublicTenantShell>} />
+            <Route path="/set-password"   element={<PublicTenantShell><SetPasswordPage /></PublicTenantShell>} />
+            <Route path="/dashboard"  element={<ProtectedRoute><NurseDashboard  /></ProtectedRoute>} />
+            <Route path="/feed"       element={<ProtectedRoute><PatientFeedPage /></ProtectedRoute>} />
+            <Route path="/bay-map"    element={<ProtectedRoute><BayMapPage      /></ProtectedRoute>} />
+            <Route path="/staffing"   element={<ProtectedRoute><StaffingPage    /></ProtectedRoute>} />
+            <Route path="/qr-sheet"   element={<ProtectedRoute><QRSheetPage     /></ProtectedRoute>} />
+            <Route path="/reports"    element={<ProtectedRoute><ReportsPage     /></ProtectedRoute>} />
+            <Route path="/platform" element={<ProtectedRoute><PlatformModuleLoader fullscreen><PlatformLayout /></PlatformModuleLoader></ProtectedRoute>}>
+              <Route index element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<PlatformModuleLoader><PlatformOverviewPage /></PlatformModuleLoader>} />
+              <Route path="organizations" element={<PlatformModuleLoader><PlatformOrganizationsPage /></PlatformModuleLoader>} />
+              <Route path="licensing" element={<PlatformModuleLoader><PlatformLicensingPage /></PlatformModuleLoader>} />
+              <Route path="access-control" element={<PlatformModuleLoader><PlatformAccessControlPage /></PlatformModuleLoader>} />
+              <Route path="global-reports" element={<PlatformModuleLoader><PlatformGlobalReportsPage /></PlatformModuleLoader>} />
+              <Route path="audit-logs" element={<PlatformModuleLoader><PlatformAuditLogsPage /></PlatformModuleLoader>} />
+            </Route>
+            <Route path="/tenant-admin" element={<ProtectedRoute><TenantAdminModuleLoader fullscreen><TenantAdminShell /></TenantAdminModuleLoader></ProtectedRoute>}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<TenantAdminModuleLoader><TenantDashboardPage /></TenantAdminModuleLoader>} />
+              <Route path="settings" element={<TenantAdminModuleLoader><TenantSettingsPage /></TenantAdminModuleLoader>} />
+              <Route path="users" element={<TenantAdminModuleLoader><TenantUsersPage /></TenantAdminModuleLoader>} />
+              <Route path="sites" element={<TenantAdminModuleLoader><TenantSitesPage /></TenantAdminModuleLoader>} />
+              <Route path="licensing" element={<TenantAdminModuleLoader><TenantLicensingPage /></TenantAdminModuleLoader>} />
+              <Route path="audit-logs" element={<TenantAdminModuleLoader><TenantAuditLogsPage /></TenantAdminModuleLoader>} />
+            </Route>
+            <Route path="/admin/*"    element={<ProtectedRoute><AdminPage       /></ProtectedRoute>} />
+            <Route path="/settings"   element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
+            <Route path="/support"    element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
+            <Route path="/guide"       element={<ProtectedRoute><UserGuidePage   /></ProtectedRoute>} />
+            <Route path="/admin-guide" element={<ProtectedRoute><AdminGuidePage  /></ProtectedRoute>} />
+            <Route path="/super-admin-guide" element={<ProtectedRoute><PlatformModuleLoader fullscreen><SuperAdminGuidePage /></PlatformModuleLoader></ProtectedRoute>} />
+            <Route path="*"           element={<HomeRedirect />} />
+          </Routes>
+        </AuthLinkRedirect>
       </AuthProvider>
     </BrowserRouter>
   )

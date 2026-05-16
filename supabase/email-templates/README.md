@@ -108,8 +108,14 @@ Add the app callback URL to Supabase Auth redirect allow list:
 
 ```text
 https://<app-domain>/set-password
+https://<app-domain>/reset-password
 http://localhost:5173/set-password
+http://localhost:5173/reset-password
 ```
+
+If a reset-password email sends users to the dashboard, verify that the Supabase
+Site URL is the app root, not `/dashboard`, and that `/reset-password` is present
+in Redirect URLs.
 
 ## Theme
 

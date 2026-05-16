@@ -227,7 +227,7 @@ export default function SuperAdminGuidePage() {
                   </div>
                   <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
                     <p className="font-semibold text-[var(--text-primary)] mb-1">Redirect URLs</p>
-                    <p className="text-[var(--text-secondary)]">Add <InlineCode>https://care.extendihealth.com/**</InlineCode>, <InlineCode>https://*.care.extendihealth.com/**</InlineCode> (for tenant subdomains), and <InlineCode>http://localhost:5173/**</InlineCode> for local development</p>
+                    <p className="text-[var(--text-secondary)]">Add <InlineCode>https://care.extendihealth.com/set-password</InlineCode>, <InlineCode>https://care.extendihealth.com/reset-password</InlineCode>, <InlineCode>https://*.care.extendihealth.com/set-password</InlineCode>, <InlineCode>https://*.care.extendihealth.com/reset-password</InlineCode>, and the matching localhost URLs for development.</p>
                   </div>
                   <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
                     <p className="font-semibold text-[var(--text-primary)] mb-1">Email provider</p>
