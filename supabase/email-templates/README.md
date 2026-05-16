@@ -2,15 +2,24 @@
 
 These templates are the source of truth for Care Concierge emails.
 
-Hosted Supabase projects do not read these files automatically. Copy each Auth
-template into:
+Hosted Supabase projects do not read these files automatically. Copy only the
+six Supabase Dashboard templates into:
 
 ```text
 Authentication -> Email -> Templates
 ```
 
-For Management API updates, use `supabase-auth-map.json` to map each file to
-its Supabase config key.
+The Supabase Dashboard email template block exposes these six Authentication
+slots:
+
+- Confirm sign up
+- Invite user
+- Magic link
+- Change email address
+- Reset password
+- Reauthentication
+
+Use `supabase-auth-map.json` for those six slots only.
 
 ## Security Posture
 
@@ -31,7 +40,7 @@ its Supabase config key.
 - New invitees land on `/set-password` and create a password before entering the
   app.
 
-## Supabase Auth Templates
+## Supabase Dashboard Templates
 
 | Supabase template | Subject | File | Notes |
 | --- | --- | --- | --- |
@@ -41,13 +50,20 @@ its Supabase config key.
 | Change email address | `Confirm your Care Concierge email change` | `email-change.html` | Auth template |
 | Reset password | `Reset your Care Concierge password` | `recovery.html` | Auth template |
 | Reauthentication | `Confirm this Care Concierge security step` | `reauthentication.html` | Uses `{{ .Token }}` |
-| Password changed notification | `Your Care Concierge password was changed` | `password-changed-notification.html` | Enable project-level notification |
-| Email address changed notification | `Your Care Concierge email address was changed` | `email-changed-notification.html` | Enable project-level notification |
-| Phone number changed notification | `Your Care Concierge phone number was changed` | `phone-changed-notification.html` | Enable project-level notification if phone auth is used |
-| Identity linked notification | `A new identity was linked to your Care Concierge account` | `identity-linked-notification.html` | Enable if external identities are used |
-| Identity unlinked notification | `An identity was unlinked from your Care Concierge account` | `identity-unlinked-notification.html` | Enable if external identities are used |
-| MFA method added notification | `A Care Concierge MFA method was added` | `mfa-factor-enrolled-notification.html` | Enable when MFA is available |
-| MFA method removed notification | `A Care Concierge MFA method was removed` | `mfa-factor-unenrolled-notification.html` | Enable when MFA is available |
+
+## Reference Security Templates
+
+These files are not visible in the Supabase Dashboard template block shown above.
+Keep them as reference templates for a future app-owned mailer, or for a
+Supabase Management API path if the project exposes notification template keys:
+
+- `password-changed-notification.html`
+- `email-changed-notification.html`
+- `phone-changed-notification.html`
+- `identity-linked-notification.html`
+- `identity-unlinked-notification.html`
+- `mfa-factor-enrolled-notification.html`
+- `mfa-factor-unenrolled-notification.html`
 
 ## Workflow Templates
 
