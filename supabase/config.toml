@@ -1,0 +1,23 @@
+project_id = "bwofzbaljemehqjgopyv"
+
+[auth]
+site_url = "https://care.extendihealth.com"
+additional_redirect_urls = [
+  "https://bayrequest.vercel.app/**",
+  "https://bayrequest.vercel.app",
+  "https://care.extendihealth.com/**",
+  "https://*.extendihealth.com/**"
+]
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.email]
+enable_confirmations = true
+max_frequency = "1m0s"
+otp_length = 8
+
+[auth.email.template.invite]
+subject = "You're invited to Care Concierge"
+content_path = "./supabase/email-templates/invite.html"
