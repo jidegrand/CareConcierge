@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildAppUrl } from '@/lib/tenant'
-import { formatInviteEmailError } from '@/lib/invites'
+import { formatInviteEmailError, getInviteFunctionError } from '@/lib/invites'
 import type { UserProfile } from '@/types'
 
 export interface TenantUser extends UserProfile {
@@ -68,8 +68,8 @@ export function useTenantUsers(tenantId: string) {
           },
         })
 
-        if (err) throw err
-        if (data?.error) throw new Error(data.error)
+        const errorMessage = await getInviteFunctionError(data, err)
+        if (errorMessage) throw new Error(errorMessage)
 
         await fetchUsers()
         return { success: true }

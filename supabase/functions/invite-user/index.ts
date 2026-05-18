@@ -294,23 +294,6 @@ Deno.serve(async (req) => {
       ? buildRootUrl('/set-password', redirectTo)
       : buildTenantUrl(tenant.slug, '/set-password', redirectTo)
 
-    const inviteRecord = {
-      email,
-      tenant_id: tenantId,
-      site_id: siteId,
-      unit_id: unitId,
-      role,
-      created_at: new Date().toISOString(),
-    }
-
-    const { error: pendingInviteError } = await admin
-      .from('pending_invites')
-      .upsert(inviteRecord, { onConflict: 'email' })
-
-    if (pendingInviteError) {
-      return json(400, { error: pendingInviteError.message })
-    }
-
     const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
       redirectTo: inviteRedirectTo,
       data: {
@@ -327,6 +310,23 @@ Deno.serve(async (req) => {
 
     if (inviteError) {
       return json(400, { error: inviteError.message })
+    }
+
+    const inviteRecord = {
+      email,
+      tenant_id: tenantId,
+      site_id: siteId,
+      unit_id: unitId,
+      role,
+      created_at: new Date().toISOString(),
+    }
+
+    const { error: pendingInviteError } = await admin
+      .from('pending_invites')
+      .upsert(inviteRecord, { onConflict: 'email' })
+
+    if (pendingInviteError) {
+      return json(400, { error: pendingInviteError.message })
     }
 
     return json(200, { success: true })

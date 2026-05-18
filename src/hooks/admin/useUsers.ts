@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildAppUrl } from '@/lib/tenant'
-import { formatInviteEmailError } from '@/lib/invites'
+import { formatInviteEmailError, getInviteFunctionError } from '@/lib/invites'
 import type { UserProfile } from '@/types'
 
 export interface UserWithMeta extends UserProfile {
@@ -93,8 +93,8 @@ export function useUsers(tenantId: string | undefined) {
         redirectTo: buildAppUrl('/set-password'),
       },
     })
-    if (inviteError) throw new Error(formatInviteEmailError(inviteError.message))
-    if (data?.error) throw new Error(formatInviteEmailError(data.error))
+    const errorMessage = await getInviteFunctionError(data, inviteError)
+    if (errorMessage) throw new Error(formatInviteEmailError(errorMessage))
 
     await fetch()
   }
