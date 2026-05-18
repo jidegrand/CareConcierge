@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildAppUrl } from '@/lib/tenant'
-import { formatInviteEmailError, getInviteFunctionError } from '@/lib/invites'
+import { formatInviteEmailError, getInviteAuthorizationHeaders, getInviteFunctionError } from '@/lib/invites'
 import type { UserProfile } from '@/types'
 
 export interface TenantUser extends UserProfile {
@@ -56,8 +56,11 @@ export function useTenantUsers(tenantId: string) {
       setInviting(true)
       setError(null)
       try {
+        const headers = await getInviteAuthorizationHeaders()
+
         // Call edge function to send invite email and create pending invite
         const { data, error: err } = await supabase.functions.invoke('invite-user', {
+          headers,
           body: {
             email: email.trim().toLowerCase(),
             role,

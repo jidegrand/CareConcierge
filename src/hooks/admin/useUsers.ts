@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildAppUrl } from '@/lib/tenant'
-import { formatInviteEmailError, getInviteFunctionError } from '@/lib/invites'
+import { formatInviteEmailError, getInviteAuthorizationHeaders, getInviteFunctionError } from '@/lib/invites'
 import type { UserProfile } from '@/types'
 
 export interface UserWithMeta extends UserProfile {
@@ -82,8 +82,10 @@ export function useUsers(tenantId: string | undefined) {
   const inviteUser = async (email: string, role: string, siteId: string | null, unitId: string | null) => {
     if (!tenantId) throw new Error('No tenant')
     const normalizedEmail = email.trim().toLowerCase()
+    const headers = await getInviteAuthorizationHeaders()
 
     const { data, error: inviteError } = await supabase.functions.invoke('invite-user', {
+      headers,
       body: {
         email: normalizedEmail,
         role,

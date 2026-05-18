@@ -217,7 +217,8 @@ Deno.serve(async (req) => {
 
     const { data: authUser, error: authError } = await admin.auth.getUser(token)
     if (authError || !authUser.user) {
-      return json(401, { error: 'Invalid authorization token.' })
+      console.warn('invite-user auth verification failed', authError?.message ?? 'No user returned')
+      return json(401, { error: 'Your login session could not be verified. Sign out, sign back in, then send the invite again.' })
     }
 
     const { data: callerProfile, error: profileError } = await admin

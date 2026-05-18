@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildAppUrl } from '@/lib/tenant'
-import { formatInviteEmailError, getInviteFunctionError } from '@/lib/invites'
+import { formatInviteEmailError, getInviteAuthorizationHeaders, getInviteFunctionError } from '@/lib/invites'
 import { getSingle, type MaybeArray } from '@/lib/utils'
 export interface PlatformAccessUser {
   id: string
@@ -82,8 +82,10 @@ export function usePlatformAccess(enabled = true) {
 
   const inviteSuperAdmin = async (email: string, tenantId: string) => {
     const normalizedEmail = email.trim().toLowerCase()
+    const headers = await getInviteAuthorizationHeaders()
 
     const { data, error: inviteError } = await supabase.functions.invoke('invite-user', {
+      headers,
       body: {
         email: normalizedEmail,
         role: 'super_admin',
