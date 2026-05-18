@@ -5,13 +5,20 @@ import { consumeInitialInviteCallback, supabase } from '@/lib/supabase'
 import { PRODUCT_NAME } from '@/lib/brand'
 
 const INVITE_SESSION_TIMEOUT_MS = 4000
+const supabaseVerifyHost = new URL(import.meta.env.VITE_SUPABASE_URL as string).host
 
 function hasInviteParams() {
   if (typeof window === 'undefined') return false
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
   const search = new URLSearchParams(window.location.search)
   const type = hash.get('type') ?? search.get('type')
-  return type === 'invite' || hash.has('access_token') || search.has('code') || search.has('token_hash')
+  return (
+    type === 'invite' ||
+    hash.has('access_token') ||
+    search.has('code') ||
+    search.has('token_hash') ||
+    search.has('confirmation_url')
+  )
 }
 
 function getAuthCode() {
@@ -22,6 +29,32 @@ function getAuthCode() {
 function getInviteTokenHash() {
   if (typeof window === 'undefined') return null
   return new URLSearchParams(window.location.search).get('token_hash')
+}
+
+function getInviteConfirmationUrl() {
+  if (typeof window === 'undefined') return null
+
+  const search = new URLSearchParams(window.location.search)
+  const rawConfirmationUrl = search.get('confirmation_url')
+  if (!rawConfirmationUrl) return null
+
+  try {
+    const confirmationUrl = new URL(rawConfirmationUrl)
+    if (confirmationUrl.host !== supabaseVerifyHost || confirmationUrl.pathname !== '/auth/v1/verify') {
+      return null
+    }
+
+    if (!confirmationUrl.searchParams.has('type')) {
+      confirmationUrl.searchParams.set('type', search.get('type') ?? 'invite')
+    }
+    if (!confirmationUrl.searchParams.has('redirect_to')) {
+      confirmationUrl.searchParams.set('redirect_to', `${window.location.origin}/set-password`)
+    }
+
+    return confirmationUrl.toString()
+  } catch {
+    return null
+  }
 }
 
 function getInviteErrorMessage(errorCode: string | null, errorDescription: string | null): string | null {
@@ -43,6 +76,7 @@ export default function SetPasswordPage() {
   const [success, setSuccess] = useState(false)
   const [invalidInvite, setInvalidInvite] = useState(false)
   const [pendingTokenHash, setPendingTokenHash] = useState<string | null>(null)
+  const [pendingConfirmationUrl, setPendingConfirmationUrl] = useState<string | null>(null)
   const [acceptingInvite, setAcceptingInvite] = useState(false)
 
   useEffect(() => {
@@ -60,6 +94,7 @@ export default function SetPasswordPage() {
         setEmail(session.user.email ?? '')
         setInvalidInvite(false)
         setPendingTokenHash(null)
+        setPendingConfirmationUrl(null)
         setError(null)
         setReady(true)
         clearInviteUrl()
@@ -86,20 +121,22 @@ export default function SetPasswordPage() {
       const isInviteLink = hasInviteParams() || initialInviteCallback.isInvite
       const code = getAuthCode()
       const tokenHash = getInviteTokenHash()
+      const confirmationUrl = getInviteConfirmationUrl()
 
       if (isInviteLink && code) {
         const { data } = await supabase.auth.exchangeCodeForSession(code)
         if (cancelled || acceptSession(data.session)) return
       }
 
-      const { data: { session } } = await supabase.auth.getSession()
-      if (cancelled || acceptSession(session)) return
-
-      if (isInviteLink && tokenHash) {
+      if (isInviteLink && (confirmationUrl || tokenHash)) {
+        setPendingConfirmationUrl(confirmationUrl)
         setPendingTokenHash(tokenHash)
         setReady(true)
         return
       }
+
+      const { data: { session } } = await supabase.auth.getSession()
+      if (cancelled || acceptSession(session)) return
 
       if (!isInviteLink) {
         navigate('/login', { replace: true })
@@ -127,6 +164,12 @@ export default function SetPasswordPage() {
   }, [initialInviteCallback.errorCode, initialInviteCallback.errorDescription, initialInviteCallback.isInvite, navigate])
 
   const handleAcceptInvite = async () => {
+    if (pendingConfirmationUrl) {
+      setAcceptingInvite(true)
+      window.location.assign(pendingConfirmationUrl)
+      return
+    }
+
     if (!pendingTokenHash) return
 
     setAcceptingInvite(true)
@@ -147,6 +190,7 @@ export default function SetPasswordPage() {
     }
 
     setPendingTokenHash(null)
+    setPendingConfirmationUrl(null)
     setEmail(data.session.user.email ?? '')
     setInvalidInvite(false)
     setReady(true)
@@ -223,7 +267,7 @@ export default function SetPasswordPage() {
                 Back to sign in
               </button>
             </div>
-          ) : pendingTokenHash ? (
+          ) : pendingTokenHash || pendingConfirmationUrl ? (
             <div className="text-center py-4">
               <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
