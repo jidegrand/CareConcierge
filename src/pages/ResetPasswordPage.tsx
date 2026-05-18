@@ -13,6 +13,16 @@ function hasRecoveryParams() {
   return type === 'recovery' || hash.has('access_token') || search.has('code')
 }
 
+function getHashError(): string | null {
+  if (typeof window === 'undefined') return null
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const errorCode = hash.get('error_code')
+  if (!errorCode) return null
+  if (errorCode === 'otp_expired') return 'This reset link has expired. Please request a new one.'
+  if (errorCode === 'access_denied') return 'This reset link is invalid. Please request a new one.'
+  return 'This reset link is invalid or has expired. Please request a new one.'
+}
+
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
   const [mode, setMode] = useState<ResetMode>(() => hasRecoveryParams() ? 'update' : 'request')
@@ -33,6 +43,14 @@ export default function ResetPasswordPage() {
     let cancelled = false
 
     async function initialize() {
+      const linkError = getHashError()
+      if (linkError) {
+        window.history.replaceState({}, document.title, window.location.pathname)
+        setError(linkError)
+        setReady(true)
+        return
+      }
+
       const isRecovery = hasRecoveryParams()
 
       const { data: { session } } = await supabase.auth.getSession()
