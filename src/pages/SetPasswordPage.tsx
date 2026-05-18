@@ -101,10 +101,10 @@ export default function SetPasswordPage() {
                 Your account is ready. You can now sign in with your email and password going forward.
               </p>
               <button
-                onClick={() => navigate('/dashboard', { replace: true })}
+                onClick={() => navigate('/', { replace: true })}
                 className="w-full py-2.5 rounded-xl bg-[var(--clinical-blue)] text-white text-sm font-medium hover:bg-[var(--clinical-blue-dk)] transition-all shadow-sm"
               >
-                Go to dashboard
+                Continue
               </button>
             </div>
           ) : (

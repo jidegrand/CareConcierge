@@ -35,6 +35,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'admin', 'api', 'care'])
+
 const ROLE_RANK: Record<InviteRole, number> = {
   super_admin: 0,
   tenant_admin: 0,
@@ -84,6 +86,83 @@ function requireUuid(value: string | null | undefined, label: string) {
     throw new Error(`${label} is not a valid UUID.`)
   }
   return value
+}
+
+function normalizePath(path: string) {
+  return path.startsWith('/') ? path : `/${path}`
+}
+
+function getHostname(value: string | undefined) {
+  if (!value) return null
+  try {
+    return new URL(value).hostname.toLowerCase()
+  } catch {
+    return null
+  }
+}
+
+function isLocalhost(hostname: string) {
+  return hostname === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)
+}
+
+function isTenantHost(hostname: string, tenantRootDomain: string | null) {
+  if (isLocalhost(hostname)) return false
+  const parts = hostname.split('.')
+  const firstLabel = parts[0]
+
+  if (tenantRootDomain) {
+    return hostname.endsWith(`.${tenantRootDomain}`) && !RESERVED_SUBDOMAINS.has(firstLabel)
+  }
+
+  return parts.length > 2 && !RESERVED_SUBDOMAINS.has(firstLabel)
+}
+
+function deriveRootDomain(appUrl: string | undefined) {
+  const hostname = getHostname(appUrl)
+  if (!hostname || isLocalhost(hostname)) return null
+
+  const parts = hostname.split('.')
+  if (parts.length <= 2) return hostname
+  if (RESERVED_SUBDOMAINS.has(parts[0])) return parts.slice(1).join('.')
+  return hostname
+}
+
+function buildRootUrl(path: string, requestedRedirect?: string) {
+  const normalizedPath = normalizePath(path)
+  const requestedHost = getHostname(requestedRedirect)
+
+  if (requestedRedirect && requestedHost && isLocalhost(requestedHost)) {
+    return `${requestedRedirect.replace(/\/$/, '').replace(/\/set-password$/, '')}${normalizedPath}`
+  }
+
+  const appUrl = Deno.env.get('APP_URL') ?? Deno.env.get('SITE_URL') ?? undefined
+  return appUrl ? `${appUrl.replace(/\/$/, '').replace(/\/set-password$/, '')}${normalizedPath}` : undefined
+}
+
+function buildTenantUrl(slug: string, path: string, requestedRedirect?: string) {
+  const normalizedPath = normalizePath(path)
+  const requestedHost = getHostname(requestedRedirect)
+
+  if (requestedRedirect && requestedHost && isLocalhost(requestedHost)) {
+    return `${requestedRedirect.replace(/\/$/, '').replace(/\/set-password$/, '')}${normalizedPath}`
+  }
+
+  const appUrl = Deno.env.get('APP_URL') ?? Deno.env.get('SITE_URL') ?? undefined
+  const tenantRootDomain = (
+    Deno.env.get('TENANT_ROOT_DOMAIN') ??
+    Deno.env.get('ROOT_DOMAIN') ??
+    deriveRootDomain(appUrl)
+  )?.replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase()
+
+  if (requestedRedirect && requestedHost && isTenantHost(requestedHost, tenantRootDomain ?? null)) {
+    return `${requestedRedirect.replace(/\/$/, '').replace(/\/set-password$/, '')}${normalizedPath}`
+  }
+
+  if (tenantRootDomain) {
+    return `https://${slug}.${tenantRootDomain}${normalizedPath}`
+  }
+
+  return buildRootUrl(path, requestedRedirect)
 }
 
 Deno.serve(async (req) => {
@@ -211,8 +290,12 @@ Deno.serve(async (req) => {
       siteId = caller.site_id
     }
 
+    const inviteRedirectTo = role === 'super_admin'
+      ? buildRootUrl('/set-password', redirectTo)
+      : buildTenantUrl(tenant.slug, '/set-password', redirectTo)
+
     const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
+      redirectTo: inviteRedirectTo,
       data: {
         organization_name: tenant.name,
         organization_slug: tenant.slug,

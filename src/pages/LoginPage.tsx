@@ -33,7 +33,7 @@ export default function LoginPage() {
     setLoading(true)
     const { error: err } = await supabase.auth.signInWithPassword({ email, password })
     if (err) setError(err.message)
-    else navigate('/dashboard', { replace: true })
+    else navigate('/', { replace: true })
     setLoading(false)
   }
 

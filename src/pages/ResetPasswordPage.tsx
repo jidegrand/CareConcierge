@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { buildAppUrl } from '@/lib/tenant'
 import { PRODUCT_NAME } from '@/lib/brand'
 
 type ResetMode = 'request' | 'update'
@@ -16,7 +15,7 @@ function hasRecoveryParams() {
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
-  const [mode, setMode] = useState<ResetMode>('request')
+  const [mode, setMode] = useState<ResetMode>(() => hasRecoveryParams() ? 'update' : 'request')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -35,14 +34,11 @@ export default function ResetPasswordPage() {
 
     async function initialize() {
       const isRecovery = hasRecoveryParams()
-      if (isRecovery && !cancelled) {
-        setMode('update')
-      }
 
       const { data: { session } } = await supabase.auth.getSession()
       if (cancelled) return
 
-      if (session?.user && isRecovery) {
+      if (session?.user && (isRecovery || mode === 'update')) {
         setMode('update')
         setEmail(session.user.email ?? '')
         window.history.replaceState({}, document.title, window.location.pathname)
@@ -75,15 +71,20 @@ export default function ResetPasswordPage() {
     setError(null)
     setSuccess(null)
 
-    const { error: requestError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: buildAppUrl('/reset-password'),
+    const { data, error: requestError } = await supabase.functions.invoke('request-password-reset', {
+      body: {
+        email: email.trim(),
+        currentOrigin: window.location.origin,
+      },
     })
 
     if (requestError) {
       setError(requestError.message)
+    } else if (data?.error) {
+      setError(data.error)
     } else {
       setSent(true)
-      setSuccess(`Password reset instructions were sent to ${email.trim()}.`)
+      setSuccess('If that staff account exists, password reset instructions were sent.')
     }
 
     setLoading(false)
@@ -241,10 +242,10 @@ export default function ResetPasswordPage() {
           <div className="mt-4 flex flex-col gap-2">
             {mode === 'update' && success && (
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/')}
                 className="w-full py-2.5 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors"
               >
-                Continue to dashboard
+                Continue
               </button>
             )}
             <button

@@ -1,7 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthContext, useAuthProvider, useAuth } from '@/hooks/useAuth'
-import { isTenantSubdomain } from '@/lib/subdomain'
 import { NotificationsProvider } from '@/hooks/useNotifications'
 import PublicTenantShell from '@/pages/PublicTenantShell'
 import LoginPage       from '@/pages/LoginPage'
@@ -73,9 +72,6 @@ function HomeRedirect() {
     </div>
   )
   if (!session) return <Navigate to="/login" replace />
-  // On a tenant subdomain (e.g. st-maryhospital.extendihealth.com) send all
-  // authenticated users to the tenant-admin portal.
-  if (isTenantSubdomain()) return <Navigate to="/tenant-admin" replace />
   if (profile?.role === 'super_admin') return <Navigate to="/platform" replace />
   if (profile?.role === 'tenant_admin') return <Navigate to="/tenant-admin" replace />
   return <Navigate to="/dashboard" replace />

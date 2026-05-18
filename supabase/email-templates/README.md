@@ -34,7 +34,9 @@ Use `supabase-auth-map.json` for those six slots only.
 ## Current App Flows
 
 - Login uses `supabase.auth.signInWithPassword(...)`.
-- Password recovery uses `supabase.auth.resetPasswordForEmail(...)`.
+- Password recovery calls the `request-password-reset` Edge Function, which
+  resolves the user's tenant and calls `supabase.auth.resetPasswordForEmail(...)`
+  with a tenant-subdomain `redirectTo`.
 - Staff, tenant admin, and global admin invites call the `invite-user` Edge
   Function, which uses `supabase.auth.admin.inviteUserByEmail(...)`.
 - New invitees land on `/set-password` and create a password before entering the
@@ -91,31 +93,42 @@ Covered workflows:
 
 ## Edge Function
 
-Deploy the invite function before using any invite UI:
+Deploy the auth email functions before using invite or reset-password UI:
 
 ```bash
 supabase functions deploy invite-user
+supabase functions deploy request-password-reset
 ```
 
-Verify the function has access to:
+Verify the functions have access to:
 
 ```text
 SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
+APP_URL=https://care.extendihealth.com
+TENANT_ROOT_DOMAIN=extendihealth.com
 ```
 
-Add the app callback URL to Supabase Auth redirect allow list:
+`APP_URL` is the platform/root app URL. `TENANT_ROOT_DOMAIN` is the domain used
+to build tenant links, for example `<tenant-slug>.extendihealth.com`. If tenants
+live under `care.extendihealth.com`, set `TENANT_ROOT_DOMAIN=care.extendihealth.com`
+instead.
+
+Add the app callback URLs to Supabase Auth redirect allow list:
 
 ```text
-https://<app-domain>/set-password
-https://<app-domain>/reset-password
+https://care.extendihealth.com/set-password
+https://care.extendihealth.com/reset-password
+https://*.extendihealth.com/set-password
+https://*.extendihealth.com/reset-password
 http://localhost:5173/set-password
 http://localhost:5173/reset-password
 ```
 
-If a reset-password email sends users to the dashboard, verify that the Supabase
-Site URL is the app root, not `/dashboard`, and that `/reset-password` is present
-in Redirect URLs.
+If reset or invite emails send users to the root app instead of their tenant
+subdomain, verify `TENANT_ROOT_DOMAIN` and the wildcard redirect URLs. Supabase
+uses `.` and `/` as wildcard separators, so use `*` for one tenant-label level
+or exact tenant URLs for stricter production allow lists.
 
 ## Theme
 

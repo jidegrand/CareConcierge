@@ -227,7 +227,7 @@ export default function SuperAdminGuidePage() {
                   </div>
                   <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
                     <p className="font-semibold text-[var(--text-primary)] mb-1">Redirect URLs</p>
-                    <p className="text-[var(--text-secondary)]">Add <InlineCode>https://care.extendihealth.com/set-password</InlineCode>, <InlineCode>https://care.extendihealth.com/reset-password</InlineCode>, <InlineCode>https://*.care.extendihealth.com/set-password</InlineCode>, <InlineCode>https://*.care.extendihealth.com/reset-password</InlineCode>, and the matching localhost URLs for development.</p>
+                    <p className="text-[var(--text-secondary)]">Add <InlineCode>https://care.extendihealth.com/set-password</InlineCode>, <InlineCode>https://care.extendihealth.com/reset-password</InlineCode>, <InlineCode>https://*.extendihealth.com/set-password</InlineCode>, <InlineCode>https://*.extendihealth.com/reset-password</InlineCode>, and the matching localhost URLs for development. If tenant apps live under <InlineCode>care.extendihealth.com</InlineCode>, use <InlineCode>https://*.care.extendihealth.com/...</InlineCode> instead.</p>
                   </div>
                   <div className="rounded-lg bg-[var(--page-bg)] border border-[var(--border)] px-3 py-2.5">
                     <p className="font-semibold text-[var(--text-primary)] mb-1">Email provider</p>
@@ -246,7 +246,8 @@ export default function SuperAdminGuidePage() {
                     </p>
                   </div>
                 </div>
-                <Warning>Magic-link sign-in is disabled. Staff invites and global admin invites must use the <InlineCode>invite-user</InlineCode> Edge Function and the Supabase Invite user template. Disable provider link tracking so Supabase verification URLs are not rewritten.</Warning>
+                <Warning>Magic-link sign-in is disabled. Staff invites and global admin invites must use the <InlineCode>invite-user</InlineCode> Edge Function. Password resets must use the <InlineCode>request-password-reset</InlineCode> Edge Function. Disable provider link tracking so Supabase verification URLs are not rewritten.</Warning>
+                <Note>Set Supabase Edge Function secrets <InlineCode>APP_URL=https://care.extendihealth.com</InlineCode> and <InlineCode>TENANT_ROOT_DOMAIN=extendihealth.com</InlineCode>. These let invite and password reset emails return staff to <InlineCode>{'{{tenant-slug}}.extendihealth.com'}</InlineCode>.</Note>
               </Step>
 
               <Step n={5} title="Copy your API keys">
