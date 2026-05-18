@@ -7,6 +7,14 @@ import { PRODUCT_NAME } from '@/lib/brand'
 const INVITE_SESSION_TIMEOUT_MS = 4000
 const supabaseVerifyHost = new URL(import.meta.env.VITE_SUPABASE_URL as string).host
 
+function isAllowedSupabaseVerifyUrl(url: URL) {
+  return (
+    url.pathname === '/auth/v1/verify' &&
+    (url.host === supabaseVerifyHost || url.hostname.endsWith('.supabase.co')) &&
+    (url.searchParams.has('token') || url.searchParams.has('token_hash'))
+  )
+}
+
 function hasInviteParams() {
   if (typeof window === 'undefined') return false
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
@@ -17,7 +25,8 @@ function hasInviteParams() {
     hash.has('access_token') ||
     search.has('code') ||
     search.has('token_hash') ||
-    search.has('confirmation_url')
+    search.has('confirmation_url') ||
+    search.has('invite_email')
   )
 }
 
@@ -31,6 +40,17 @@ function getInviteTokenHash() {
   return new URLSearchParams(window.location.search).get('token_hash')
 }
 
+function getInviteEmail() {
+  if (typeof window === 'undefined') return null
+  const inviteEmail = new URLSearchParams(window.location.search).get('invite_email')
+  return inviteEmail?.trim().toLowerCase() || null
+}
+
+function hasInviteConfirmationUrlParam() {
+  if (typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).has('confirmation_url')
+}
+
 function getInviteConfirmationUrl() {
   if (typeof window === 'undefined') return null
 
@@ -40,16 +60,12 @@ function getInviteConfirmationUrl() {
 
   try {
     const confirmationUrl = new URL(rawConfirmationUrl)
-    if (confirmationUrl.host !== supabaseVerifyHost || confirmationUrl.pathname !== '/auth/v1/verify') {
+    if (!isAllowedSupabaseVerifyUrl(confirmationUrl)) {
       return null
     }
 
-    if (!confirmationUrl.searchParams.has('type')) {
-      confirmationUrl.searchParams.set('type', search.get('type') ?? 'invite')
-    }
-    if (!confirmationUrl.searchParams.has('redirect_to')) {
-      confirmationUrl.searchParams.set('redirect_to', `${window.location.origin}/set-password`)
-    }
+    confirmationUrl.searchParams.set('type', search.get('type') ?? 'invite')
+    confirmationUrl.searchParams.set('redirect_to', `${window.location.origin}/set-password`)
 
     return confirmationUrl.toString()
   } catch {
@@ -77,6 +93,8 @@ export default function SetPasswordPage() {
   const [invalidInvite, setInvalidInvite] = useState(false)
   const [pendingTokenHash, setPendingTokenHash] = useState<string | null>(null)
   const [pendingConfirmationUrl, setPendingConfirmationUrl] = useState<string | null>(null)
+  const [pendingInviteEmail, setPendingInviteEmail] = useState<string | null>(null)
+  const [inviteCode, setInviteCode] = useState('')
   const [acceptingInvite, setAcceptingInvite] = useState(false)
 
   useEffect(() => {
@@ -95,6 +113,7 @@ export default function SetPasswordPage() {
         setInvalidInvite(false)
         setPendingTokenHash(null)
         setPendingConfirmationUrl(null)
+        setPendingInviteEmail(null)
         setError(null)
         setReady(true)
         clearInviteUrl()
@@ -122,6 +141,8 @@ export default function SetPasswordPage() {
       const code = getAuthCode()
       const tokenHash = getInviteTokenHash()
       const confirmationUrl = getInviteConfirmationUrl()
+      const hasConfirmationUrl = hasInviteConfirmationUrlParam()
+      const inviteEmail = getInviteEmail()
 
       if (isInviteLink && code) {
         const { data } = await supabase.auth.exchangeCodeForSession(code)
@@ -132,6 +153,18 @@ export default function SetPasswordPage() {
         setPendingConfirmationUrl(confirmationUrl)
         setPendingTokenHash(tokenHash)
         setReady(true)
+        return
+      }
+
+      if (isInviteLink && inviteEmail) {
+        setPendingInviteEmail(inviteEmail)
+        setEmail(inviteEmail)
+        setReady(true)
+        return
+      }
+
+      if (isInviteLink && hasConfirmationUrl) {
+        showInvalidInvite('This invite link is missing a valid verification token. Ask an administrator to send a new invite.')
         return
       }
 
@@ -192,6 +225,39 @@ export default function SetPasswordPage() {
     setPendingTokenHash(null)
     setPendingConfirmationUrl(null)
     setEmail(data.session.user.email ?? '')
+    setInvalidInvite(false)
+    setReady(true)
+    window.history.replaceState({}, document.title, window.location.pathname)
+  }
+
+  const handleAcceptInviteCode = async () => {
+    if (!pendingInviteEmail) return
+
+    const token = inviteCode.trim().replace(/\s+/g, '')
+    if (token.length < 6) {
+      setError('Enter the invitation code from your email.')
+      return
+    }
+
+    setAcceptingInvite(true)
+    setError(null)
+
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      email: pendingInviteEmail,
+      token,
+      type: 'invite' as EmailOtpType,
+    })
+
+    setAcceptingInvite(false)
+
+    if (verifyError || !data.session?.user) {
+      setError(verifyError?.message || 'This invitation code is invalid or expired. Ask an administrator to send a new invite.')
+      return
+    }
+
+    setPendingInviteEmail(null)
+    setInviteCode('')
+    setEmail(data.session.user.email ?? pendingInviteEmail)
     setInvalidInvite(false)
     setReady(true)
     window.history.replaceState({}, document.title, window.location.pathname)
@@ -267,7 +333,7 @@ export default function SetPasswordPage() {
                 Back to sign in
               </button>
             </div>
-          ) : pendingTokenHash || pendingConfirmationUrl ? (
+          ) : pendingTokenHash || pendingConfirmationUrl || pendingInviteEmail ? (
             <div className="text-center py-4">
               <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -278,6 +344,35 @@ export default function SetPasswordPage() {
               <p className="text-sm text-[var(--text-secondary)] mb-5">
                 Confirm this invite to continue setting up your staff account.
               </p>
+              {pendingInviteEmail && (
+                <div className="mb-4 space-y-3 text-left">
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 uppercase tracking-wider">
+                      Account email
+                    </label>
+                    <input
+                      type="email"
+                      value={pendingInviteEmail}
+                      disabled
+                      className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-muted)] bg-[var(--page-bg)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5 uppercase tracking-wider">
+                      Invitation code
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={inviteCode}
+                      onChange={e => setInviteCode(e.target.value)}
+                      placeholder="123456"
+                      className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] bg-surface placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--clinical-blue)] focus:ring-2 focus:ring-[var(--clinical-blue)]/10 transition-all"
+                    />
+                  </div>
+                </div>
+              )}
               {error && (
                 <div className="mb-4 flex items-start gap-2 text-sm text-red-700 bg-[var(--danger-lt)] border border-red-200 rounded-xl px-3.5 py-2.5 text-left">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 mt-0.5">
@@ -287,7 +382,7 @@ export default function SetPasswordPage() {
                 </div>
               )}
               <button
-                onClick={handleAcceptInvite}
+                onClick={pendingInviteEmail ? handleAcceptInviteCode : handleAcceptInvite}
                 disabled={acceptingInvite}
                 className="w-full py-2.5 rounded-xl bg-[var(--clinical-blue)] text-white text-sm font-medium hover:bg-[var(--clinical-blue-dk)] transition-all disabled:opacity-50 shadow-sm"
               >
