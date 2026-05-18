@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthContext, useAuthProvider, useAuth } from '@/hooks/useAuth'
 import { NotificationsProvider } from '@/hooks/useNotifications'
+import { peekInitialAuthCallback } from '@/lib/supabase'
 import PublicTenantShell from '@/pages/PublicTenantShell'
 import LoginPage       from '@/pages/LoginPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
@@ -48,17 +49,23 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function isPasswordRecoveryUrl(searchString: string, hashString: string) {
+function getAuthLinkType(searchString: string, hashString: string) {
   const search = new URLSearchParams(searchString)
   const hash = new URLSearchParams(hashString.replace(/^#/, ''))
-  return (hash.get('type') ?? search.get('type')) === 'recovery'
+  return hash.get('type') ?? search.get('type')
 }
 
 function AuthLinkRedirect({ children }: { children: React.ReactNode }) {
   const location = useLocation()
+  const authLinkType = getAuthLinkType(location.search, location.hash)
+  const initialAuthCallback = peekInitialAuthCallback()
 
-  if (location.pathname !== '/reset-password' && isPasswordRecoveryUrl(location.search, location.hash)) {
+  if (location.pathname !== '/reset-password' && (authLinkType === 'recovery' || initialAuthCallback.isPasswordRecovery)) {
     return <Navigate to={`/reset-password${location.search}${location.hash}`} replace />
+  }
+
+  if (location.pathname !== '/set-password' && (authLinkType === 'invite' || initialAuthCallback.isInvite)) {
+    return <Navigate to={`/set-password${location.search}${location.hash}`} replace />
   }
 
   return <>{children}</>

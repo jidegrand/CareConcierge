@@ -1,10 +1,34 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
+import type { Session } from '@supabase/supabase-js'
+import { consumeInitialInviteCallback, supabase } from '@/lib/supabase'
 import { PRODUCT_NAME } from '@/lib/brand'
+
+const INVITE_SESSION_TIMEOUT_MS = 4000
+
+function hasInviteParams() {
+  if (typeof window === 'undefined') return false
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const search = new URLSearchParams(window.location.search)
+  const type = hash.get('type') ?? search.get('type')
+  return type === 'invite' || hash.has('access_token') || search.has('code')
+}
+
+function getAuthCode() {
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get('code')
+}
+
+function getInviteErrorMessage(errorCode: string | null, errorDescription: string | null): string | null {
+  if (!errorCode && !errorDescription) return null
+  if (errorCode === 'otp_expired') return 'This invite link has expired. Ask an administrator to send a new invite.'
+  if (errorCode === 'access_denied') return 'This invite link is invalid. Ask an administrator to send a new invite.'
+  return errorDescription || 'This invite link is invalid or has expired. Ask an administrator to send a new invite.'
+}
 
 export default function SetPasswordPage() {
   const navigate = useNavigate()
+  const [initialInviteCallback] = useState(() => consumeInitialInviteCallback())
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -12,30 +36,80 @@ export default function SetPasswordPage() {
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [invalidInvite, setInvalidInvite] = useState(false)
 
   useEffect(() => {
-    // Supabase exchanges the token from the URL hash automatically on load.
-    // Wait briefly for the session to be established, then read it.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    let cancelled = false
+    let timeoutId: number | undefined
+
+    const clearInviteUrl = () => {
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+
+    const acceptSession = (session: Session | null) => {
+      if (cancelled) return false
       if (session?.user) {
+        if (timeoutId !== undefined) window.clearTimeout(timeoutId)
         setEmail(session.user.email ?? '')
+        setInvalidInvite(false)
+        setError(null)
         setReady(true)
-      } else {
-        // No session — not a valid invite link, send to login
+        clearInviteUrl()
+        return true
+      }
+      return false
+    }
+
+    const showInvalidInvite = (message = 'This invite link is invalid or has expired. Ask an administrator to send a new invite.') => {
+      if (cancelled) return
+      setError(message)
+      setInvalidInvite(true)
+      setReady(true)
+      clearInviteUrl()
+    }
+
+    async function initialize() {
+      const linkError = getInviteErrorMessage(initialInviteCallback.errorCode, initialInviteCallback.errorDescription)
+      if (linkError) {
+        showInvalidInvite(linkError)
+        return
+      }
+
+      const isInviteLink = hasInviteParams() || initialInviteCallback.isInvite
+      const code = getAuthCode()
+
+      if (isInviteLink && code) {
+        const { data } = await supabase.auth.exchangeCodeForSession(code)
+        if (cancelled || acceptSession(data.session)) return
+      }
+
+      const { data: { session } } = await supabase.auth.getSession()
+      if (cancelled || acceptSession(session)) return
+
+      if (!isInviteLink) {
         navigate('/login', { replace: true })
+        return
       }
+
+      timeoutId = window.setTimeout(async () => {
+        const { data: { session: lateSession } } = await supabase.auth.getSession()
+        if (cancelled || acceptSession(lateSession)) return
+        showInvalidInvite()
+      }, INVITE_SESSION_TIMEOUT_MS)
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      acceptSession(session)
     })
 
-    // Also check immediately in case session is already present
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setEmail(session.user.email ?? '')
-        setReady(true)
-      }
-    })
+    void initialize()
 
-    return () => subscription.unsubscribe()
-  }, [navigate])
+    return () => {
+      cancelled = true
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId)
+      subscription.unsubscribe()
+    }
+  }, [initialInviteCallback.errorCode, initialInviteCallback.errorDescription, initialInviteCallback.isInvite, navigate])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -89,7 +163,25 @@ export default function SetPasswordPage() {
         </div>
 
         <div className="bg-surface rounded-2xl shadow-lift border border-[var(--border)] p-6">
-          {success ? (
+          {invalidInvite ? (
+            <div className="text-center py-4">
+              <div className="w-12 h-12 rounded-full bg-[var(--danger-lt)] flex items-center justify-center mx-auto mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Invite link unavailable</h2>
+              <p className="text-sm text-[var(--text-secondary)] mb-5">
+                {error}
+              </p>
+              <button
+                onClick={() => navigate('/login', { replace: true })}
+                className="w-full py-2.5 rounded-xl bg-[var(--clinical-blue)] text-white text-sm font-medium hover:bg-[var(--clinical-blue-dk)] transition-all shadow-sm"
+              >
+                Back to sign in
+              </button>
+            </div>
+          ) : success ? (
             <div className="text-center py-4">
               <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
