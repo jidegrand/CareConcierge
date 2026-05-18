@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
+import { consumeInitialPasswordRecoveryCallback, supabase } from '@/lib/supabase'
 import { PRODUCT_NAME } from '@/lib/brand'
 
 type ResetMode = 'request' | 'update'
@@ -13,19 +13,27 @@ function hasRecoveryParams() {
   return type === 'recovery' || hash.has('access_token') || search.has('code')
 }
 
-function getHashError(): string | null {
-  if (typeof window === 'undefined') return null
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
-  const errorCode = hash.get('error_code')
+function getRecoveryErrorMessage(errorCode: string | null): string | null {
   if (!errorCode) return null
   if (errorCode === 'otp_expired') return 'This reset link has expired. Please request a new one.'
   if (errorCode === 'access_denied') return 'This reset link is invalid. Please request a new one.'
   return 'This reset link is invalid or has expired. Please request a new one.'
 }
 
+function getHashError(initialErrorCode: string | null): string | null {
+  if (typeof window === 'undefined') return getRecoveryErrorMessage(initialErrorCode)
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const search = new URLSearchParams(window.location.search)
+  const errorCode = initialErrorCode ?? hash.get('error_code') ?? search.get('error_code')
+  return getRecoveryErrorMessage(errorCode)
+}
+
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
-  const [mode, setMode] = useState<ResetMode>(() => hasRecoveryParams() ? 'update' : 'request')
+  const [initialRecoveryCallback] = useState(() => consumeInitialPasswordRecoveryCallback())
+  const [mode, setMode] = useState<ResetMode>(() => (
+    hasRecoveryParams() || initialRecoveryCallback.isPasswordRecovery ? 'update' : 'request'
+  ))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -43,7 +51,7 @@ export default function ResetPasswordPage() {
     let cancelled = false
 
     async function initialize() {
-      const linkError = getHashError()
+      const linkError = getHashError(initialRecoveryCallback.errorCode)
       if (linkError) {
         window.history.replaceState({}, document.title, window.location.pathname)
         setError(linkError)
@@ -51,12 +59,12 @@ export default function ResetPasswordPage() {
         return
       }
 
-      const isRecovery = hasRecoveryParams()
+      const isRecovery = hasRecoveryParams() || initialRecoveryCallback.isPasswordRecovery
 
       const { data: { session } } = await supabase.auth.getSession()
       if (cancelled) return
 
-      if (session?.user && (isRecovery || mode === 'update')) {
+      if (session?.user && (isRecovery || window.location.pathname === '/reset-password')) {
         setMode('update')
         setEmail(session.user.email ?? '')
         window.history.replaceState({}, document.title, window.location.pathname)
@@ -81,7 +89,7 @@ export default function ResetPasswordPage() {
       cancelled = true
       subscription.unsubscribe()
     }
-  }, [])
+  }, [initialRecoveryCallback.errorCode, initialRecoveryCallback.isPasswordRecovery])
 
   const handleRequestReset = async (event: FormEvent) => {
     event.preventDefault()
