@@ -133,6 +133,24 @@ export default function SetPasswordPage() {
     async function initialize() {
       const linkError = getInviteErrorMessage(initialInviteCallback.errorCode, initialInviteCallback.errorDescription)
       if (linkError) {
+        // Try session first — handles the case where the link was already clicked
+        // in this browser and a session is cached despite the URL error.
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!cancelled && session?.user) {
+          acceptSession(session)
+          return
+        }
+        // If invite_email is in the URL (new template format) and the token expired,
+        // the user can still try again — but show the error alongside the form.
+        const inviteEmail = getInviteEmail()
+        if (!cancelled && inviteEmail) {
+          setPendingInviteEmail(inviteEmail)
+          setEmail(inviteEmail)
+          setError(linkError)
+          setReady(true)
+          clearInviteUrl()
+          return
+        }
         showInvalidInvite(linkError)
         return
       }
