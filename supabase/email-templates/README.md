@@ -27,6 +27,10 @@ Use `supabase-auth-map.json` for those six slots only.
 - The Supabase **Magic link** template is now a disabled sink and intentionally
   omits `{{ .ConfirmationURL }}`.
 - Staff and admin onboarding must use Supabase's **Invite user** template.
+- The **Invite user** template uses `{{ .TokenHash }}` with an app-owned
+  `/set-password` link instead of `{{ .ConfirmationURL }}`. This prevents email
+  provider prefetch/scanning from consuming the one-time invite before the user
+  clicks **Accept invite** in the app.
 - Public signups should stay disabled in Supabase Auth settings.
 - Invites must be sent from a trusted server or Supabase Edge Function because
   `inviteUserByEmail` requires privileged Auth Admin access.
@@ -47,7 +51,7 @@ Use `supabase-auth-map.json` for those six slots only.
 | Supabase template | Subject | File | Notes |
 | --- | --- | --- | --- |
 | Confirm sign up | `Confirm your Care Concierge account` | `confirmation.html` | Fallback only; public signup should be disabled |
-| Invite user | `You're invited to Care Concierge` | `invite.html` | Primary invite template |
+| Invite user | `You're invited to Care Concierge` | `invite.html` | Primary invite template; uses `{{ .TokenHash }}` |
 | Magic link | `Magic link sign-in is disabled` | `magic-link.html` | No `{{ .ConfirmationURL }}` |
 | Change email address | `Confirm your Care Concierge email change` | `email-change.html` | Auth template |
 | Reset password | `Reset your Care Concierge password` | `recovery.html` | Auth template |
