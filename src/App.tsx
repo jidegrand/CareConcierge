@@ -19,6 +19,7 @@ import SettingsPage    from '@/pages/SettingsPage'
 import UserGuidePage   from '@/pages/UserGuidePage'
 import PatientGuidePage from '@/pages/PatientGuidePage'
 import AdminGuidePage  from '@/pages/AdminGuidePage'
+import Entertainment   from '@/pages/Entertainment/Entertainment'
 
 const PlatformLayout = lazy(() => import('@/pages/platform/PlatformLayout'))
 const PlatformOverviewPage = lazy(() => import('@/pages/platform/PlatformOverviewPage'))
@@ -173,6 +174,7 @@ export default function App() {
             <Route path="/admin/*"    element={<ProtectedRoute><AdminPage       /></ProtectedRoute>} />
             <Route path="/settings"   element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
             <Route path="/support"    element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
+            <Route path="/entertainment" element={<ProtectedRoute><Entertainment /></ProtectedRoute>} />
             <Route path="/guide"       element={<ProtectedRoute><UserGuidePage   /></ProtectedRoute>} />
             <Route path="/admin-guide" element={<ProtectedRoute><AdminGuidePage  /></ProtectedRoute>} />
             <Route path="/super-admin-guide" element={<ProtectedRoute><PlatformModuleLoader fullscreen><SuperAdminGuidePage /></PlatformModuleLoader></ProtectedRoute>} />
