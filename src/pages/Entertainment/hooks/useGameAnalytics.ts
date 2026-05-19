@@ -14,7 +14,7 @@ export interface GameAnalytics {
 
 export function useGameAnalytics() {
   // Track game start
-  const trackGameStart = useCallback((gameId: string, gameType: GameAnalytics['gameType']) => {
+  const trackGameStart = useCallback((gameId: string, _gameType: GameAnalytics['gameType']) => {
     const startTime = new Date()
     sessionStorage.setItem(`game_${gameId}_start`, startTime.toISOString())
     console.log(`[Analytics] Game started: ${gameId}`)
@@ -92,7 +92,7 @@ export function useGameAnalytics() {
       },
       {}
     )
-    const favoriteGame = Object.entries(gameTypeCount).sort(([, a], [, b]) => b - a)[0]?.[0] || null
+    const favoriteGame = Object.entries(gameTypeCount).sort(([, a], [, b]) => (b as number) - (a as number))[0]?.[0] || null
 
     return {
       totalGamesPlayed,
