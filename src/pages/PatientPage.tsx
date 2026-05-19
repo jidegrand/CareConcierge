@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
+
+const Entertainment = lazy(() => import('@/pages/Entertainment/Entertainment'))
 import { useParams } from 'react-router-dom'
 import { useRoom } from '@/hooks/useRoom'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
@@ -524,7 +526,13 @@ export default function PatientPage() {
 
           {/* ── Fun tab ── */}
           {activeTab === 'fun' && (
-            <ComingSoon icon="🎮" title={copy.funTitle} sub={copy.funSub} />
+            <Suspense fallback={
+              <div className="flex justify-center py-16">
+                <div className="w-8 h-8 border-2 border-[var(--clinical-blue)] border-t-transparent rounded-full animate-spin" />
+              </div>
+            }>
+              <Entertainment />
+            </Suspense>
           )}
 
           {/* ── Info tab ── */}
