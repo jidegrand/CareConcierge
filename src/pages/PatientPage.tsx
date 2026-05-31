@@ -389,7 +389,9 @@ export default function PatientPage() {
         fontFamily: "'DM Sans', system-ui, sans-serif",
       }}
     >
-      <div className="relative mx-auto flex h-dvh max-w-[480px] flex-col bg-white md:h-auto md:min-h-[calc(100vh-4rem)] md:max-w-[980px] md:overflow-hidden md:rounded-[32px] md:border md:border-white/70 md:shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+      <div
+        dir={language === 'ar' ? 'rtl' : 'ltr'}
+        className="relative mx-auto flex h-dvh max-w-[480px] flex-col bg-white md:h-auto md:min-h-[calc(100vh-4rem)] md:max-w-[980px] md:overflow-hidden md:rounded-[32px] md:border md:border-white/70 md:shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
 
         {/* ── Top bar ── compact single row, no wasted space ─────── */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[#F0F2F5]">
@@ -454,7 +456,7 @@ export default function PatientPage() {
                       <path d="M11 2h2v8.27l6.29-4.2 1.06 1.59L14 12l6.35 4.34-1.06 1.59L14 13.73V22h-2v-8.27l-6.29 4.2-1.06-1.59L11 12 4.65 7.66l1.06-1.59L11 10.27z"/>
                     </svg>
                   </div>
-                  <div className="flex-1 text-left">
+                  <div className="flex-1">
                     <p className="text-white font-bold text-[16px] leading-tight">{copy.callNurseTitle}</p>
                     <p className="text-white/70 text-[12px] mt-0.5">
                       {activeTypeSet.has('nurse') ? copy.nurseNotified : copy.callNurseSub}
@@ -468,7 +470,8 @@ export default function PatientPage() {
                       </svg>
                     </div>
                   ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"
+                      style={{ transform: language === 'ar' ? 'scaleX(-1)' : undefined }}>
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
                   )}

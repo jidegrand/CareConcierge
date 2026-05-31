@@ -360,6 +360,22 @@ const KNOWN_REQUEST_LABELS: Record<string, RequestLabelKey> = {
   'clean linen': 'sheets',
   'change sheets': 'sheets',
   'fresh sheets': 'sheets',
+
+  // ── additional cleanup aliases (e.g. admin-created "Room Cleaning") ────────
+  'room cleaning': 'cleanup',
+  'room clean': 'cleanup',
+  'room cleanout': 'cleanup',
+  'tidy room': 'cleanup',
+  'tidy up': 'cleanup',
+
+  // ── mobility / walking aliases ─────────────────────────────────────────────
+  'walking assistance': 'wheelchair',
+  'walk assistance': 'wheelchair',
+  'walking help': 'wheelchair',
+  'ambulation': 'wheelchair',
+  'ambulation help': 'wheelchair',
+  'transfer help': 'wheelchair',
+  'mobility assistance': 'wheelchair',
 }
 
 const PATIENT_COPY = {
