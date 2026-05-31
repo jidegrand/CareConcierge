@@ -1,6 +1,7 @@
 import { Outlet, useLocation, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenantContext } from '@/hooks/useTenantContext'
+import LicenseBanner from '@/components/LicenseBanner'
 
 interface NavItem {
   id: string
@@ -131,6 +132,9 @@ export default function TenantAdminLayout() {
             </div>
           </div>
         </header>
+
+        {/* License banner — tenant_admin retains access to manage renewal */}
+        <LicenseBanner />
 
         {/* Page Content */}
         <div className="flex-1 overflow-auto">

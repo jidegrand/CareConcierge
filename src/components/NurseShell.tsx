@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import NotificationCenter from '@/components/NotificationCenter'
+import LicenseBanner from '@/components/LicenseBanner'
+import LicenseGate from '@/components/LicenseGate'
 import { can, canAny, NAV_ITEMS, ROLE_CFG, type UserRole } from '@/lib/roles'
 import { PRODUCT_NAME } from '@/lib/brand'
 import type { RequestStats } from '@/hooks/useRequests'
@@ -242,6 +244,9 @@ export default function NurseShell({
         </div>
       </header>
 
+      {/* ── License banner (expiring / expired) ───────────────────── */}
+      <LicenseBanner />
+
       {/* ── Body ──────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
 
@@ -451,7 +456,9 @@ export default function NurseShell({
         </aside>
 
         {/* ── Main content ──────────────────────────────────────────── */}
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main className="flex-1 overflow-y-auto flex flex-col">
+          <LicenseGate>{children}</LicenseGate>
+        </main>
       </div>
 
       {/* ── Mobile nav overlay ────────────────────────────────────────── */}
