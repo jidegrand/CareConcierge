@@ -389,76 +389,92 @@ export default function PatientPage() {
         fontFamily: "'DM Sans', system-ui, sans-serif",
       }}
     >
-      <div className="relative mx-auto flex min-h-screen max-w-[480px] flex-col bg-[#F0F4F8] md:min-h-[calc(100vh-4rem)] md:max-w-[980px] md:overflow-hidden md:rounded-[32px] md:border md:border-white/70 md:shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+      <div className="relative mx-auto flex min-h-screen max-w-[480px] flex-col bg-white md:min-h-[calc(100vh-4rem)] md:max-w-[980px] md:overflow-hidden md:rounded-[32px] md:border md:border-white/70 md:shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
 
-        {/* ── Top bar ───────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-5 pt-6 pb-3" style={{ background: '#F0F4F8' }}>
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full bg-[#1D6FA8] flex items-center justify-center flex-shrink-0 shadow-sm">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+        {/* ── Top bar ── compact single row, no wasted space ─────── */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[#F0F2F5]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-[#1D6FA8] flex items-center justify-center flex-shrink-0">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="white">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
               </svg>
             </div>
             <div className="min-w-0">
-              <p className="truncate text-[17px] font-bold text-[#1A1A2E]">{orgName}</p>
-              <p className="truncate text-xs font-medium text-[#7A8597]">{room.unit?.name ?? room.name}</p>
+              <p className="truncate text-[14px] font-bold text-[#1A1A2E] leading-tight">{orgName}</p>
+              <p className="truncate text-[11px] text-[#9CA3AF]">{room.unit?.name ?? room.name}</p>
             </div>
           </div>
-          <div className="min-w-[132px] rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 shadow-sm">
-            <label className="block text-[10px] font-bold uppercase tracking-[0.16em] text-[#7A8597]">
-              {copy.language}
-            </label>
-            <select
-              value={language}
-              onChange={event => setLanguage(event.target.value as PatientLanguage)}
-              className="mt-1 w-full bg-transparent text-sm font-semibold text-[#16324F] outline-none">
-              {PATIENT_LANGUAGE_OPTIONS.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={language}
+            onChange={event => setLanguage(event.target.value as PatientLanguage)}
+            className="flex-shrink-0 text-[13px] font-semibold text-[#1D6FA8] bg-transparent outline-none cursor-pointer">
+            {PATIENT_LANGUAGE_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
         </div>
 
         {/* ── Tab content ───────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
-          <div className="px-4 pb-6">
+          <div className="pb-4">
 
           {activeTab === 'requests' && (
             <>
-              {/* ── Emergency Call Nurse Hero ── */}
-              <div className="rounded-3xl overflow-hidden mb-5 shadow-md"
-                style={{ background: 'linear-gradient(160deg, #C0392B 0%, #96281B 100%)' }}>
-                <div className="px-6 pt-8 pb-7 text-center">
-                  {/* Asterisk circle */}
-                  <div className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
+              {/* ── Page heading ── Uber-style bold section title ── */}
+              <div className="px-5 pt-5 pb-4">
+                <h1 className="text-[28px] font-extrabold text-[#1A1A2E] leading-[1.15]">
+                  {copy.commonRequests}
+                </h1>
+                <p className="text-[12px] font-medium text-[#9CA3AF] mt-1">
+                  {room.name} · {room.unit?.name}
+                </p>
+              </div>
+
+              {/* ── Call nurse ── compact horizontal CTA row ──────── */}
+              <div className="px-5 mb-6">
+                <button
+                  onClick={() => activeTypeSet.has('nurse')
+                    ? openActiveRequest('nurse', nurseBaseLabel)
+                    : handleCallNurse()}
+                  disabled={callPressed || submitting || cancelingRequest}
+                  className="w-full flex items-center gap-4 rounded-[22px] px-5 py-4 active:scale-[0.98] transition-transform disabled:opacity-75"
+                  style={{ background: 'linear-gradient(135deg, #E53E3E 0%, #9B2C2C 100%)' }}>
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{ background: 'rgba(255,255,255,0.18)' }}>
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
                       <path d="M11 2h2v8.27l6.29-4.2 1.06 1.59L14 12l6.35 4.34-1.06 1.59L14 13.73V22h-2v-8.27l-6.29 4.2-1.06-1.59L11 12 4.65 7.66l1.06-1.59L11 10.27z"/>
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-1">{copy.callNurseTitle}</h2>
-                  <p className="text-white/75 text-sm mb-6 leading-relaxed">
-                    {copy.callNurseSub}
-                  </p>
-                  <button
-                    onClick={() => activeTypeSet.has('nurse')
-                      ? openActiveRequest('nurse', nurseBaseLabel)
-                      : handleCallNurse()}
-                    disabled={callPressed || submitting || cancelingRequest}
-                    className="px-10 py-3.5 rounded-full font-bold text-base transition-all active:scale-95 disabled:opacity-70"
-                    style={{ background: 'white', color: '#C0392B' }}>
-                    {activeTypeSet.has('nurse') ? `${copy.nurseNotified} ✓` : callPressed ? copy.notifying : copy.pressNow}
-                  </button>
-                </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-white font-bold text-[16px] leading-tight">{copy.callNurseTitle}</p>
+                    <p className="text-white/70 text-[12px] mt-0.5">
+                      {activeTypeSet.has('nurse') ? copy.nurseNotified : copy.callNurseSub}
+                    </p>
+                  </div>
+                  {activeTypeSet.has('nurse') ? (
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'rgba(255,255,255,0.25)' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </div>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  )}
+                </button>
               </div>
 
-              {/* ── Common Requests grid ── */}
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h3 className="text-[17px] font-bold text-[#1A1A2E]">{copy.commonRequests}</h3>
-                <span className="text-xs font-semibold tracking-widest text-[#9CA3AF]">{copy.tapToSend}</span>
+              {/* ── Section label ── */}
+              <div className="px-5 flex items-center justify-between mb-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#9CA3AF]">
+                  {copy.tapToSend}
+                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-5 md:grid-cols-3">
+              {/* ── 4-column compact request grid ──────────────────── */}
+              <div className="px-5 grid grid-cols-4 gap-2.5 mb-5">
                 {commonRequests.map(req => {
                   const alreadyActive = activeTypeSet.has(req.id)
                   return (
@@ -468,54 +484,46 @@ export default function PatientPage() {
                         ? openActiveRequest(req.id, req.label)
                         : submitRequest(req.id, req.label, req.urgent)}
                       disabled={submitting || cancelingRequest}
-                      className="rounded-2xl p-5 flex flex-col items-center justify-center gap-3 shadow-sm border active:scale-[0.97] transition-all relative overflow-hidden"
+                      className="relative flex flex-col items-center justify-center rounded-[18px] py-3 px-2 active:scale-[0.94] transition-all overflow-hidden"
                       style={{
-                        minHeight: '140px',
+                        minHeight: '86px',
                         background: alreadyActive
                           ? 'linear-gradient(180deg, #F0FDF4 0%, #DCFCE7 100%)'
                           : 'linear-gradient(180deg, #FFFFFF 0%, #F7FBFF 100%)',
-                        borderColor: alreadyActive ? '#86EFAC' : '#DCE8F3',
-                        opacity: alreadyActive ? 1 : submitting ? 0.5 : 1,
+                        border: `1.5px solid ${alreadyActive ? '#86EFAC' : '#E2EAF4'}`,
+                        opacity: submitting && !alreadyActive ? 0.5 : 1,
+                        boxShadow: '0 1px 4px rgba(15,23,42,0.06)',
                       }}>
                       {alreadyActive && (
-                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                          <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12"/>
                           </svg>
                         </div>
                       )}
-                      <div
-                        className="flex h-14 w-14 items-center justify-center rounded-2xl border text-[28px]"
-                        style={{
-                          background: alreadyActive ? '#D1FAE514' : `${req.color}14`,
-                          borderColor: alreadyActive ? '#6EE7B7' : `${req.color}33`,
-                        }}>
+                      <div className="text-[26px] leading-none mb-1.5">
                         <RequestTypeIcon
                           icon={req.icon}
                           label={req.translatedLabel}
-                          className="text-[28px]"
-                          imageClassName="h-8 w-8 object-contain"
+                          className="text-[26px]"
+                          imageClassName="h-7 w-7 object-contain"
                         />
                       </div>
-                      <div className="text-center">
-                        <span className="text-[15px] font-semibold" style={{ color: alreadyActive ? '#065F46' : '#1A1A2E' }}>
-                          {req.translatedLabel}
-                        </span>
-                        {alreadyActive && (
-                          <p className="text-[11px] font-medium text-green-600 mt-0.5">{copy.requestSent}</p>
-                        )}
-                      </div>
+                      <span
+                        className="text-[10px] font-semibold text-center leading-tight line-clamp-2"
+                        style={{ color: alreadyActive ? '#065F46' : '#374151' }}>
+                        {req.translatedLabel}
+                      </span>
                     </button>
                   )
                 })}
               </div>
 
               {submitError && (
-                <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div className="mx-5 mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {submitError}
                 </div>
               )}
-
             </>
           )}
 
@@ -537,22 +545,10 @@ export default function PatientPage() {
 
           {/* ── Info tab ── */}
           {activeTab === 'info' && (
-            <div className="space-y-3 pt-2">
-              <InfoCard
-                title={copy.yourBay}
-                value={room.name}
-                icon="🏥"
-              />
-              <InfoCard
-                title={copy.unit}
-                value={room.unit?.name ?? '—'}
-                icon="📍"
-              />
-              <InfoCard
-                title={copy.site}
-                value={room.unit?.site?.name ?? '—'}
-                icon="🏢"
-              />
+            <div className="px-5 space-y-3 pt-5">
+              <InfoCard title={copy.yourBay} value={room.name} icon="🏥" />
+              <InfoCard title={copy.unit} value={room.unit?.name ?? '—'} icon="📍" />
+              <InfoCard title={copy.site} value={room.unit?.site?.name ?? '—'} icon="🏢" />
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F3F4F6]">
                 <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">{copy.about}</p>
                 <p className="text-sm text-[#4B5563] leading-relaxed">
@@ -564,8 +560,9 @@ export default function PatientPage() {
         </div>
       </div>
 
-        {/* ── Bottom tab bar ─────────────────────────────────────── */}
-        <div className="bg-white border-t border-[#E5E7EB] px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] shadow-[0_-8px_20px_rgba(15,23,42,0.05)]">
+        {/* ── Bottom tab bar ── cleaner Uber-style, color-only active ── */}
+        <div className="bg-white border-t border-[#EFEFEF] px-1 pb-[max(env(safe-area-inset-bottom),8px)]"
+          style={{ boxShadow: '0 -1px 0 rgba(0,0,0,0.05)' }}>
           <div className="flex">
             {tabs.map(tab => {
               const active = activeTab === tab.id
@@ -573,18 +570,15 @@ export default function PatientPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className="relative flex-1 flex flex-col items-center justify-center py-3 gap-1 transition-colors">
-                  <div className={`transition-colors ${active ? 'text-[#1D6FA8]' : 'text-[#9CA3AF]'}`}>
+                  className="flex-1 flex flex-col items-center justify-center pt-2.5 pb-1 gap-0.5 transition-colors">
+                  <div className={`transition-colors ${active ? 'text-[#1D6FA8]' : 'text-[#C7C7CC]'}`}>
                     {tab.icon}
                   </div>
-                  <span className={`text-[10px] font-bold tracking-wider transition-colors ${
-                    active ? 'text-[#1D6FA8]' : 'text-[#9CA3AF]'
+                  <span className={`text-[10px] font-bold transition-colors ${
+                    active ? 'text-[#1D6FA8]' : 'text-[#8E8E93]'
                   }`}>
                     {tab.label}
                   </span>
-                  {active && (
-                    <div className="absolute bottom-0 h-0.5 w-12 rounded-t-full bg-[#1D6FA8]" />
-                  )}
                 </button>
               )
             })}
