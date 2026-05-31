@@ -13,6 +13,21 @@ export const PATIENT_LANGUAGE_OPTIONS: Array<{ value: PatientLanguage; label: st
   { value: 'tl', label: 'Tagalog (Filipino)' },
 ]
 
+// ─── Request label translations ───────────────────────────────────────────────
+// HOW TO ADD A NEW REQUEST TYPE
+// 1. Add the new key to ALL 8 language objects below (en, es, fr, zh, pa, yue, ar, tl).
+// 2. Add the type ID (slugified label) + common label aliases to KNOWN_REQUEST_LABELS.
+//
+// Translation lookup order (translateRequestTypeLabel):
+//   a. Exact ID match  →  REQUEST_LABELS[lang][type]
+//   b. Normalised label match  →  KNOWN_REQUEST_LABELS[normalise(fallbackLabel)]
+//   c. Falls back to the English label stored in the database.
+//
+// Core types (DEFAULT_REQUEST_TYPES): water, blanket, pain, medication, bathroom,
+//   nurse, food, temperature
+// Extended types (common admin additions): cleanup, family, pillow, ice, tv, phone,
+//   wheelchair, chaplain, interpreter, sheets
+// Custom types added by admins that are not listed here will display in English.
 const REQUEST_LABELS = {
   en: {
     water: 'Water',
@@ -25,6 +40,14 @@ const REQUEST_LABELS = {
     food: 'Food / Snack',
     temperature: 'Too Hot / Cold',
     family: 'Help Contacting Family',
+    pillow: 'Pillow',
+    ice: 'Ice / Ice Chips',
+    tv: 'TV / Remote',
+    phone: 'Phone / Telephone',
+    wheelchair: 'Wheelchair',
+    chaplain: 'Chaplain / Spiritual',
+    interpreter: 'Interpreter',
+    sheets: 'Clean Sheets',
   },
   es: {
     water: 'Agua',
@@ -37,6 +60,14 @@ const REQUEST_LABELS = {
     food: 'Comida / Refrigerio',
     temperature: 'Mucho calor / frio',
     family: 'Ayuda para contactar a la familia',
+    pillow: 'Almohada',
+    ice: 'Hielo',
+    tv: 'Television / Mando',
+    phone: 'Telefono',
+    wheelchair: 'Silla de ruedas',
+    chaplain: 'Capellan',
+    interpreter: 'Interprete',
+    sheets: 'Sabanas limpias',
   },
   fr: {
     water: 'Eau',
@@ -49,6 +80,14 @@ const REQUEST_LABELS = {
     food: 'Repas / collation',
     temperature: 'Trop chaud / froid',
     family: 'Aide pour contacter la famille',
+    pillow: 'Oreiller',
+    ice: 'Glacons',
+    tv: 'TV / Telecommande',
+    phone: 'Telephone',
+    wheelchair: 'Fauteuil roulant',
+    chaplain: 'Aumonier',
+    interpreter: 'Interprete',
+    sheets: 'Draps propres',
   },
   zh: {
     water: '水',
@@ -61,6 +100,14 @@ const REQUEST_LABELS = {
     food: '食物 / 点心',
     temperature: '太热 / 太冷',
     family: '联系家人帮助',
+    pillow: '枕头',
+    ice: '冰块',
+    tv: '电视 / 遥控',
+    phone: '电话',
+    wheelchair: '轮椅',
+    chaplain: '牧师',
+    interpreter: '翻译',
+    sheets: '更换床单',
   },
   pa: {
     water: 'ਪਾਣੀ',
@@ -73,6 +120,14 @@ const REQUEST_LABELS = {
     food: 'ਖਾਣਾ / ਨਾਸਤਾ',
     temperature: 'ਜ਼ਿਆਦਾ ਗਰਮ / ਠੰਢਾ',
     family: 'ਪਰਿਵਾਰ ਨਾਲ ਸੰਪਰਕ ਲਈ ਮਦਦ',
+    pillow: 'ਸਿਰਹਾਣਾ',
+    ice: 'ਬਰਫ਼',
+    tv: 'ਟੀ.ਵੀ. / ਰਿਮੋਟ',
+    phone: 'ਫ਼ੋਨ',
+    wheelchair: 'ਵ੍ਹੀਲਚੇਅਰ',
+    chaplain: 'ਪਾਦਰੀ',
+    interpreter: 'ਦੁਭਾਸ਼ੀਆ',
+    sheets: 'ਸਾਫ਼ ਚਾਦਰਾਂ',
   },
   yue: {
     water: '水',
@@ -85,6 +140,14 @@ const REQUEST_LABELS = {
     food: '食物 / 小食',
     temperature: '太熱 / 太凍',
     family: '協助聯絡家人',
+    pillow: '枕頭',
+    ice: '冰塊',
+    tv: '電視 / 遙控',
+    phone: '電話',
+    wheelchair: '輪椅',
+    chaplain: '牧師',
+    interpreter: '翻譯員',
+    sheets: '清潔床單',
   },
   ar: {
     water: 'ماء',
@@ -97,6 +160,14 @@ const REQUEST_LABELS = {
     food: 'طعام / وجبة خفيفة',
     temperature: 'حار جدا / بارد جدا',
     family: 'مساعدة في التواصل مع العائلة',
+    pillow: 'وسادة',
+    ice: 'ثلج',
+    tv: 'التلفاز / ريموت',
+    phone: 'هاتف',
+    wheelchair: 'كرسي متحرك',
+    chaplain: 'رجل دين',
+    interpreter: 'مترجم',
+    sheets: 'ملاءات نظيفة',
   },
   tl: {
     water: 'Tubig',
@@ -109,18 +180,65 @@ const REQUEST_LABELS = {
     food: 'Pagkain / Meryenda',
     temperature: 'Masyadong mainit / malamig',
     family: 'Tulong sa pakikipag-ugnayan sa pamilya',
+    pillow: 'Unan',
+    ice: 'Yelo',
+    tv: 'TV / Remote',
+    phone: 'Telepono',
+    wheelchair: 'Wheelchair',
+    chaplain: 'Kapellan',
+    interpreter: 'Tagasalin',
+    sheets: 'Malinis na Kumot',
   },
 } as const
 
 type RequestLabelKey = keyof typeof REQUEST_LABELS.en
 
+// ─── Label alias map ──────────────────────────────────────────────────────────
+// Maps normalised English label strings to a REQUEST_LABELS key.
+// normaliseLabel() lowercases and collapses non-alphanumeric runs to spaces.
+// Add aliases here whenever a new request type is created by admins so the
+// label-based fallback path can resolve it even when the DB id doesn't match.
 const KNOWN_REQUEST_LABELS: Record<string, RequestLabelKey> = {
+  // ── water ──────────────────────────────────────────────────────────────────
   water: 'water',
+  'water request': 'water',
+  'glass of water': 'water',
+  'cup of water': 'water',
+
+  // ── blanket ────────────────────────────────────────────────────────────────
   blanket: 'blanket',
+  'extra blanket': 'blanket',
+  'another blanket': 'blanket',
+  'warm blanket': 'blanket',
+
+  // ── pain ───────────────────────────────────────────────────────────────────
   pain: 'pain',
   'pain discomfort': 'pain',
+  'pain or discomfort': 'pain',
+  discomfort: 'pain',
+  'i am in pain': 'pain',
+  hurting: 'pain',
+
+  // ── medication ─────────────────────────────────────────────────────────────
   medication: 'medication',
+  medicine: 'medication',
+  'my medication': 'medication',
+  meds: 'medication',
+  prescription: 'medication',
+  tablets: 'medication',
+
+  // ── bathroom ───────────────────────────────────────────────────────────────
+  bathroom: 'bathroom',
   'bathroom help': 'bathroom',
+  'bathroom assistance': 'bathroom',
+  toilet: 'bathroom',
+  'toilet help': 'bathroom',
+  washroom: 'bathroom',
+  'washroom help': 'bathroom',
+  commode: 'bathroom',
+  bedpan: 'bathroom',
+
+  // ── cleanup ────────────────────────────────────────────────────────────────
   cleanup: 'cleanup',
   'clean up': 'cleanup',
   cleaning: 'cleanup',
@@ -128,12 +246,120 @@ const KNOWN_REQUEST_LABELS: Record<string, RequestLabelKey> = {
   'help cleaning up request': 'cleanup',
   'help clean up': 'cleanup',
   'help with cleanup': 'cleanup',
+  'cleaning help': 'cleanup',
+  'room cleanup': 'cleanup',
+  spill: 'cleanup',
+
+  // ── nurse ──────────────────────────────────────────────────────────────────
+  nurse: 'nurse',
   'call nurse': 'nurse',
+  'call a nurse': 'nurse',
+  'nurse call': 'nurse',
+  'need nurse': 'nurse',
+  'nurse assistance': 'nurse',
+
+  // ── food ───────────────────────────────────────────────────────────────────
+  food: 'food',
+  snack: 'food',
   'food snack': 'food',
+  'food or snack': 'food',
+  meal: 'food',
+  hungry: 'food',
+  'something to eat': 'food',
+  drink: 'food',
+
+  // ── temperature ────────────────────────────────────────────────────────────
+  temperature: 'temperature',
   'too hot cold': 'temperature',
+  'too hot': 'temperature',
+  'too cold': 'temperature',
+  hot: 'temperature',
+  cold: 'temperature',
+  'room temperature': 'temperature',
+  'feeling hot': 'temperature',
+  'feeling cold': 'temperature',
+  'adjust temperature': 'temperature',
+
+  // ── family ─────────────────────────────────────────────────────────────────
+  family: 'family',
   'help contacting family': 'family',
   'help contact family': 'family',
   'contact family': 'family',
+  'contact my family': 'family',
+  'call family': 'family',
+  'call my family': 'family',
+  'family contact': 'family',
+
+  // ── pillow ─────────────────────────────────────────────────────────────────
+  pillow: 'pillow',
+  'extra pillow': 'pillow',
+  'another pillow': 'pillow',
+  'pillow request': 'pillow',
+  'more pillows': 'pillow',
+  cushion: 'pillow',
+
+  // ── ice ────────────────────────────────────────────────────────────────────
+  ice: 'ice',
+  'ice chips': 'ice',
+  'ice water': 'ice',
+  'ice pack': 'ice',
+  'more ice': 'ice',
+
+  // ── tv ─────────────────────────────────────────────────────────────────────
+  tv: 'tv',
+  television: 'tv',
+  'tv remote': 'tv',
+  'television remote': 'tv',
+  remote: 'tv',
+  'tv help': 'tv',
+  'tv channel': 'tv',
+  'turn on tv': 'tv',
+
+  // ── phone ──────────────────────────────────────────────────────────────────
+  phone: 'phone',
+  telephone: 'phone',
+  'phone help': 'phone',
+  'need phone': 'phone',
+  'use phone': 'phone',
+  'phone call': 'phone',
+  'make a call': 'phone',
+
+  // ── wheelchair ─────────────────────────────────────────────────────────────
+  wheelchair: 'wheelchair',
+  'wheel chair': 'wheelchair',
+  mobility: 'wheelchair',
+  'mobility help': 'wheelchair',
+  'need wheelchair': 'wheelchair',
+  'wheelchair help': 'wheelchair',
+
+  // ── chaplain ───────────────────────────────────────────────────────────────
+  chaplain: 'chaplain',
+  'spiritual support': 'chaplain',
+  'spiritual care': 'chaplain',
+  pastor: 'chaplain',
+  priest: 'chaplain',
+  imam: 'chaplain',
+  'religious support': 'chaplain',
+  prayer: 'chaplain',
+
+  // ── interpreter ────────────────────────────────────────────────────────────
+  interpreter: 'interpreter',
+  translation: 'interpreter',
+  'language help': 'interpreter',
+  'need interpreter': 'interpreter',
+  'need translator': 'interpreter',
+  translator: 'interpreter',
+
+  // ── sheets ─────────────────────────────────────────────────────────────────
+  sheets: 'sheets',
+  'clean sheets': 'sheets',
+  'sheet change': 'sheets',
+  'bedding change': 'sheets',
+  bedding: 'sheets',
+  linen: 'sheets',
+  'clean linen': 'sheets',
+  'change sheets': 'sheets',
+  'fresh sheets': 'sheets',
 }
 
 const PATIENT_COPY = {
