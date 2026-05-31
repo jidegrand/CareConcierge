@@ -258,8 +258,8 @@ function BayCell({ bay, selected, onClick }: {
       <span className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full"
         style={{ background: cfg.dot }} />
 
-      {/* Bay name */}
-      <p className="text-sm font-bold pr-5 leading-tight" style={{ color: cfg.text }}>
+      {/* Bay name — always dark so it's readable in every status state */}
+      <p className="text-sm font-bold pr-5 leading-tight" style={{ color: 'var(--text-primary)' }}>
         {bay.name}
       </p>
 

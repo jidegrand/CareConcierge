@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { REQUEST_TYPE_MAP } from '@/lib/constants'
 import type { Request, RequestTypeConfig } from '@/types'
@@ -55,6 +55,11 @@ export function useBayMap(
   const [loading,   setLoading]   = useState(true)
   const [connected, setConnected] = useState(false)
 
+  // Keep typeMap in a ref so fetch doesn't need it as a dep (avoids tearing
+  // down the realtime subscription every time requestTypes re-fetches).
+  const typeMapRef = useRef(typeMap)
+  useEffect(() => { typeMapRef.current = typeMap }, [typeMap])
+
   const fetch = useCallback(async () => {
     if (!unitId) return
 
@@ -94,7 +99,7 @@ export function useBayMap(
       const activeReqs = roomReqs.filter(r => r.status !== 'resolved')
 
       const mapped: ActiveRequest[] = roomReqs.map(r => {
-        const cfg = typeMap[r.type]
+        const cfg = typeMapRef.current[r.type]
         return {
           id:         r.id,
           type:       r.type,
@@ -144,7 +149,7 @@ export function useBayMap(
 
     setBays(baysBuilt)
     setLoading(false)
-  }, [typeMap, unitId])
+  }, [unitId])
 
   useEffect(() => { fetch() }, [fetch])
 

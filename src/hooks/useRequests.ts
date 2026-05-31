@@ -71,6 +71,10 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
   const [connected,    setConnected]    = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const knownIds = useRef<Set<string>>(new Set())
+  // Ref mirror of requests — lets subscription handlers read current data
+  // without becoming a dep that would tear down the channel on every fetch.
+  const requestsRef = useRef<Request[]>([])
+  useEffect(() => { requestsRef.current = requests }, [requests])
   const { pushNotification } = useNotifications()
 
   const removeRequestLocally = useCallback((requestId: string) => {
@@ -242,7 +246,7 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests' }, (payload) => {
         const next = payload.new as Request
         const prev = payload.old as Partial<Request>
-        const current = requests.find(entry => entry.id === next.id)
+        const current = requestsRef.current.find(entry => entry.id === next.id)
         const requestLabel = current?.room?.name
           ? `${current.room.name} · ${current.type.replace(/_/g, ' ')}`
           : next.type.replace(/_/g, ' ')
@@ -272,7 +276,7 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'requests' }, (payload) => {
         const deletedId = (payload.old as { id?: string }).id
-        const current = requests.find(entry => entry.id === deletedId)
+        const current = requestsRef.current.find(entry => entry.id === deletedId)
         if (deletedId) removeRequestLocally(deletedId)
         if (current) {
           pushNotification({
@@ -296,7 +300,7 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
       supabase.removeChannel(channel)
       setConnected(false)
     }
-  }, [tenantId, unitId, soundEnabled, fetchRequests, fetchStaffEvents, pushNotification, removeRequestLocally, requests])
+  }, [tenantId, unitId, soundEnabled, fetchRequests, fetchStaffEvents, pushNotification, removeRequestLocally])
 
   // ── Update status — write acknowledged_by / resolved_by ──────────────────
   const updateStatus = async (id: string, status: RequestStatus) => {
