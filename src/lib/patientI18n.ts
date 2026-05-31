@@ -785,12 +785,34 @@ export const translateRequestTypeLabel = (
   language: PatientLanguage,
   type: string,
   fallbackLabel: string
-) => {
-  const directMatch = REQUEST_LABELS[language][type as RequestLabelKey]
-  if (directMatch) return directMatch
+): string => {
+  // Cast to a plain Record so the runtime lookup is unambiguous — avoids
+  // TypeScript's as-const union inference producing unexpected access behaviour
+  // when bundled by Vite/Rollup.
+  const langMap = REQUEST_LABELS[language] as Record<string, string>
 
-  const fallbackKey = KNOWN_REQUEST_LABELS[normalizeLabel(fallbackLabel)]
-  if (fallbackKey) return REQUEST_LABELS[language][fallbackKey]
+  // 1. Exact type-ID match  e.g. type='water' → 'Agua'
+  const direct = langMap[type]
+  if (direct) return direct
+
+  // 2. Normalised type-ID → KNOWN_REQUEST_LABELS → translation
+  //    Handles DB IDs like 'pain-discomfort', 'bathroom-help', 'too-hot-cold'
+  //    that are slugified differently from the canonical REQUEST_LABELS keys.
+  const normId = normalizeLabel(type)
+  const keyFromId = KNOWN_REQUEST_LABELS[normId]
+  if (keyFromId) {
+    const translated = langMap[keyFromId]
+    if (translated) return translated
+  }
+
+  // 3. Normalised English label → KNOWN_REQUEST_LABELS → translation
+  //    Last resort for fully custom type IDs with known English labels.
+  const normLabel = normalizeLabel(fallbackLabel)
+  const keyFromLabel = KNOWN_REQUEST_LABELS[normLabel]
+  if (keyFromLabel) {
+    const translated = langMap[keyFromLabel]
+    if (translated) return translated
+  }
 
   return fallbackLabel
 }
