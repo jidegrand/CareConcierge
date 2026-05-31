@@ -383,13 +383,13 @@ export default function PatientPage() {
 
   return (
     <div
-      className="min-h-screen md:px-6 md:py-8"
+      className="min-h-dvh md:px-6 md:py-8"
       style={{
         background: 'radial-gradient(circle at top, #f8fbff 0%, #edf2f7 42%, #e5ebf3 100%)',
         fontFamily: "'DM Sans', system-ui, sans-serif",
       }}
     >
-      <div className="relative mx-auto flex min-h-screen max-w-[480px] flex-col bg-white md:min-h-[calc(100vh-4rem)] md:max-w-[980px] md:overflow-hidden md:rounded-[32px] md:border md:border-white/70 md:shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+      <div className="relative mx-auto flex h-dvh max-w-[480px] flex-col bg-white md:h-auto md:min-h-[calc(100vh-4rem)] md:max-w-[980px] md:overflow-hidden md:rounded-[32px] md:border md:border-white/70 md:shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
 
         {/* ── Top bar ── compact single row, no wasted space ─────── */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[#F0F2F5]">
@@ -803,7 +803,7 @@ function InfoCard({ title, value, icon }: { title: string; value: string; icon: 
 
 function LoadingScreen({ copy }: { copy: ReturnType<typeof getPatientCopy> }) {
   return (
-    <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center">
+    <div className="min-h-dvh bg-[#F0F4F8] flex items-center justify-center">
       <div className="text-center">
         <div className="w-10 h-10 border-3 border-[#1D6FA8] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
         <p className="text-sm text-[#9CA3AF]">{copy.loading}</p>
@@ -814,7 +814,7 @@ function LoadingScreen({ copy }: { copy: ReturnType<typeof getPatientCopy> }) {
 
 function ErrorScreen({ copy }: { copy: ReturnType<typeof getPatientCopy> }) {
   return (
-    <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center px-8">
+    <div className="min-h-dvh bg-[#F0F4F8] flex items-center justify-center px-8">
       <div className="text-center">
         <p className="text-4xl mb-4">🔍</p>
         <p className="font-bold text-[#1A1A2E] mb-1">{copy.roomNotFoundTitle}</p>
