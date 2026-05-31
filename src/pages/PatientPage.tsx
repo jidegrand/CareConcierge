@@ -394,11 +394,20 @@ export default function PatientPage() {
         {/* ── Top bar ── compact single row, no wasted space ─────── */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[#F0F2F5]">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-[#1D6FA8] flex items-center justify-center flex-shrink-0">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="white">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-              </svg>
-            </div>
+            {/* Logo or fallback icon */}
+            {tenantSettings.logo_url ? (
+              <img
+                src={tenantSettings.logo_url}
+                alt={orgName}
+                className="h-8 w-auto max-w-[110px] object-contain flex-shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-[#1D6FA8] flex items-center justify-center flex-shrink-0">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="white">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                </svg>
+              </div>
+            )}
             <div className="min-w-0">
               <p className="truncate text-[14px] font-bold text-[#1A1A2E] leading-tight">{orgName}</p>
               <p className="truncate text-[11px] text-[#9CA3AF]">{room.unit?.name ?? room.name}</p>

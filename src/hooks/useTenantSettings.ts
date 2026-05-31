@@ -44,7 +44,7 @@ export function useTenantSettings(tenantId: string | undefined) {
 
     const { data, error: err } = await supabase
       .from('tenant_settings')
-      .select('tenant_id, patient_feedback_enabled, patient_idle_redirect_url, created_at, updated_at')
+      .select('tenant_id, patient_feedback_enabled, patient_idle_redirect_url, logo_url, primary_color, created_at, updated_at')
       .eq('tenant_id', tenantId)
       .maybeSingle()
 
