@@ -363,22 +363,16 @@ export default function PlatformAccessControlPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Role</label>
-                {editUser.role === 'super_admin' ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] px-3.5 py-2.5 text-sm text-[var(--text-secondary)]">
-                      Global Admin
-                    </div>
-                    <span className="text-xs text-[var(--text-muted)]">Use invite flow to change</span>
-                  </div>
-                ) : (
-                  <select
-                    value={editUser.role}
-                    onChange={(event) => setEditUser(current => current ? { ...current, role: event.target.value } : current)}
-                    className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
-                  >
-                    {EDIT_ROLES.map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
-                  </select>
-                )}
+                <select
+                  value={editUser.role}
+                  onChange={(event) => setEditUser(current => current ? { ...current, role: event.target.value } : current)}
+                  className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[var(--clinical-blue)] transition-all"
+                >
+                  {editUser.role === 'super_admin' && (
+                    <option value="super_admin">Global Admin</option>
+                  )}
+                  {EDIT_ROLES.map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Site scope</label>

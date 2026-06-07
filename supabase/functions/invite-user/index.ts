@@ -309,7 +309,12 @@ Deno.serve(async (req) => {
       },
     })
 
-    if (inviteError) {
+    // "User already registered" means the account exists — no invite email needed,
+    // but we still upsert pending_invites so the DB trigger updates their profile.
+    const userAlreadyExists =
+      inviteError?.message?.toLowerCase().includes('already registered') ?? false
+
+    if (inviteError && !userAlreadyExists) {
       return json(400, { error: inviteError.message })
     }
 
