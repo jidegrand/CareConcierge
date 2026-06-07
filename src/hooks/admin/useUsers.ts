@@ -84,6 +84,18 @@ export function useUsers(tenantId: string | undefined) {
     const normalizedEmail = email.trim().toLowerCase()
     const headers = await getInviteAuthorizationHeaders()
 
+    // Check if invite already exists
+    const { data: existingInvite } = await supabase
+      .from('pending_invites')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .eq('tenant_id', tenantId)
+      .single()
+
+    if (existingInvite) {
+      throw new Error(`An invite has already been sent to ${normalizedEmail}`)
+    }
+
     const { data, error: inviteError } = await supabase.functions.invoke('invite-user', {
       headers,
       body: {
@@ -97,6 +109,24 @@ export function useUsers(tenantId: string | undefined) {
     })
     const errorMessage = await getInviteFunctionError(data, inviteError)
     if (errorMessage) throw new Error(formatInviteEmailError(errorMessage))
+
+    // Confirm the invite landed in the database; the upsert can lag slightly behind the function response
+    let inviteCreated = false
+    for (let attempt = 0; attempt < 3 && !inviteCreated; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      const { data: newInvite } = await supabase
+        .from('pending_invites')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .eq('tenant_id', tenantId)
+        .single()
+
+      if (newInvite) inviteCreated = true
+    }
+
+    if (!inviteCreated) {
+      console.warn(`Invite to ${normalizedEmail} was accepted but not yet visible in pending_invites; it may still be processing`)
+    }
 
     await fetch()
   }
