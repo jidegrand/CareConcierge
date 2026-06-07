@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { consumeInitialPasswordRecoveryCallback, supabase } from '@/lib/supabase'
 import { PRODUCT_NAME } from '@/lib/brand'
+import { formatInviteEmailError, getInviteFunctionError } from '@/lib/invites'
 
 type ResetMode = 'request' | 'update'
 
@@ -104,10 +105,9 @@ export default function ResetPasswordPage() {
       },
     })
 
-    if (requestError) {
-      setError(requestError.message)
-    } else if (data?.error) {
-      setError(data.error)
+    const errorMessage = await getInviteFunctionError(data, requestError)
+    if (errorMessage) {
+      setError(formatInviteEmailError(errorMessage))
     } else {
       setSent(true)
       setSuccess('If that staff account exists, password reset instructions were sent.')
