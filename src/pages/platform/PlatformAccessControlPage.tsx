@@ -28,7 +28,7 @@ function isValidEmail(value: string) {
 
 export default function PlatformAccessControlPage() {
   const { selectedOrganizationId } = usePlatformContext()
-  const { users, loading, error, updateAccess, setUserActive, inviteSuperAdmin } = usePlatformAccess(true)
+  const { users, loading, error, updateAccess, setUserActive, deleteUser, inviteSuperAdmin } = usePlatformAccess(true)
   const { sites } = useSites(selectedOrganizationId)
   const { tenants } = useTenants(true)
   const [roleFilter, setRoleFilter] = useState<'all' | string>('all')
@@ -40,6 +40,10 @@ export default function PlatformAccessControlPage() {
   const [accessUser, setAccessUser] = useState<PlatformAccessUser | null>(null)
   const [togglingAccess, setTogglingAccess] = useState(false)
   const [accessError, setAccessError] = useState<string | null>(null)
+  const [deleteUserTarget, setDeleteUserTarget] = useState<PlatformAccessUser | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [showAddGlobalAdmin, setShowAddGlobalAdmin] = useState(false)
   const [inviteStep, setInviteStep] = useState<GlobalAdminInviteStep>('details')
   const [inviteEmail, setInviteEmail] = useState('')
@@ -132,6 +136,36 @@ export default function PlatformAccessControlPage() {
     setTogglingAccess(false)
   }
 
+  const handleDeleteUser = async () => {
+    if (!deleteUserTarget) return
+    setDeleting(true)
+    setDeleteError(null)
+    setMessage(null)
+    try {
+      await deleteUser(deleteUserTarget.id)
+      setMessage('Account deleted.')
+      closeDeleteUser()
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Unable to delete account')
+    }
+    setDeleting(false)
+  }
+
+  const openDeleteUser = (user: PlatformAccessUser) => {
+    setDeleteUserTarget(user)
+    setDeleteConfirmText('')
+    setDeleteError(null)
+  }
+
+  const closeDeleteUser = () => {
+    setDeleteUserTarget(null)
+    setDeleteConfirmText('')
+    setDeleteError(null)
+  }
+
+  const deleteConfirmTarget = (deleteUserTarget?.email ?? deleteUserTarget?.id ?? '').trim().toLowerCase()
+  const canConfirmDelete = Boolean(deleteUserTarget) && deleteConfirmText.trim().toLowerCase() === deleteConfirmTarget
+
   const handleInviteGlobalAdmin = async () => {
     if (!canSendGlobalAdminInvite) return
     setInviting(true)
@@ -215,10 +249,10 @@ export default function PlatformAccessControlPage() {
           <PanelLoading label="Loading access roster…" />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px]">
+            <table className="w-full min-w-[980px]">
             <thead>
               <tr className="bg-[var(--page-bg)] border-b border-[var(--border)]">
-                {['User', 'Role', 'Organization', 'Site', 'Unit', 'Joined', 'Actions'].map((header) => (
+                {['User', 'Email', 'Role', 'Organization', 'Site', 'Unit', 'Joined', 'Actions'].map((header) => (
                   <th key={header} className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{header}</th>
                 ))}
               </tr>
@@ -230,6 +264,7 @@ export default function PlatformAccessControlPage() {
                     <p className="text-sm font-semibold text-[var(--text-primary)]">{user.full_name ?? `User ${user.id.slice(0, 8)}`}</p>
                     <p className="text-xs text-[var(--text-muted)] font-mono">{user.id.slice(0, 8)}…</p>
                   </td>
+                  <td className="px-4 py-3.5 text-sm text-[var(--text-secondary)] break-all">{user.email ?? '—'}</td>
                   <td className="px-4 py-3.5">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <RolePill role={user.role} />
@@ -255,6 +290,12 @@ export default function PlatformAccessControlPage() {
                         className={`text-xs font-medium hover:underline ${user.active ? 'text-red-600' : 'text-emerald-600'}`}
                       >
                         {user.active ? 'Disable access' : 'Enable access'}
+                      </button>
+                      <button
+                        onClick={() => openDeleteUser(user)}
+                        className="text-xs font-medium text-red-700 hover:underline"
+                      >
+                        Delete account
                       </button>
                     </div>
                   </td>
@@ -413,6 +454,50 @@ export default function PlatformAccessControlPage() {
                 className={`px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-50 transition-colors ${accessUser.active ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
               >
                 {togglingAccess ? 'Saving…' : accessUser.active ? 'Disable access' : 'Enable access'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteUserTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
+          <div className="bg-white rounded-2xl shadow-lift w-full max-w-md max-h-[90vh] overflow-y-auto animate-bounce-in">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">Delete Account</h3>
+              <button onClick={closeDeleteUser} className="w-7 h-7 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)]">✕</button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--page-bg)] px-3.5 py-2.5 text-sm text-[var(--text-secondary)]">
+                {deleteUserTarget.full_name ?? `User ${deleteUserTarget.id.slice(0, 8)}`} — {deleteUserTarget.email ?? deleteUserTarget.organizationName}
+              </div>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                This permanently deletes the account and all associated profile data. This cannot be undone — they will need a brand new invite to regain access.
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+                  Type <span className="font-mono text-red-700">{deleteConfirmTarget}</span> to confirm
+                </label>
+                <input
+                  value={deleteConfirmText}
+                  onChange={(event) => setDeleteConfirmText(event.target.value)}
+                  placeholder={deleteConfirmTarget}
+                  className="w-full border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/10 transition-all"
+                />
+              </div>
+              {deleteError && <Banner tone="error" message={deleteError} />}
+            </div>
+            <div className="flex flex-col-reverse gap-2 px-5 py-4 border-t border-[var(--border)] sm:flex-row sm:justify-end">
+              <button onClick={closeDeleteUser}
+                className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteUser}
+                disabled={deleting || !canConfirmDelete}
+                className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium disabled:opacity-50 hover:bg-red-700 transition-colors"
+              >
+                {deleting ? 'Deleting…' : 'Delete account'}
               </button>
             </div>
           </div>

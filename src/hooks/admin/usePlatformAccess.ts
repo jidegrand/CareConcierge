@@ -5,6 +5,7 @@ import { formatInviteEmailError, getInviteAuthorizationHeaders, getInviteFunctio
 import { getSingle, type MaybeArray } from '@/lib/utils'
 export interface PlatformAccessUser {
   id: string
+  email: string | null
   full_name: string | null
   role: string
   tenant_id: string
@@ -58,6 +59,7 @@ export function usePlatformAccess(enabled = true) {
       unit?: MaybeArray<{ name: string }>
     }>).map((entry) => ({
       id: entry.id,
+      email: null as string | null,
       full_name: entry.full_name,
       role: entry.role,
       tenant_id: entry.tenant_id,
@@ -73,6 +75,20 @@ export function usePlatformAccess(enabled = true) {
 
     setUsers(mapped)
     setLoading(false)
+
+    try {
+      const headers = await getInviteAuthorizationHeaders()
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('platform-user-admin', {
+        headers,
+        body: { action: 'emails', userIds: mapped.map(u => u.id) },
+      })
+      if (!emailError) {
+        const emails = (emailData as { emails?: Record<string, string> } | null)?.emails ?? {}
+        setUsers(current => current.map(u => ({ ...u, email: emails[u.id] ?? u.email })))
+      }
+    } catch {
+      // Email lookup is a best-effort enrichment; ignore failures.
+    }
   }, [enabled])
 
   useEffect(() => { fetch() }, [fetch])
@@ -86,6 +102,17 @@ export function usePlatformAccess(enabled = true) {
   const setUserActive = async (userId: string, active: boolean) => {
     const { error: err } = await supabase.from('user_profiles').update({ active }).eq('id', userId)
     if (err) throw new Error(err.message)
+    await fetch()
+  }
+
+  const deleteUser = async (userId: string) => {
+    const headers = await getInviteAuthorizationHeaders()
+    const { data, error: err } = await supabase.functions.invoke('platform-user-admin', {
+      headers,
+      body: { action: 'delete', userId },
+    })
+    const errorMessage = await getInviteFunctionError(data, err)
+    if (errorMessage) throw new Error(errorMessage)
     await fetch()
   }
 
@@ -140,5 +167,5 @@ export function usePlatformAccess(enabled = true) {
     await fetch()
   }
 
-  return { users, loading, error, refresh: fetch, updateAccess, setUserActive, inviteSuperAdmin }
+  return { users, loading, error, refresh: fetch, updateAccess, setUserActive, deleteUser, inviteSuperAdmin }
 }
