@@ -66,6 +66,69 @@ const INVITER_ROLES = new Set<InviteRole>([
   'site_manager',
 ])
 
+const ROLE_LABELS: Record<InviteRole, string> = {
+  super_admin: 'Global Admin',
+  tenant_admin: 'Tenant Admin',
+  nurse_manager: 'Nurse Manager',
+  site_manager: 'Site Manager',
+  charge_nurse: 'Charge Nurse',
+  nurse: 'Nurse',
+  volunteer: 'Volunteer',
+  viewer: 'Viewer',
+}
+
+const ACCESS_CHANGED_EMAIL_HTML = `<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Access changed</title></head>
+<body style="margin:0;background:#0D1117;font-family:Arial,Helvetica,sans-serif;color:#E6EDF3;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0D1117;padding:32px 16px;"><tr><td align="center"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#161B22;border:1px solid #30363D;border-radius:16px;overflow:hidden;"><tr><td style="padding:24px 28px;border-bottom:1px solid #30363D;"><div style="font-size:15px;font-weight:700;">Care <span style="color:#4DA6E8;">Concierge</span></div></td></tr><tr><td style="padding:30px 28px;"><h1 style="margin:0;font-size:24px;line-height:1.25;">Your access changed</h1><p style="margin:14px 0 0;font-size:15px;line-height:1.6;color:#8B949E;">Your Care Concierge role or site/unit scope was updated for {{ organization_name }}.</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;background:#0D1117;border:1px solid #30363D;border-radius:12px;"><tr><td style="padding:16px 18px;font-size:14px;line-height:1.6;color:#E6EDF3;">Role: {{ role }}<br>Site: {{ site_name }}<br>Unit: {{ unit_name }}</td></tr></table></td></tr></table></td></tr></table></body></html>`
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+async function sendAccessChangedEmail(params: {
+  to: string
+  organizationName: string
+  role: InviteRole
+  siteName: string | null
+  unitName: string | null
+}) {
+  const apiKey = Deno.env.get('RESEND_API_KEY')
+  if (!apiKey) {
+    console.warn('RESEND_API_KEY is not configured; skipping access-changed notification email')
+    return
+  }
+
+  const fromAddress = Deno.env.get('RESEND_FROM_EMAIL') ?? 'Care Concierge <no-reply@care.extendihealth.com>'
+  const html = ACCESS_CHANGED_EMAIL_HTML
+    .replaceAll('{{ organization_name }}', escapeHtml(params.organizationName))
+    .replaceAll('{{ role }}', escapeHtml(ROLE_LABELS[params.role]))
+    .replaceAll('{{ site_name }}', escapeHtml(params.siteName ?? 'All sites'))
+    .replaceAll('{{ unit_name }}', escapeHtml(params.unitName ?? 'All units'))
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: fromAddress,
+      to: params.to,
+      subject: 'Your Care Concierge access changed',
+      html,
+    }),
+  })
+
+  if (!res.ok) {
+    console.warn('Failed to send access-changed notification email', await res.text())
+  }
+}
+
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
@@ -255,6 +318,9 @@ Deno.serve(async (req) => {
       return json(404, { error: 'Organization not found.' })
     }
 
+    let siteName: string | null = null
+    let unitName: string | null = null
+
     if (siteId) {
       const { data: site, error: siteError } = await admin
         .from('sites')
@@ -265,6 +331,7 @@ Deno.serve(async (req) => {
       if (siteError || !site || site.tenant_id !== tenantId) {
         return json(400, { error: 'Selected site does not belong to this organization.' })
       }
+      siteName = site.name
     }
 
     if (unitId) {
@@ -282,6 +349,7 @@ Deno.serve(async (req) => {
         return json(400, { error: 'Selected unit does not belong to the selected site.' })
       }
       siteId = siteId ?? unit.site_id
+      unitName = unit.name
     }
 
     if (caller.site_id) {
@@ -330,14 +398,26 @@ Deno.serve(async (req) => {
       },
     })
 
-    // "User already registered" means the account exists — no invite email needed,
-    // but we keep the pending_invites row so the DB trigger updates their profile.
+    // "User already registered" means the account exists — no invite email needed.
+    // The pending_invites row we wrote above is consumed immediately by the
+    // on_pending_invite_created_profile trigger, which promotes their profile to
+    // the new role/tenant/scope. Notify them by email since they won't get an invite.
     const userAlreadyExists =
       inviteError?.message?.toLowerCase().includes('already registered') ?? false
 
     if (inviteError && !userAlreadyExists) {
       await admin.from('pending_invites').delete().eq('email', email)
       return json(400, { error: inviteError.message })
+    }
+
+    if (userAlreadyExists) {
+      await sendAccessChangedEmail({
+        to: email,
+        organizationName: tenant.name,
+        role,
+        siteName,
+        unitName,
+      })
     }
 
     return json(200, { success: true })
