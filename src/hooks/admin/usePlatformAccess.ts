@@ -77,9 +77,17 @@ export function usePlatformAccess(enabled = true) {
     setLoading(false)
 
     try {
-      const headers = await getInviteAuthorizationHeaders()
+      // Best-effort enrichment: use the existing session token directly. Do NOT
+      // call getInviteAuthorizationHeaders here — its forced refreshSession()
+      // rotates the refresh token, and running that on every fetch (including
+      // after every mutation) races with Supabase's own auto-refresh and tears
+      // down the session, logging the admin out.
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (!accessToken) return
+
       const { data: emailData, error: emailError } = await supabase.functions.invoke('platform-user-admin', {
-        headers,
+        headers: { Authorization: `Bearer ${accessToken}` },
         body: { action: 'emails', userIds: mapped.map(u => u.id) },
       })
       if (!emailError) {
