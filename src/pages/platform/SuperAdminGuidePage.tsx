@@ -215,7 +215,7 @@ export default function SuperAdminGuidePage() {
 
               <Step n={3} title="Run migrations in order">
                 <p className="mb-2">After the base schema, run the numbered migration files in <InlineCode>supabase/migrations/</InlineCode> in ascending order until you reach the latest one in the repo. Each migration file is self-contained — open it in SQL Editor, paste, and run.</p>
-                <Warning>Do not skip migrations or run them out of order. Each one may depend on objects created by a previous one.</Warning>
+                <Warning>Do not skip migrations or run them out of order. Each one may depend on objects created by a previous one. In particular, <InlineCode>pending_invites</InlineCode> needs a <InlineCode>UNIQUE (email)</InlineCode> constraint — the <InlineCode>invite-user</InlineCode> Edge Function upserts on <InlineCode>onConflict: 'email'</InlineCode>, and Postgres rejects that upsert with "no unique or exclusion constraint matching the ON CONFLICT specification" if the constraint is missing, silently breaking every invite.</Warning>
               </Step>
 
               <Step n={4} title="Configure Authentication">
@@ -632,8 +632,20 @@ WHERE id = (
                 Use the global organization selector at the top of the platform console to scope the Access Control view to a single tenant. Useful when a client reports a user can't log in or has the wrong permissions.
               </Step>
 
+              <Step n={4} title="View account emails">
+                The user table includes an <strong>Email</strong> column. Emails are fetched best-effort via the <InlineCode>platform-user-admin</InlineCode> Edge Function (super-admin only) and shown alongside each row — useful for confirming you're editing the right account before changing its role or organisation.
+              </Step>
+
+              <Step n={5} title="Delete an account">
+                Click <strong>Delete account</strong> on a user's row to permanently remove them. You must type the account's exact email address to confirm — this guards against accidental deletions. Deleting a user removes their <InlineCode>auth.users</InlineCode> row (and cascades to their <InlineCode>user_profiles</InlineCode> row) via the <InlineCode>platform-user-admin</InlineCode> Edge Function. You cannot delete your own account.
+              </Step>
+
+              <Note>
+                <strong>Promoting an existing account:</strong> If you invite or re-assign someone whose email is already registered, <InlineCode>inviteUserByEmail</InlineCode> won't send a new invite (the account already exists) — the <InlineCode>invite-user</InlineCode> Edge Function instead promotes their <InlineCode>user_profiles</InlineCode> row immediately and sends them an "Your access changed" email via Resend so they know their role, organisation, site, or unit was updated.
+              </Note>
+
               <Danger>
-                Changing a user's role to <strong>super_admin</strong> gives them full, unrestricted access to every tenant's data. Reserve this for {COMPANY_NAME} staff only.
+                Changing a user's role to <strong>super_admin</strong> gives them full, unrestricted access to every tenant's data. Reserve this for {COMPANY_NAME} staff only. Deleting an account is permanent and cannot be undone from the UI.
               </Danger>
             </GuideSection>
 
