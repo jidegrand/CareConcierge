@@ -295,29 +295,10 @@ Deno.serve(async (req) => {
       ? buildRootUrl('/set-password', redirectTo)
       : buildTenantUrl(tenant.slug, '/set-password', redirectTo)
 
-    const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: inviteRedirectTo,
-      data: {
-        organization_name: tenant.name,
-        organization_slug: tenant.slug,
-        role,
-        tenant_id: tenantId,
-        site_id: siteId,
-        unit_id: unitId,
-        invited_by_name: caller.full_name,
-        invited_by_email: authUser.user.email,
-      },
-    })
-
-    // "User already registered" means the account exists — no invite email needed,
-    // but we still upsert pending_invites so the DB trigger updates their profile.
-    const userAlreadyExists =
-      inviteError?.message?.toLowerCase().includes('already registered') ?? false
-
-    if (inviteError && !userAlreadyExists) {
-      return json(400, { error: inviteError.message })
-    }
-
+    // Write the pending invite BEFORE calling inviteUserByEmail. inviteUserByEmail
+    // creates the auth.users row synchronously, which fires a DB trigger that reads
+    // pending_invites to assign the trusted role/tenant — if that row doesn't exist
+    // yet, the trigger falls back to (and downgrades) the role from user metadata.
     const inviteRecord = {
       email,
       tenant_id: tenantId,
@@ -333,6 +314,30 @@ Deno.serve(async (req) => {
 
     if (pendingInviteError) {
       return json(400, { error: pendingInviteError.message })
+    }
+
+    const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: inviteRedirectTo,
+      data: {
+        organization_name: tenant.name,
+        organization_slug: tenant.slug,
+        role,
+        tenant_id: tenantId,
+        site_id: siteId,
+        unit_id: unitId,
+        invited_by_name: caller.full_name,
+        invited_by_email: authUser.user.email,
+      },
+    })
+
+    // "User already registered" means the account exists — no invite email needed,
+    // but we keep the pending_invites row so the DB trigger updates their profile.
+    const userAlreadyExists =
+      inviteError?.message?.toLowerCase().includes('already registered') ?? false
+
+    if (inviteError && !userAlreadyExists) {
+      await admin.from('pending_invites').delete().eq('email', email)
+      return json(400, { error: inviteError.message })
     }
 
     return json(200, { success: true })
