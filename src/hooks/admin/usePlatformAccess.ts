@@ -11,6 +11,7 @@ export interface PlatformAccessUser {
   site_id: string | null
   unit_id: string | null
   created_at: string
+  active: boolean
   organizationName: string
   organizationSlug: string
   siteName: string | null
@@ -34,7 +35,7 @@ export function usePlatformAccess(enabled = true) {
 
     const { data, error: err } = await supabase
       .from('user_profiles')
-      .select(`id, tenant_id, site_id, unit_id, role, full_name, created_at, tenant:tenants (name, slug), site:sites (name), unit:units (name)`)
+      .select(`id, tenant_id, site_id, unit_id, role, full_name, created_at, active, tenant:tenants (name, slug), site:sites (name), unit:units (name)`)
       .order('created_at', { ascending: false })
 
     if (err) {
@@ -51,6 +52,7 @@ export function usePlatformAccess(enabled = true) {
       site_id: string | null
       unit_id: string | null
       created_at: string
+      active: boolean
       tenant?: MaybeArray<{ name: string; slug: string }>
       site?: MaybeArray<{ name: string }>
       unit?: MaybeArray<{ name: string }>
@@ -62,6 +64,7 @@ export function usePlatformAccess(enabled = true) {
       site_id: entry.site_id,
       unit_id: entry.unit_id,
       created_at: entry.created_at,
+      active: entry.active,
       organizationName: getSingle(entry.tenant)?.name ?? 'Unknown organization',
       organizationSlug: getSingle(entry.tenant)?.slug ?? 'unknown',
       siteName: getSingle(entry.site)?.name ?? null,
@@ -76,6 +79,12 @@ export function usePlatformAccess(enabled = true) {
 
   const updateAccess = async (userId: string, values: { role: string; site_id: string | null; unit_id: string | null }) => {
     const { error: err } = await supabase.from('user_profiles').update(values).eq('id', userId)
+    if (err) throw new Error(err.message)
+    await fetch()
+  }
+
+  const setUserActive = async (userId: string, active: boolean) => {
+    const { error: err } = await supabase.from('user_profiles').update({ active }).eq('id', userId)
     if (err) throw new Error(err.message)
     await fetch()
   }
@@ -131,5 +140,5 @@ export function usePlatformAccess(enabled = true) {
     await fetch()
   }
 
-  return { users, loading, error, refresh: fetch, updateAccess, inviteSuperAdmin }
+  return { users, loading, error, refresh: fetch, updateAccess, setUserActive, inviteSuperAdmin }
 }

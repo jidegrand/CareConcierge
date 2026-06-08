@@ -28,7 +28,7 @@ function isValidEmail(value: string) {
 
 export default function PlatformAccessControlPage() {
   const { selectedOrganizationId } = usePlatformContext()
-  const { users, loading, error, updateAccess, inviteSuperAdmin } = usePlatformAccess(true)
+  const { users, loading, error, updateAccess, setUserActive, inviteSuperAdmin } = usePlatformAccess(true)
   const { sites } = useSites(selectedOrganizationId)
   const { tenants } = useTenants(true)
   const [roleFilter, setRoleFilter] = useState<'all' | string>('all')
@@ -37,6 +37,9 @@ export default function PlatformAccessControlPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [accessUser, setAccessUser] = useState<PlatformAccessUser | null>(null)
+  const [togglingAccess, setTogglingAccess] = useState(false)
+  const [accessError, setAccessError] = useState<string | null>(null)
   const [showAddGlobalAdmin, setShowAddGlobalAdmin] = useState(false)
   const [inviteStep, setInviteStep] = useState<GlobalAdminInviteStep>('details')
   const [inviteEmail, setInviteEmail] = useState('')
@@ -112,6 +115,21 @@ export default function PlatformAccessControlPage() {
       setSaveError(err instanceof Error ? err.message : 'Unable to update access')
     }
     setSaving(false)
+  }
+
+  const handleToggleActive = async () => {
+    if (!accessUser) return
+    setTogglingAccess(true)
+    setAccessError(null)
+    setMessage(null)
+    try {
+      await setUserActive(accessUser.id, !accessUser.active)
+      setMessage(accessUser.active ? 'Access disabled.' : 'Access enabled.')
+      setAccessUser(null)
+    } catch (err: unknown) {
+      setAccessError(err instanceof Error ? err.message : 'Unable to update access')
+    }
+    setTogglingAccess(false)
   }
 
   const handleInviteGlobalAdmin = async () => {
@@ -212,18 +230,33 @@ export default function PlatformAccessControlPage() {
                     <p className="text-sm font-semibold text-[var(--text-primary)]">{user.full_name ?? `User ${user.id.slice(0, 8)}`}</p>
                     <p className="text-xs text-[var(--text-muted)] font-mono">{user.id.slice(0, 8)}…</p>
                   </td>
-                  <td className="px-4 py-3.5"><RolePill role={user.role} /></td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <RolePill role={user.role} />
+                      {!user.active && (
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-700">Disabled</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-3.5 text-sm text-[var(--text-secondary)]">{user.organizationName}</td>
                   <td className="px-4 py-3.5 text-sm text-[var(--text-secondary)]">{user.siteName ?? 'All sites'}</td>
                   <td className="px-4 py-3.5 text-sm text-[var(--text-secondary)]">{user.unitName ?? 'All units'}</td>
                   <td className="px-4 py-3.5 text-xs text-[var(--text-muted)]">{fmtDate(user.created_at)}</td>
                   <td className="px-4 py-3.5">
-                    <button
-                      onClick={() => { setEditUser({ ...user }); setSaveError(null) }}
-                      className="text-xs font-medium text-[var(--clinical-blue)] hover:underline"
-                    >
-                      Edit access
-                    </button>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={() => { setEditUser({ ...user }); setSaveError(null) }}
+                        className="text-xs font-medium text-[var(--clinical-blue)] hover:underline"
+                      >
+                        Edit access
+                      </button>
+                      <button
+                        onClick={() => { setAccessUser(user); setAccessError(null) }}
+                        className={`text-xs font-medium hover:underline ${user.active ? 'text-red-600' : 'text-emerald-600'}`}
+                      >
+                        {user.active ? 'Disable access' : 'Enable access'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -343,6 +376,45 @@ export default function PlatformAccessControlPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {accessUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}>
+          <div className="bg-white rounded-2xl shadow-lift w-full max-w-md max-h-[90vh] overflow-y-auto animate-bounce-in">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">{accessUser.active ? 'Disable Access' : 'Enable Access'}</h3>
+              <button onClick={() => setAccessUser(null)} className="w-7 h-7 rounded-full hover:bg-[var(--page-bg)] flex items-center justify-center text-[var(--text-muted)]">✕</button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--page-bg)] px-3.5 py-2.5 text-sm text-[var(--text-secondary)]">
+                {accessUser.full_name ?? `User ${accessUser.id.slice(0, 8)}`} — {accessUser.organizationName}
+              </div>
+              {accessUser.active ? (
+                <p className="text-sm text-[var(--text-secondary)]">
+                  This will immediately revoke {accessUser.role === 'super_admin' ? 'global admin' : 'platform'} access. They will no longer be able to sign in until access is re-enabled.
+                </p>
+              ) : (
+                <p className="text-sm text-[var(--text-secondary)]">
+                  This will restore their access and let them sign in again with their existing role.
+                </p>
+              )}
+              {accessError && <Banner tone="error" message={accessError} />}
+            </div>
+            <div className="flex flex-col-reverse gap-2 px-5 py-4 border-t border-[var(--border)] sm:flex-row sm:justify-end">
+              <button onClick={() => setAccessUser(null)}
+                className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleToggleActive}
+                disabled={togglingAccess}
+                className={`px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-50 transition-colors ${accessUser.active ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+              >
+                {togglingAccess ? 'Saving…' : accessUser.active ? 'Disable access' : 'Enable access'}
+              </button>
+            </div>
           </div>
         </div>
       )}
