@@ -82,7 +82,7 @@ function normalizeEmail(value: unknown) {
 
 function requireUuid(value: string | null | undefined, label: string) {
   if (!value) return null
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
     throw new Error(`${label} is not a valid UUID.`)
   }
   return value
