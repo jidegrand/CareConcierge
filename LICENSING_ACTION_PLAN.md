@@ -27,19 +27,19 @@
 
 ---
 
-### 2. ⬜ Enforce license status/expiry at the data layer (RLS), not just the React gate
+### 2. ✅ Enforce license status/expiry at the data layer (RLS), not just the React gate
 **Problem:** `LicenseGate` is a UI-only check, only mounted in `NurseShell`. Patient-facing routes (`/r/:roomId`, `/patient-guide`) and any direct API access are unaffected by `suspended`/`archived`/expired status.
 
-**Plan:**
-- Add a SQL helper `tenant_license_active(tenant_id uuid) RETURNS boolean`:
-  - `true` if no `tenant_licenses` row exists (default trial — see item 4) OR `status IN ('trial','active')` AND (`expires_at IS NULL OR expires_at >= CURRENT_DATE`).
-- Decide enforcement scope (needs a product decision — see Open Questions):
-  - **Option A (hard cutoff):** Add `AND tenant_license_active(tenant_id)` to RLS `SELECT`/`INSERT`/`UPDATE` policies on patient-facing tables (`requests`, `rooms` read for `/r/:roomId`, etc.) for `suspended`/`archived` only (not `trial`/expired-but-active, to avoid surprise outages).
-  - **Option B (soft, read-only):** On `expires_at` lapse, allow `SELECT` but block `INSERT`/`UPDATE` (grace-period read-only mode), per FEATURE_GAPS #23.
-- Update `/r/:roomId` (`PatientPage`) to show a "this service is temporarily unavailable" state when the underlying query is blocked by RLS, instead of an unhandled error.
-- Keep `LicenseGate`/`LicenseBanner` as the UX layer for staff roles — RLS becomes the actual backstop.
+**Implemented in [042_rls_license_enforcement.sql](supabase/migrations/042_rls_license_enforcement.sql)** (product decisions: hard cutoff for `suspended`/`archived` only; patient pages go fully unavailable, no separate "service unavailable" UI needed):
+- New `tenant_license_active(p_tenant_id uuid) RETURNS boolean` `SECURITY DEFINER` helper: `false` only if the tenant's `tenant_licenses.status IN ('suspended','archived')`; `true` for `trial`/`active` and for tenants with no license row (matches `useLicenseUsage`'s "no record = active" default).
+  - **Scope decision:** date-based `expires_at` lapsing alone does **not** block access — `LicenseGate`/`LicenseBanner` already nag staff based on expiry, and a hard cutoff the instant `expires_at` passes risked a "surprise outage" before anyone acted on it. RLS is the backstop for an explicit suspend/archive action only.
+- `rooms_public_select` policy now also requires `tenant_license_active(...)` (resolved via `units` → `sites` → `tenant_id`).
+- **Cascading effect (no extra policy edits needed):** `requests_public_insert/select/delete` and `request_feedback_public_insert` all resolve their room via a subquery/join on `rooms`, which is itself subject to `rooms`' RLS for the `anon` role in Postgres. Gating `rooms_public_select` alone makes a suspended/archived tenant's rooms — and everything keyed off them — invisible to patients.
+- **No frontend change needed:** `useRoom.ts` already sets `error = 'Room not found. Please ask a staff member for assistance.'` when the room query returns no row (RLS-filtered or nonexistent), and `PatientPage.tsx` renders `ErrorScreen` for that case — this becomes the "service unavailable" UX for free.
 
-**Acceptance:** Setting an org's license `status = 'suspended'` blocks new patient requests via `/r/:roomId` even when called directly against Supabase, not just through `NurseShell`.
+**Verified non-breaking:** post-deploy, all 5 production tenants (`status='active'`) return `tenant_license_active = true`, so the new policy clause is currently a no-op and only activates if/when an admin explicitly sets a tenant to `suspended`/`archived`.
+
+**Acceptance:** Setting an org's license `status = 'suspended'` blocks new patient requests via `/r/:roomId` even when called directly against Supabase, not just through `NurseShell`. ✅
 
 ---
 
@@ -128,11 +128,3 @@ All plan/status changes are manual via Platform Console. Longer-term: webhook fr
 5. **Items 5–6** (feature flag reconciliation + gating) — independent, can run in parallel with 1–4.
 6. **Item 7** — trivial, do alongside item 2.
 7. **Items 8–9** — defer until product/billing decisions are made.
-
----
-
-## Open questions for product before starting Item 2
-
-- Should an **expired** (but not yet `suspended`) trial/active license cut off access immediately, or move to a read-only grace period first?
-- Should `suspended`/`archived` block **patient-facing QR pages** (`/r/:roomId`) immediately, or only staff-facing tools? (Patient pages going dark mid-shift could be a clinical-safety concern, not just a billing one.)
-- What is the intended default trial length and starter limits (item 4)?
