@@ -1,6 +1,7 @@
 import { Outlet, useLocation, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenantContext } from '@/hooks/useTenantContext'
+import { useFeatureGate } from '@/hooks/useFeatureGate'
 import LicenseBanner from '@/components/LicenseBanner'
 
 interface NavItem {
@@ -23,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
 export default function TenantAdminLayout() {
   const { profile } = useAuth()
   const { tenant, settings, loading } = useTenantContext()
+  const { enabled: auditLogsEnabled } = useFeatureGate('audit_logs')
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -44,6 +46,7 @@ export default function TenantAdminLayout() {
     )
   }
 
+  const visibleNavItems = NAV_ITEMS.filter(item => item.id !== 'audit-logs' || auditLogsEnabled)
   const currentNavItem = NAV_ITEMS.find(item => location.pathname.includes(item.path))
 
   return (
@@ -73,7 +76,7 @@ export default function TenantAdminLayout() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map(item => {
+          {visibleNavItems.map(item => {
             const isActive = location.pathname.includes(item.path)
             return (
               <Link

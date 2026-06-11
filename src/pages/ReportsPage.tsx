@@ -6,6 +6,8 @@ import { useRequests } from '@/hooks/useRequests'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenantContext } from '@/hooks/useTenantContext'
+import { useFeatureGate } from '@/hooks/useFeatureGate'
+import FeatureLocked from '@/components/FeatureLocked'
 import { can } from '@/lib/roles'
 import {
   fetchReportData,
@@ -65,6 +67,7 @@ export default function ReportsPage() {
   const { profile }   = useAuth()
   const { tenantId, tenantName, unitId } = useTenantContext()
   const { requestTypes } = useRequestTypes(tenantId)
+  const { enabled: reportsEnabled, loading: featureLoading } = useFeatureGate('reports')
 
   const analytics = useAnalytics(unitId, tenantId, requestTypes)
   const { requests, stats, connected, soundEnabled, setSoundEnabled } = useRequests(unitId, tenantId)
@@ -104,6 +107,18 @@ export default function ReportsPage() {
             </p>
           </div>
         </div>
+      </NurseShell>
+    )
+  }
+
+  if (!featureLoading && !reportsEnabled) {
+    return (
+      <NurseShell stats={stats} connected={connected} soundEnabled={soundEnabled}
+        onSoundToggle={() => setSoundEnabled(!soundEnabled)} unitName={unitName}>
+        <FeatureLocked
+          title="Reports & Analytics not available"
+          description="Reporting and analytics are not included in your organization's current plan. Contact your administrator to upgrade."
+        />
       </NurseShell>
     )
   }

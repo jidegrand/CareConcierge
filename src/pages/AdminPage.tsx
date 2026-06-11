@@ -9,6 +9,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useRequests } from '@/hooks/useRequests'
 import { useAdminStats } from '@/hooks/useAdminData'
+import { useFeatureGate } from '@/hooks/useFeatureGate'
+import FeatureLocked from '@/components/FeatureLocked'
 import { canAny } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 
@@ -46,6 +48,7 @@ export default function AdminPage() {
   const role     = profile?.role ?? 'nurse'
   const canAdmin = canAny(role, 'page.admin')
   const TABS = ALL_TABS.filter(t => !t.perm || canAny(role, t.perm))
+  const { enabled: customRequestsEnabled } = useFeatureGate('custom_requests')
 
   if (!canAdmin) {
     return (
@@ -164,7 +167,16 @@ export default function AdminPage() {
               />
             )}
             {tab === 'sites'    && effectiveTenantId && <SitesPanel tenantId={effectiveTenantId} />}
-            {tab === 'requests' && effectiveTenantId && <RequestTypesPanel tenantId={effectiveTenantId} />}
+            {tab === 'requests' && effectiveTenantId && (
+              customRequestsEnabled
+                ? <RequestTypesPanel tenantId={effectiveTenantId} />
+                : (
+                  <FeatureLocked
+                    title="Custom Request Types not available"
+                    description="Configuring custom request types is not included in your organization's current plan. Contact your administrator to upgrade."
+                  />
+                )
+            )}
             {tab === 'users'    && effectiveTenantId && <UsersPanel tenantId={effectiveTenantId} />}
             {tab === 'qr'       && effectiveTenantId && <QRPanel tenantId={effectiveTenantId} />}
           </div>

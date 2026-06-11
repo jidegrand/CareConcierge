@@ -6,6 +6,7 @@ import LicenseBanner from '@/components/LicenseBanner'
 import LicenseGate from '@/components/LicenseGate'
 import { can, canAny, NAV_ITEMS, ROLE_CFG, type UserRole } from '@/lib/roles'
 import { PRODUCT_NAME } from '@/lib/brand'
+import { useFeatureGate } from '@/hooks/useFeatureGate'
 import type { RequestStats } from '@/hooks/useRequests'
 
 interface Props {
@@ -66,15 +67,20 @@ export default function NurseShell({
   const nurseName = profile?.full_name ?? user?.email?.split('@')[0] ?? 'User'
   const initials  = nurseName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
 
-  // Filter nav items by role permission
-  const mainNav   = NAV_ITEMS.filter(item => item.section === 'main'   && can(role, item.perm))
+  const { enabled: qrCodesEnabled } = useFeatureGate('qr_codes')
+  const { enabled: reportsEnabled } = useFeatureGate('reports')
+
+  // Filter nav items by role permission and license entitlements
+  const mainNav   = NAV_ITEMS.filter(item =>
+    item.section === 'main' && can(role, item.perm) && (item.path !== '/reports' || reportsEnabled)
+  )
   const bottomNav = NAV_ITEMS.filter(item => item.section === 'bottom' && can(role, item.perm))
 
   // Admin shows in main nav only for managers and above
   const showAdmin      = canAny(role, 'page.admin')
   const showPlatform   = canAny(role, 'page.platform')
   const showTenantAdmin = can(role, 'page.tenant_admin')
-  const showQR         = canAny(role, 'page.qrsheet')
+  const showQR         = canAny(role, 'page.qrsheet') && qrCodesEnabled
 
   return (
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--page-bg)', fontFamily: "'DM Sans', system-ui, sans-serif" }}>

@@ -3,6 +3,8 @@ import QRCode from 'qrcode'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenantContext } from '@/hooks/useTenantContext'
+import { useFeatureGate } from '@/hooks/useFeatureGate'
+import FeatureLocked from '@/components/FeatureLocked'
 import { can } from '@/lib/roles'
 import type { Room, Unit, Site } from '@/types'
 
@@ -30,6 +32,7 @@ async function generateQRDataUrl(url: string): Promise<string> {
 export default function QRSheetPage() {
   const { profile } = useAuth()
   const { tenantId } = useTenantContext()
+  const { enabled: qrCodesEnabled, loading: featureLoading } = useFeatureGate('qr_codes')
   const role = profile?.role
 
   const [units, setUnits] = useState<(Unit & { site: Site })[]>([])
@@ -53,6 +56,17 @@ export default function QRSheetPage() {
         if (data) setUnits(data as (Unit & { site: Site })[])
       })
   }, [tenantId])
+
+  // Feature gate — qr_codes entitlement must be enabled for this tenant's license
+  if (!featureLoading && !qrCodesEnabled) {
+    return (
+      <FeatureLocked
+        dark
+        title="QR Code Management not available"
+        description="QR sheet generation is not included in your organization's current plan. Contact your administrator to upgrade."
+      />
+    )
+  }
 
   // Role guard — must have page.qrsheet permission
   if (!can(role, 'page.qrsheet')) {

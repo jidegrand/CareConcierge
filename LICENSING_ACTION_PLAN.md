@@ -96,18 +96,20 @@
 
 ---
 
-### 6. ⬜ Make feature flags actually gate functionality
-**Problem:** `hasFeature()` is only used cosmetically; toggling `qr_codes`/`api_access`/`global_reports`/etc. off has no functional effect.
+### 6. ✅ Make feature flags actually gate functionality
+**Problem:** `hasFeature()` was only used cosmetically; toggling `qr_codes`/`api_access`/`reports`/etc. off had no functional effect.
 
-**Plan (key list settled by item 5):**
-- `qr_codes` → gate `/qr-sheet` route and nav link behind `hasFeature('qr_codes')`.
-- `custom_requests` → gate the request-types configuration UI.
-- `reports` → gate `/reports` and `PlatformGlobalReportsPage`.
-- `audit_logs` → gate `/tenant-admin/audit-logs`.
-- `api_access` → blocked until an actual API surface exists (track under FEATURE_GAPS #39; no action here beyond not advertising it as available).
-- Add a small `useFeatureGate(featureKey)` hook wrapping `useLicenseUsage().hasFeature` for reuse, with a graceful "Upgrade to unlock" placeholder component.
+**Implemented:**
+- New [useFeatureGate.ts](src/hooks/useFeatureGate.ts) hook: looks up `license.features[key]` via `useLicense()`, with `super_admin` always treated as enabled (they manage the platform, not a single tenant's entitlements).
+- New [FeatureLocked.tsx](src/components/FeatureLocked.tsx): shared "Upgrade to unlock" placeholder (light theme for in-shell pages, `dark` variant for QRSheetPage's standalone dark theme).
+- `qr_codes` → [QRSheetPage.tsx](src/pages/QRSheetPage.tsx) renders `FeatureLocked` (dark) when disabled; [NurseShell.tsx](src/components/NurseShell.tsx) hides the "QR Sheets" nav item (`showQR = canAny(role, 'page.qrsheet') && qrCodesEnabled`).
+- `reports` → [ReportsPage.tsx](src/pages/ReportsPage.tsx) renders `FeatureLocked` when disabled; `NurseShell.tsx` filters the "Reports" item out of `mainNav` when disabled.
+- `audit_logs` → [AuditLogsPage.tsx](src/pages/tenant-admin/AuditLogsPage.tsx) renders `FeatureLocked` when disabled; [TenantAdminLayout.tsx](src/pages/tenant-admin/TenantAdminLayout.tsx) hides the "Audit Logs" sidebar item.
+- `custom_requests` → [AdminPage.tsx](src/pages/AdminPage.tsx) "Common Requests" tab renders `FeatureLocked` instead of `RequestTypesPanel` when disabled.
+- `api_access` → left as-is (still `coming_soon`, not yet a real feature — tracked under FEATURE_GAPS #39).
+- `PlatformGlobalReportsPage` → no change needed; it's `super_admin`-only and `useFeatureGate` always returns `enabled: true` for `super_admin`.
 
-**Acceptance:** Disabling `qr_codes` for a tenant hides the QR Sheet nav item and redirects direct navigation to an upgrade prompt.
+**Acceptance:** Disabling `qr_codes` for a tenant hides the QR Sheet nav item and shows an "Upgrade to unlock" placeholder on direct navigation to `/qr-sheet`. Same pattern applies to `reports`, `audit_logs`, and `custom_requests`. ✅
 
 ---
 

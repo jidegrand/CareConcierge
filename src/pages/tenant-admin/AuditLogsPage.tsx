@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useAuditLogs } from '@/hooks/tenant/useAuditLogs'
+import { useFeatureGate } from '@/hooks/useFeatureGate'
+import FeatureLocked from '@/components/FeatureLocked'
 
 const ACTIONS = [
   { value: 'created', label: 'Created', color: 'bg-blue-100 text-blue-700' },
@@ -23,6 +25,7 @@ function ActionBadge({ action }: { action: string }) {
 
 export default function AuditLogsPage() {
   const { tenant } = useTenantContext()
+  const { enabled: auditLogsEnabled, loading: featureLoading } = useFeatureGate('audit_logs')
   const [actionFilter, setActionFilter] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
@@ -59,6 +62,15 @@ export default function AuditLogsPage() {
   }
 
   const hasActiveFilters = actionFilter || startDate || endDate
+
+  if (!featureLoading && !auditLogsEnabled) {
+    return (
+      <FeatureLocked
+        title="Audit Logs not available"
+        description="Audit logs and compliance history are not included in your organization's current plan. Contact your administrator to upgrade."
+      />
+    )
+  }
 
   return (
     <div className="space-y-6">
