@@ -1,0 +1,136 @@
+# Licensing Enforcement — Action Plan
+
+> Companion to the licensing review (2026-06-11). Tracks remediation for the gaps where
+> `tenant_licenses` data is stored/displayed but not actually enforced. Supersedes/expands
+> `FEATURE_GAPS.md` items #22, #23, #26, #38, #39 with concrete implementation steps.
+>
+> Status legend: ⬜ not started · 🔶 in progress · ✅ done
+
+---
+
+## P0 — Revenue & access integrity
+
+### 1. ✅ Enforce resource limits server-side (sites/units/rooms/users)
+**Problem:** `site_limit`, `unit_limit`, `room_limit`, `user_limit` are stored but nothing blocks `INSERT` when exceeded — every plan has unlimited capacity in practice.
+
+**Implemented in [040_enforce_license_limits.sql](supabase/migrations/040_enforce_license_limits.sql):**
+- `sites`/`units`/`rooms`: statement-level `AFTER INSERT` triggers (`enforce_site_limit`, `enforce_unit_limit`, `enforce_room_limit`) that resolve the owning tenant (`units`/`rooms` via `site_id`/`unit_id` joins) and compare the post-insert count against `tenant_licenses.{site,unit,room}_limit`. Statement-level so multi-row inserts (e.g. `createRoomsFromTemplate`) are checked once against the final total, not row-by-row. `NULL` limit = unlimited, matching `useLicenseUsage` display logic.
+- `pending_invites`: row-level `BEFORE INSERT OR UPDATE` trigger (`enforce_user_limit`) checks `active user_profiles + other pending invites + 1` against `user_limit`. Enforced **at invite time** (not at `user_profiles` bootstrap on signup) — see design note below.
+- All raise a custom exception (`ERRCODE = 'LIC01'`) with a user-facing message, e.g. *"Your organization has reached its site limit of 1. Upgrade your plan to add more sites."*
+
+**No frontend mapping needed:** verified `createSite`/`createUnit`/`createRoomsFromTemplate` (`useTenantSites`, `useTenantUnits`, admin `useSites`) and the `invite-user` edge function → `getInviteFunctionError`/`formatInviteEmailError` all already propagate `err.message` straight to the UI (`SitesAndUnitsPage`, `SitesPanel`, `UsersPage`), so the trigger's message is shown as-is.
+
+**Design note — why `user_limit` is enforced on `pending_invites`, not `user_profiles`:**
+`user_profiles` rows are created via a `SECURITY DEFINER` trigger on `auth.users` insert (`handle_invited_user`, migration 025), which fires when the *invited user* completes signup — not when the admin acts. Blocking there would mean an invite could succeed today and then fail confusingly for the end-user during signup if the org's usage crept up in the meantime. Enforcing on `pending_invites` blocks the action at the point the *admin* clicks "Invite", with the error surfacing immediately in `UsersPage`.
+
+**Acceptance:** Attempting to create a 2nd site on a license with `site_limit = 1` fails both via direct Supabase call and via the UI, with a clear message. ✅
+
+---
+
+### 2. ⬜ Enforce license status/expiry at the data layer (RLS), not just the React gate
+**Problem:** `LicenseGate` is a UI-only check, only mounted in `NurseShell`. Patient-facing routes (`/r/:roomId`, `/patient-guide`) and any direct API access are unaffected by `suspended`/`archived`/expired status.
+
+**Plan:**
+- Add a SQL helper `tenant_license_active(tenant_id uuid) RETURNS boolean`:
+  - `true` if no `tenant_licenses` row exists (default trial — see item 4) OR `status IN ('trial','active')` AND (`expires_at IS NULL OR expires_at >= CURRENT_DATE`).
+- Decide enforcement scope (needs a product decision — see Open Questions):
+  - **Option A (hard cutoff):** Add `AND tenant_license_active(tenant_id)` to RLS `SELECT`/`INSERT`/`UPDATE` policies on patient-facing tables (`requests`, `rooms` read for `/r/:roomId`, etc.) for `suspended`/`archived` only (not `trial`/expired-but-active, to avoid surprise outages).
+  - **Option B (soft, read-only):** On `expires_at` lapse, allow `SELECT` but block `INSERT`/`UPDATE` (grace-period read-only mode), per FEATURE_GAPS #23.
+- Update `/r/:roomId` (`PatientPage`) to show a "this service is temporarily unavailable" state when the underlying query is blocked by RLS, instead of an unhandled error.
+- Keep `LicenseGate`/`LicenseBanner` as the UX layer for staff roles — RLS becomes the actual backstop.
+
+**Acceptance:** Setting an org's license `status = 'suspended'` blocks new patient requests via `/r/:roomId` even when called directly against Supabase, not just through `NurseShell`.
+
+---
+
+### 3. ⬜ Fix "Remove stored license" un-suspend footgun
+**Problem:** [useLicenses.ts](src/hooks/admin/useLicenses.ts) `deleteLicense()` removes the row entirely; the app then falls back to `status: 'trial', plan: 'pilot'`, no limits, no expiry — silently restoring full unrestricted access to a previously suspended/archived org.
+
+**Plan (pick one):**
+- **Preferred:** Remove the "Remove stored license" action entirely. A license row is created automatically for every tenant (migration 010 already does this for existing tenants — extend with a trigger on `tenants` INSERT so it's never missing). Editing always becomes an UPDATE.
+- **Alternative:** Keep delete, but change the fallback default in `useTenantLicenses` (and `useLicenseUsage`/`useLicense`) from `trial`/unlimited to `suspended`/zero-limits, so "no record" reads as "not provisioned" rather than "unrestricted trial". Update the UI copy on the delete-confirm dialog accordingly.
+
+**Acceptance:** There is no admin action that can move an org from `suspended`/`archived` back to functional access without explicitly setting `status` to `trial`/`active`.
+
+---
+
+### 4. ⬜ Give trial licenses a real, enforced expiry
+**Problem:** Seed insert (migration 010) sets `status='trial'`, `expires_at=NULL` — trials never expire and have no limits.
+
+**Plan:**
+- Add a migration that backfills `expires_at = starts_at + interval '30 days'` (or product-defined trial length) for existing rows where `status='trial' AND expires_at IS NULL`.
+- Change the auto-provisioning insert (wherever new tenants are created — likely an admin "create organization" flow) to set `expires_at = CURRENT_DATE + 30` and reasonable default trial limits (e.g., `site_limit=1, user_limit=5`) for new trials, configurable per product decision.
+- Confirm `useLicense.isExpired`/`isExpiringSoon` then naturally start firing for trials (no code change needed there — it already handles `expires_at`).
+
+**Acceptance:** A newly created org has a trial license with a concrete `expires_at` and non-null limits; `LicenseBanner` shows the countdown from day 1.
+
+---
+
+## P1 — Entitlements consistency
+
+### 5. ⬜ Reconcile feature-flag keys between admin editor and tenant display
+**Problem:** [PlatformLicensingPage.tsx](src/pages/platform/PlatformLicensingPage.tsx) writes `custom_requests`, `global_reports`, `qr_codes`, `api_access`. [LicensingPage.tsx](src/pages/tenant-admin/LicensingPage.tsx) `AVAILABLE_FEATURES` displays `patient_feedback`, `qr_codes`, `analytics`, `audit_logs`, `api_access`, `sso`, `custom_branding`, `dedicated_support`. Only 2 of 8 keys overlap.
+
+**Plan:**
+- Define a single source of truth: `src/lib/licenseFeatures.ts` exporting `LICENSE_FEATURES: { key, label, icon }[]` covering the agreed feature set.
+- Decide which 8 (or however many) features are actually real/roadmapped vs. aspirational placeholders — drop placeholders or mark them "Coming soon" rather than "Not available".
+- Update `PlatformLicensingPage`'s entitlement checkboxes and `LicensingPage`'s `AVAILABLE_FEATURES` to both import from `licenseFeatures.ts`.
+
+**Acceptance:** Every checkbox a super admin can toggle corresponds to a feature shown on the tenant licensing page, and vice versa.
+
+---
+
+### 6. ⬜ Make feature flags actually gate functionality
+**Problem:** `hasFeature()` is only used cosmetically; toggling `qr_codes`/`api_access`/`global_reports`/etc. off has no functional effect.
+
+**Plan (do after item 5 settles the key list):**
+- `qr_codes` → gate `/qr-sheet` route and nav link behind `hasFeature('qr_codes')`.
+- `global_reports`/`analytics` → gate `/reports` and `PlatformGlobalReportsPage`.
+- `audit_logs` → gate `/tenant-admin/audit-logs`.
+- `api_access` → blocked until an actual API surface exists (track under FEATURE_GAPS #39; no action here beyond not advertising it as available).
+- Add a small `useFeatureGate(featureKey)` hook wrapping `useLicenseUsage().hasFeature` for reuse, with a graceful "Upgrade to unlock" placeholder component.
+
+**Acceptance:** Disabling `qr_codes` for a tenant hides the QR Sheet nav item and redirects direct navigation to an upgrade prompt.
+
+---
+
+## P2 — UX polish
+
+### 7. ⬜ Tighten expiry-warning visibility for tenant_admin
+**Problem:** `LicenseBanner` warning tier is dismissible per session via `sessionStorage`; combined with `tenant_admin` bypassing `LicenseGate` entirely, an org could coast past expiry without a hard prompt until status flips.
+
+**Plan:**
+- Once item 2 (RLS enforcement) lands, this becomes lower-stakes (real consequences kick in regardless of banner dismissal).
+- Optional: persist dismissal in `localStorage` keyed by `license.id` + day-bucket (e.g., re-show once per calendar day in the final 7 days) instead of per-session, so a long-lived session doesn't suppress it indefinitely.
+
+**Acceptance:** A `tenant_admin` cannot avoid seeing the critical (≤7 day) banner more than once per day.
+
+---
+
+## P3 — Process / structural (no code yet — needs scoping)
+
+### 8. ⬜ Seat-based / per-user license tracking
+Current `user_limit` is a headcount cap only (and unenforced until item 1). If per-seat billing is the target model, design a `tenant_license_seats` table or `user_profiles.license_seat boolean` column. **Needs product input before scoping.**
+
+### 9. ⬜ Billing integration touchpoint
+All plan/status changes are manual via Platform Console. Longer-term: webhook from Stripe (or chosen processor) to update `tenant_licenses.status`/`plan`/`expires_at` on payment events. **Blocked on choice of billing provider — out of scope until a provider is selected.**
+
+---
+
+## Suggested sequencing
+
+1. **Item 4** (trial expiry defaults) — small, low-risk migration, unblocks realistic testing of items 1–2.
+2. **Item 3** (remove/neuter the delete-license footgun) — small, prevents accidental access restoration while other work lands.
+3. **Item 1** (server-side resource limits) — highest revenue-integrity impact.
+4. **Item 2** (RLS status/expiry enforcement) — needs the Open Questions below resolved first since it can lock out real orgs if scoped wrong.
+5. **Items 5–6** (feature flag reconciliation + gating) — independent, can run in parallel with 1–4.
+6. **Item 7** — trivial, do alongside item 2.
+7. **Items 8–9** — defer until product/billing decisions are made.
+
+---
+
+## Open questions for product before starting Item 2
+
+- Should an **expired** (but not yet `suspended`) trial/active license cut off access immediately, or move to a read-only grace period first?
+- Should `suspended`/`archived` block **patient-facing QR pages** (`/r/:roomId`) immediately, or only staff-facing tools? (Patient pages going dark mid-shift could be a clinical-safety concern, not just a billing one.)
+- What is the intended default trial length and starter limits (item 4)?
