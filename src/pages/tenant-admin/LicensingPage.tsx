@@ -1,16 +1,6 @@
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useLicenseUsage } from '@/hooks/tenant/useLicenseUsage'
-
-const AVAILABLE_FEATURES = [
-  { key: 'patient_feedback', label: 'Patient Feedback System', icon: '💬' },
-  { key: 'qr_codes', label: 'QR Code Management', icon: '📱' },
-  { key: 'analytics', label: 'Advanced Analytics', icon: '📊' },
-  { key: 'audit_logs', label: 'Audit Logs & Compliance', icon: '📋' },
-  { key: 'api_access', label: 'API Access', icon: '⚙️' },
-  { key: 'sso', label: 'Single Sign-On (SSO)', icon: '🔐' },
-  { key: 'custom_branding', label: 'Custom Branding', icon: '🎨' },
-  { key: 'dedicated_support', label: 'Dedicated Support', icon: '🛟' },
-]
+import { LICENSE_FEATURES } from '@/lib/licenseFeatures'
 
 function UsageBar({
   label,
@@ -226,8 +216,9 @@ export default function LicensingPage() {
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
         <h3 className="text-lg font-bold text-[var(--text-primary)] mb-6">Available Features</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {AVAILABLE_FEATURES.map((feature) => {
-            const isEnabled = hasFeature(feature.key)
+          {LICENSE_FEATURES.map((feature) => {
+            const isComingSoon = feature.category === 'coming_soon'
+            const isEnabled = feature.category === 'included' || (feature.category === 'entitlement' && hasFeature(feature.key))
             return (
               <div
                 key={feature.key}
@@ -243,7 +234,11 @@ export default function LicensingPage() {
                     {feature.label}
                   </p>
                   {isEnabled && <p className="text-xs text-green-700">Included</p>}
-                  {!isEnabled && <p className="text-xs text-[var(--text-secondary)]">Not available</p>}
+                  {!isEnabled && (
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      {isComingSoon ? 'Coming soon' : 'Not available'}
+                    </p>
+                  )}
                 </div>
                 {isEnabled && (
                   <span className="ml-auto text-xl">✓</span>

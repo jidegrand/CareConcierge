@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTenantLicenses, type TenantLicenseRecord } from '@/hooks/useAdminData'
 import { usePlatformContext } from '@/pages/platform/usePlatformContext'
+import { ENTITLEMENT_FEATURES } from '@/lib/licenseFeatures'
 
 type LicenseStatus = TenantLicenseRecord['status']
 type LicensePlan = TenantLicenseRecord['plan']
@@ -149,12 +150,7 @@ function LicenseEditor({
         user_limit: numberOrNull(form.user_limit),
         starts_at: form.starts_at || null,
         expires_at: form.expires_at || null,
-        features: {
-          custom_requests: form.custom_requests,
-          global_reports: form.global_reports,
-          qr_codes: form.qr_codes,
-          api_access: form.api_access,
-        },
+        features: { ...license.features, ...form.features },
         notes: form.notes || null,
       })
       setMessage('License saved.')
@@ -216,19 +212,14 @@ function LicenseEditor({
       <div className="mt-4">
         <p className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-2">Entitlements</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {[
-            ['custom_requests', 'Custom requests'],
-            ['global_reports', 'Global reports'],
-            ['qr_codes', 'QR code management'],
-            ['api_access', 'API access'],
-          ].map(([key, label]) => (
-            <label key={key} className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+          {ENTITLEMENT_FEATURES.map((feature) => (
+            <label key={feature.key} className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-secondary)]">
               <input
                 type="checkbox"
-                checked={Boolean(form[key as keyof typeof form])}
-                onChange={(event) => setForm(prev => ({ ...prev, [key]: event.target.checked }))}
+                checked={Boolean(form.features[feature.key])}
+                onChange={(event) => setForm(prev => ({ ...prev, features: { ...prev.features, [feature.key]: event.target.checked } }))}
               />
-              {label}
+              {feature.icon} {feature.label}
             </label>
           ))}
         </div>
@@ -263,6 +254,11 @@ function LicenseEditor({
 }
 
 function buildLicenseForm(license: TenantLicenseRecord | undefined) {
+  const features: Record<string, boolean> = {}
+  for (const feature of ENTITLEMENT_FEATURES) {
+    features[feature.key] = Boolean(license?.features?.[feature.key])
+  }
+
   return {
     tenantId: license?.tenant_id ?? '',
     status: license?.status ?? 'trial',
@@ -273,10 +269,7 @@ function buildLicenseForm(license: TenantLicenseRecord | undefined) {
     user_limit: license?.user_limit?.toString() ?? '',
     starts_at: license?.starts_at ?? '',
     expires_at: license?.expires_at ?? '',
-    custom_requests: Boolean(license?.features?.custom_requests),
-    global_reports: Boolean(license?.features?.global_reports),
-    qr_codes: Boolean(license?.features?.qr_codes),
-    api_access: Boolean(license?.features?.api_access),
+    features,
     notes: license?.notes ?? '',
   }
 }

@@ -79,24 +79,30 @@
 
 ## P1 — Entitlements consistency
 
-### 5. ⬜ Reconcile feature-flag keys between admin editor and tenant display
-**Problem:** [PlatformLicensingPage.tsx](src/pages/platform/PlatformLicensingPage.tsx) writes `custom_requests`, `global_reports`, `qr_codes`, `api_access`. [LicensingPage.tsx](src/pages/tenant-admin/LicensingPage.tsx) `AVAILABLE_FEATURES` displays `patient_feedback`, `qr_codes`, `analytics`, `audit_logs`, `api_access`, `sso`, `custom_branding`, `dedicated_support`. Only 2 of 8 keys overlap.
+### 5. ✅ Reconcile feature-flag keys between admin editor and tenant display
+**Problem:** [PlatformLicensingPage.tsx](src/pages/platform/PlatformLicensingPage.tsx) wrote `custom_requests`, `global_reports`, `qr_codes`, `api_access`. [LicensingPage.tsx](src/pages/tenant-admin/LicensingPage.tsx) `AVAILABLE_FEATURES` displayed `patient_feedback`, `qr_codes`, `analytics`, `audit_logs`, `api_access`, `sso`, `custom_branding`, `dedicated_support`. Only 2 of 8 keys overlapped.
 
-**Plan:**
-- Define a single source of truth: `src/lib/licenseFeatures.ts` exporting `LICENSE_FEATURES: { key, label, icon }[]` covering the agreed feature set.
-- Decide which 8 (or however many) features are actually real/roadmapped vs. aspirational placeholders — drop placeholders or mark them "Coming soon" rather than "Not available".
-- Update `PlatformLicensingPage`'s entitlement checkboxes and `LicensingPage`'s `AVAILABLE_FEATURES` to both import from `licenseFeatures.ts`.
+**Implemented:**
+- New single source of truth [licenseFeatures.ts](src/lib/licenseFeatures.ts) exports `LICENSE_FEATURES`, each entry tagged with a category:
+  - `included` — always available, not stored in `tenant_licenses.features`, not toggleable: `patient_feedback`, `custom_branding`.
+  - `entitlement` — stored, toggleable, gated via `hasFeature()`: `qr_codes`, `custom_requests`, `reports` (renamed from `global_reports`/`analytics`), `audit_logs`.
+  - `coming_soon` — not implemented anywhere, shown for roadmap visibility only, never "Not available": `api_access`, `sso`.
+  - Dropped `dedicated_support` entirely (a support-plan attribute, not a software feature).
+- [PlatformLicensingPage.tsx](src/pages/platform/PlatformLicensingPage.tsx): entitlement checkboxes now `.map()` over `ENTITLEMENT_FEATURES`; `buildLicenseForm`/`handleSave` use a `features: Record<string, boolean>` sub-object instead of 4 hardcoded flat fields.
+- [LicensingPage.tsx](src/pages/tenant-admin/LicensingPage.tsx): replaced local `AVAILABLE_FEATURES` with `LICENSE_FEATURES`; `included` features always show "Included", `entitlement` features are gated by `hasFeature()`, `coming_soon` features show "Coming soon" instead of "Not available".
+- [044_reconcile_license_feature_keys.sql](supabase/migrations/044_reconcile_license_feature_keys.sql): renamed `global_reports` → `reports` and backfilled `audit_logs: true` in `tenant_licenses.features` for all 5 production tenants (verified via query post-apply).
 
-**Acceptance:** Every checkbox a super admin can toggle corresponds to a feature shown on the tenant licensing page, and vice versa.
+**Acceptance:** Every checkbox a super admin can toggle corresponds to a feature shown on the tenant licensing page, and vice versa. ✅
 
 ---
 
 ### 6. ⬜ Make feature flags actually gate functionality
 **Problem:** `hasFeature()` is only used cosmetically; toggling `qr_codes`/`api_access`/`global_reports`/etc. off has no functional effect.
 
-**Plan (do after item 5 settles the key list):**
+**Plan (key list settled by item 5):**
 - `qr_codes` → gate `/qr-sheet` route and nav link behind `hasFeature('qr_codes')`.
-- `global_reports`/`analytics` → gate `/reports` and `PlatformGlobalReportsPage`.
+- `custom_requests` → gate the request-types configuration UI.
+- `reports` → gate `/reports` and `PlatformGlobalReportsPage`.
 - `audit_logs` → gate `/tenant-admin/audit-logs`.
 - `api_access` → blocked until an actual API surface exists (track under FEATURE_GAPS #39; no action here beyond not advertising it as available).
 - Add a small `useFeatureGate(featureKey)` hook wrapping `useLicenseUsage().hasFeature` for reuse, with a graceful "Upgrade to unlock" placeholder component.
