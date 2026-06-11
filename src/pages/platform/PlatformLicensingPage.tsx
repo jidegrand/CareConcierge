@@ -20,7 +20,7 @@ function expiryState(expiresAt: string | null): 'none' | 'expired' | 'warning' |
 
 export default function PlatformLicensingPage() {
   const { selectedOrganizationId, setSelectedOrganizationId } = usePlatformContext()
-  const { licenses, loading, error, saveLicense, deleteLicense } = useTenantLicenses(true)
+  const { licenses, loading, error, saveLicense } = useTenantLicenses(true)
   const selectedLicense = licenses.find(entry => entry.tenant_id === selectedOrganizationId) ?? licenses[0]
 
   const counts = useMemo(() => ({
@@ -103,7 +103,6 @@ export default function PlatformLicensingPage() {
         <LicenseEditor
           license={selectedLicense}
           onSave={saveLicense}
-          onDelete={deleteLicense}
         />
       </div>
     </div>
@@ -113,11 +112,9 @@ export default function PlatformLicensingPage() {
 function LicenseEditor({
   license,
   onSave,
-  onDelete,
 }: {
   license: TenantLicenseRecord | undefined
   onSave: (tenantId: string, values: Omit<TenantLicenseRecord, 'id' | 'tenant_id' | 'organizationName' | 'organizationSlug' | 'exists' | 'created_at' | 'updated_at'>) => Promise<void>
-  onDelete: (tenantId: string) => Promise<void>
 }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -168,23 +165,6 @@ function LicenseEditor({
   }
 
   const handleReset = () => setForm(buildLicenseForm(license))
-  const handleDelete = async () => {
-    if (!license.exists) {
-      handleReset()
-      return
-    }
-    if (!confirm(`Reset the stored license for ${license.organizationName}? Default trial values will be used until you save a new record.`)) return
-    setSaving(true)
-    setError(null)
-    setMessage(null)
-    try {
-      await onDelete(license.tenant_id)
-      setMessage('Stored license removed. Defaults will apply until a new license is saved.')
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unable to remove license')
-    }
-    setSaving(false)
-  }
 
   const expiry = expiryState(license.expires_at)
 
@@ -272,10 +252,6 @@ function LicenseEditor({
         <button onClick={handleReset}
           className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
           Reset form
-        </button>
-        <button onClick={handleDelete}
-          className="px-4 py-2 rounded-xl border border-red-200 text-sm text-red-600 hover:bg-red-50 transition-colors">
-          Remove stored license
         </button>
         <button onClick={handleSave} disabled={saving}
           className="px-4 py-2 rounded-xl bg-[var(--clinical-blue)] text-white text-sm font-medium disabled:opacity-50 hover:bg-[var(--clinical-blue-dk)] transition-colors sm:ml-auto">

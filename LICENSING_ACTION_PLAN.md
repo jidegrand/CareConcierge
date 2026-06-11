@@ -43,14 +43,15 @@
 
 ---
 
-### 3. ⬜ Fix "Remove stored license" un-suspend footgun
-**Problem:** [useLicenses.ts](src/hooks/admin/useLicenses.ts) `deleteLicense()` removes the row entirely; the app then falls back to `status: 'trial', plan: 'pilot'`, no limits, no expiry — silently restoring full unrestricted access to a previously suspended/archived org.
+### 3. ✅ Fix "Remove stored license" un-suspend footgun
+**Problem:** [useLicenses.ts](src/hooks/admin/useLicenses.ts) `deleteLicense()` removed the row entirely; the app then fell back to `status: 'trial', plan: 'pilot'`, no limits, no expiry — silently restoring full unrestricted access to a previously suspended/archived org.
 
-**Plan (pick one):**
-- **Preferred:** Remove the "Remove stored license" action entirely. A license row is created automatically for every tenant (migration 010 already does this for existing tenants — extend with a trigger on `tenants` INSERT so it's never missing). Editing always becomes an UPDATE.
-- **Alternative:** Keep delete, but change the fallback default in `useTenantLicenses` (and `useLicenseUsage`/`useLicense`) from `trial`/unlimited to `suspended`/zero-limits, so "no record" reads as "not provisioned" rather than "unrestricted trial". Update the UI copy on the delete-confirm dialog accordingly.
+**Implemented (preferred option):** Removed the "Remove stored license" action entirely.
+- Item 4's `trg_provision_tenant_license` trigger now guarantees every tenant always has a `tenant_licenses` row, so "no record" can no longer happen for new orgs and was backfilled for existing ones — there's nothing left to safely "reset to defaults".
+- Deleted `deleteLicense` from [useLicenses.ts](src/hooks/admin/useLicenses.ts) and the "Remove stored license" button/`handleDelete`/`onDelete` wiring from [PlatformLicensingPage.tsx](src/pages/platform/PlatformLicensingPage.tsx).
+- `saveLicense` (an `upsert` on `tenant_id`) remains the only write path — editing is always an UPDATE (or a one-time INSERT for the now-impossible missing-row case).
 
-**Acceptance:** There is no admin action that can move an org from `suspended`/`archived` back to functional access without explicitly setting `status` to `trial`/`active`.
+**Acceptance:** There is no admin action that can move an org from `suspended`/`archived` back to functional access without explicitly setting `status` to `trial`/`active` via "Save license". ✅
 
 ---
 

@@ -78,11 +78,5 @@ export function useTenantLicenses(enabled = true) {
     await fetch()
   }
 
-  const deleteLicense = async (tenantId: string) => {
-    const { error: err } = await supabase.from('tenant_licenses').delete().eq('tenant_id', tenantId)
-    if (err) throw new Error(err.message)
-    await fetch()
-  }
-
-  return { licenses, loading, error, refresh: fetch, saveLicense, deleteLicense }
+  return { licenses, loading, error, refresh: fetch, saveLicense }
 }
