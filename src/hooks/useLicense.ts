@@ -7,11 +7,17 @@ export interface LicenseState {
   license: TenantLicense | null
   loading: boolean
   isExpired: boolean
+  isSuspended: boolean
   isExpiringSoon: boolean
   daysUntilExpiry: number | null
 }
 
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000 // 1 hour
+
+// Days after expires_at before patient-facing access is actually cut off by
+// RLS. Keep in sync with tenant_license_active() in
+// 043_license_expiry_grace_period.sql.
+export const EXPIRY_GRACE_PERIOD_DAYS = 3
 
 export function useLicense(): LicenseState {
   const { profile } = useAuth()
@@ -61,7 +67,12 @@ export function useLicense(): LicenseState {
   const isExpiredByStatus = license?.status === 'suspended' || license?.status === 'archived'
   const isExpired = isExpiredByDate || isExpiredByStatus
 
+  // True once patient-facing access is actually blocked by RLS: an explicit
+  // suspended/archived status, or expires_at is past the grace period.
+  const isPastGracePeriod = daysUntilExpiry !== null && daysUntilExpiry < -EXPIRY_GRACE_PERIOD_DAYS
+  const isSuspended = isExpiredByStatus || isPastGracePeriod
+
   const isExpiringSoon = !isExpired && daysUntilExpiry !== null && daysUntilExpiry <= 30
 
-  return { license, loading, isExpired, isExpiringSoon, daysUntilExpiry }
+  return { license, loading, isExpired, isSuspended, isExpiringSoon, daysUntilExpiry }
 }

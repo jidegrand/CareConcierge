@@ -11,7 +11,7 @@ const BYPASS_ROLES = new Set(['super_admin', 'tenant_admin'])
 
 export default function LicenseGate({ children }: Props) {
   const { profile } = useAuth()
-  const { isExpired, license, loading } = useLicense()
+  const { isExpired, isSuspended, license, loading } = useLicense()
   const navigate = useNavigate()
 
   const isBypassed = !profile || BYPASS_ROLES.has(profile.role)
@@ -21,8 +21,6 @@ export default function LicenseGate({ children }: Props) {
   const expiryDisplay = license?.expires_at
     ? new Date(license.expires_at).toLocaleDateString(undefined, { dateStyle: 'long' })
     : null
-
-  const isSuspended = license?.status === 'suspended' || license?.status === 'archived'
 
   return (
     <div

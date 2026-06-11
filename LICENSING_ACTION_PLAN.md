@@ -41,6 +41,15 @@
 
 **Acceptance:** Setting an org's license `status = 'suspended'` blocks new patient requests via `/r/:roomId` even when called directly against Supabase, not just through `NurseShell`. ✅
 
+**Follow-up — [043_license_expiry_grace_period.sql](supabase/migrations/043_license_expiry_grace_period.sql):** Live testing surfaced a gap: a license with `status='active'` but `expires_at` in the past (e.g. set 2 months overdue) had **zero enforcement** — `tenant_license_active()` only checked `status`, so patients could submit requests indefinitely until an admin manually flipped `status` to `suspended`. Resolved per product decision (3-day grace period):
+- `tenant_license_active()` now also returns `false` once `expires_at < CURRENT_DATE - 3 days`, regardless of status.
+- [useLicense.ts](src/hooks/useLicense.ts) exports `EXPIRY_GRACE_PERIOD_DAYS = 3` (kept in sync with the migration) and a new `isSuspended` flag mirroring the actual RLS condition (`status IN ('suspended','archived')` OR past the grace period).
+- [LicenseBanner.tsx](src/components/LicenseBanner.tsx) now distinguishes three tiers instead of conflating expiry with suspension:
+  - **suspended** (RLS already blocking): "Service suspended ... Patient requests are blocked."
+  - **expired, in grace period** (RLS still allows, for now): "License expired ... Patient requests will be suspended in N days unless renewed." — previously this state incorrectly showed "Service is suspended" even though it wasn't.
+  - **expiring soon**: unchanged.
+- [LicenseGate.tsx](src/components/LicenseGate.tsx) (staff UI gate) now uses the same `isSuspended` flag for its "Account Suspended" vs "License Expired" copy, keeping staff-facing messaging aligned with what patients actually experience.
+
 ---
 
 ### 3. ✅ Fix "Remove stored license" un-suspend footgun
