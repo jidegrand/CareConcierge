@@ -54,15 +54,16 @@
 
 ---
 
-### 4. ⬜ Give trial licenses a real, enforced expiry
-**Problem:** Seed insert (migration 010) sets `status='trial'`, `expires_at=NULL` — trials never expire and have no limits.
+### 4. ✅ Give trial licenses a real, enforced expiry
+**Problem:** `createTenant` (admin "create organization" flow) only inserts into `tenants` — it never created a `tenant_licenses` row. With no row, `useLicense`/`useLicenseUsage` fell back to `status='trial', plan='pilot'`, all limits `null`, `expires_at=null`: unrestricted access forever for any new org.
 
-**Plan:**
-- Add a migration that backfills `expires_at = starts_at + interval '30 days'` (or product-defined trial length) for existing rows where `status='trial' AND expires_at IS NULL`.
-- Change the auto-provisioning insert (wherever new tenants are created — likely an admin "create organization" flow) to set `expires_at = CURRENT_DATE + 30` and reasonable default trial limits (e.g., `site_limit=1, user_limit=5`) for new trials, configurable per product decision.
-- Confirm `useLicense.isExpired`/`isExpiringSoon` then naturally start firing for trials (no code change needed there — it already handles `expires_at`).
+**Implemented in [041_trial_license_defaults.sql](supabase/migrations/041_trial_license_defaults.sql)** (product decisions: 30-day trial, single-site pilot limits):
+- Backfills any existing `status='trial' AND expires_at IS NULL` row to `expires_at = starts_at + 30 days` (0 rows affected today — all 5 tenants are already `active` with limits/expiry set).
+- One-time safety-net insert for any tenant missing a `tenant_licenses` row entirely (0 rows affected today — counts matched 5/5).
+- New `trg_provision_tenant_license` trigger (`AFTER INSERT ON tenants`) auto-creates a `tenant_licenses` row for every new org: `status='trial', plan='pilot', expires_at=CURRENT_DATE+30, site_limit=1, unit_limit=3, room_limit=50, user_limit=5`. These limits are enforced immediately by the triggers from migration 040.
+- No frontend change needed: `useLicense.isExpired`/`isExpiringSoon` and `LicenseBanner` already key off `expires_at` and now fire correctly from day 1 for new trials.
 
-**Acceptance:** A newly created org has a trial license with a concrete `expires_at` and non-null limits; `LicenseBanner` shows the countdown from day 1.
+**Acceptance:** A newly created org gets a trial license row with `expires_at = today + 30` and non-null limits; `LicenseBanner` shows the countdown from day 1. ✅
 
 ---
 
