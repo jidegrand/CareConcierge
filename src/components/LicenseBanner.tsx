@@ -3,9 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useLicense, EXPIRY_GRACE_PERIOD_DAYS } from '@/hooks/useLicense'
 
-// Session dismiss key for the "expiring soon" warning banner only —
+// Session dismiss key for the "expiring soon" warning banner (>7 days out) —
 // suspended/expired (grace period) banners are never dismissible.
 const WARNING_DISMISS_KEY = 'bayrequest_license_banner_dismissed:warning'
+
+// Within the final 7 days, dismissal is tracked per calendar day (not per
+// session) so a long-lived tenant_admin session can't suppress the critical
+// banner indefinitely (LICENSING_ACTION_PLAN #7).
+function urgentDismissKey(licenseId: string) {
+  const today = new Date().toISOString().slice(0, 10)
+  return `bayrequest_license_banner_dismissed:urgent:${licenseId}:${today}`
+}
 
 export default function LicenseBanner() {
   const { profile } = useAuth()
@@ -22,27 +30,37 @@ export default function LicenseBanner() {
     isExpiringSoon ? 'warning' :
     null
 
+  const urgentSoon = daysUntilExpiry !== null && daysUntilExpiry <= 7
+
   const [dismissed, setDismissed] = useState(false)
 
-  // Reset dismiss state when tier escalates (e.g. user returns when days ≤ 7)
+  // Reset dismiss state when tier/urgency changes (e.g. user returns when days ≤ 7)
   useEffect(() => {
     if (tier !== 'warning') { setDismissed(false); return }
     try {
-      setDismissed(!!sessionStorage.getItem(WARNING_DISMISS_KEY))
+      const key = urgentSoon && license?.id ? urgentDismissKey(license.id) : WARNING_DISMISS_KEY
+      const storage = urgentSoon ? localStorage : sessionStorage
+      setDismissed(!!storage.getItem(key))
     } catch {
       setDismissed(false)
     }
-  }, [tier])
+  }, [tier, urgentSoon, license?.id])
 
   // super_admin is exempt — they manage tenant licenses from the platform console
   if (loading || !tier || profile?.role === 'super_admin') return null
-  // suspended/expired banners are never dismissible; warning banners respect the session flag
+  // suspended/expired banners are never dismissible; warning banners respect the dismiss flag
   if (tier === 'warning' && dismissed) return null
 
   const isTenantAdmin = profile?.role === 'tenant_admin'
 
   const handleDismiss = () => {
-    try { sessionStorage.setItem(WARNING_DISMISS_KEY, '1') } catch {}
+    try {
+      if (urgentSoon && license?.id) {
+        localStorage.setItem(urgentDismissKey(license.id), '1')
+      } else {
+        sessionStorage.setItem(WARNING_DISMISS_KEY, '1')
+      }
+    } catch {}
     setDismissed(true)
   }
 
@@ -132,7 +150,6 @@ export default function LicenseBanner() {
   }
 
   /* ── Expiring soon banner ─────────────────────────────────────────────────── */
-  const urgentSoon = daysUntilExpiry !== null && daysUntilExpiry <= 7
   const bg = urgentSoon ? '#92400e' : '#78350f'
   const fg = '#FEF3C7'
 

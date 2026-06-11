@@ -115,14 +115,16 @@
 
 ## P2 — UX polish
 
-### 7. ⬜ Tighten expiry-warning visibility for tenant_admin
-**Problem:** `LicenseBanner` warning tier is dismissible per session via `sessionStorage`; combined with `tenant_admin` bypassing `LicenseGate` entirely, an org could coast past expiry without a hard prompt until status flips.
+### 7. ✅ Tighten expiry-warning visibility for tenant_admin
+**Problem:** `LicenseBanner` warning tier was dismissible per session via `sessionStorage`; combined with `tenant_admin` bypassing `LicenseGate` entirely, an org could coast past expiry without a hard prompt until status flips.
 
-**Plan:**
-- Once item 2 (RLS enforcement) lands, this becomes lower-stakes (real consequences kick in regardless of banner dismissal).
-- Optional: persist dismissal in `localStorage` keyed by `license.id` + day-bucket (e.g., re-show once per calendar day in the final 7 days) instead of per-session, so a long-lived session doesn't suppress it indefinitely.
+**Implemented in [LicenseBanner.tsx](src/components/LicenseBanner.tsx):**
+- Item 2's RLS enforcement already makes this lower-stakes (real consequences kick in regardless of banner dismissal), but the banner itself now also escalates dismissal behavior:
+  - **> 7 days until expiry:** unchanged — dismiss is remembered for the session via `sessionStorage`.
+  - **≤ 7 days until expiry (urgent):** dismiss is now stored in `localStorage` keyed by `` `${license.id}:${today's date}` ``, so it only suppresses the banner for the rest of that calendar day. A long-lived session sees it again the next day.
+- `suspended`/`expired` banners remain non-dismissible, unchanged.
 
-**Acceptance:** A `tenant_admin` cannot avoid seeing the critical (≤7 day) banner more than once per day.
+**Acceptance:** A `tenant_admin` cannot avoid seeing the critical (≤7 day) banner more than once per day. ✅
 
 ---
 
