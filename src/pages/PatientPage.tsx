@@ -228,8 +228,17 @@ export default function PatientPage() {
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
+    // Fallback for missed realtime events: periodically re-check tracked
+    // requests against the database so the notification bell stays accurate
+    // even if a postgres_changes event never arrives.
+    const pollInterval = window.setInterval(() => {
+      void reconcileTrackedRequests()
+      void loadActiveTypes()
+    }, 15_000)
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.clearInterval(pollInterval)
       supabase.removeChannel(channel)
     }
   }, [room, requestTypes])
