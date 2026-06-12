@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 
 const Entertainment = lazy(() => import('@/pages/Entertainment/Entertainment'))
 import { useParams } from 'react-router-dom'
 import { useRoom } from '@/hooks/useRoom'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
 import { useTenantSettings } from '@/hooks/useTenantSettings'
-import { usePatientNotifications } from '@/hooks/usePatientNotifications'
+import { usePatientVoice } from '@/hooks/usePatientVoice'
 import { usePatientTheme } from '@/hooks/usePatientTheme'
 import {
   PATIENT_LANGUAGE_OPTIONS,
@@ -18,8 +18,8 @@ import {
 } from '@/lib/patientI18n'
 import { supabase } from '@/lib/supabase'
 import { playPatientReceipt } from '@/lib/sounds'
+import { speakPatientConfirmation } from '@/lib/speech'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
-import PatientNotificationBell from '@/components/PatientNotificationBell'
 import { PRODUCT_NAME } from '@/lib/brand'
 
 type TabId = 'requests' | 'services' | 'fun' | 'info'
@@ -75,10 +75,8 @@ export default function PatientPage() {
   const [submitError,  setSubmitError]  = useState<string | null>(null)
   // Set of request type IDs that already have a pending/acknowledged request for this room
   const [activeTypeSet, setActiveTypeSet] = useState<Set<string>>(new Set())
-  const { notifications, unreadCount, pushNotification, markAllRead, clearNotifications } = usePatientNotifications(room?.id)
   const { theme, toggleTheme } = usePatientTheme()
-  // Tracks the last-known status per request id so realtime updates can detect acknowledged/resolved transitions
-  const requestStatusRef = useRef<Map<string, { type: string; status: string }>>(new Map())
+  const { voiceEnabled, toggleVoice } = usePatientVoice()
   const copy = getPatientCopy(language)
   const patientIdleRedirectUrl = normalizeRedirectUrl(
     room?.unit?.site?.hospital_url ?? room?.unit?.site?.tenant?.organization_url ?? tenantSettings.patient_idle_redirect_url
@@ -131,7 +129,6 @@ export default function PatientPage() {
       const nextByType: Record<string, ActiveRequestRow> = {}
       for (const row of rows) {
         if (!nextByType[row.type]) nextByType[row.type] = row
-        requestStatusRef.current.set(row.id, { type: row.type, status: row.status })
       }
 
       setActiveRequestsByType(nextByType)
@@ -146,33 +143,6 @@ export default function PatientPage() {
       if (!nextByType.nurse) setCallPressed(false)
     }
 
-    // Re-checks previously-seen requests against the database to catch status
-    // transitions (acknowledged/resolved) that happened while this tab's
-    // realtime connection was suspended, e.g. when a phone screen is locked.
-    const reconcileTrackedRequests = async () => {
-      const trackedIds = Array.from(requestStatusRef.current.keys())
-      if (trackedIds.length === 0) return
-
-      const { data } = await supabase
-        .from('requests')
-        .select('id, type, status')
-        .in('id', trackedIds)
-
-      for (const row of (data ?? []) as { id: string; type: string; status: string }[]) {
-        const prevEntry = requestStatusRef.current.get(row.id)
-        if (prevEntry && prevEntry.status !== row.status &&
-            (row.status === 'acknowledged' || row.status === 'resolved')) {
-          const label = getRequestLabel(row.type)
-          pushNotification({
-            id: `${row.id}:${row.status}`,
-            title: row.status === 'resolved' ? copy.notifResolvedTitle : copy.notifAckTitle,
-            body: (row.status === 'resolved' ? copy.notifResolvedBody : copy.notifAckBody).replace('{request}', label),
-          })
-        }
-        requestStatusRef.current.set(row.id, { type: row.type, status: row.status })
-      }
-    }
-
     loadActiveTypes()
 
     const channel = supabase
@@ -185,19 +155,6 @@ export default function PatientPage() {
             const nextType = typeof payload.new.type === 'string' ? payload.new.type : null
             const nextId = typeof payload.new.id === 'string' ? payload.new.id : null
             const createdAt = typeof payload.new.created_at === 'string' ? payload.new.created_at : null
-
-            if (nextStatus && nextType && nextId) {
-              const prevEntry = requestStatusRef.current.get(nextId)
-              if (prevEntry && prevEntry.status !== nextStatus &&
-                  (nextStatus === 'acknowledged' || nextStatus === 'resolved')) {
-                const label = getRequestLabel(nextType)
-                pushNotification({
-                  id: `${nextId}:${nextStatus}`,
-                  title: nextStatus === 'resolved' ? copy.notifResolvedTitle : copy.notifAckTitle,
-                  body: (nextStatus === 'resolved' ? copy.notifResolvedBody : copy.notifAckBody).replace('{request}', label),
-                })
-              }
-            }
 
             if (nextStatus === 'resolved' && nextType && nextId) {
               setActiveRequest(prev => {
@@ -216,23 +173,19 @@ export default function PatientPage() {
           void loadActiveTypes()
         }
       )
-      .subscribe(status => {
-        if (status === 'SUBSCRIBED') void reconcileTrackedRequests()
-      })
+      .subscribe()
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        void reconcileTrackedRequests()
         void loadActiveTypes()
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
-    // Fallback for missed realtime events: periodically re-check tracked
-    // requests against the database so the notification bell stays accurate
-    // even if a postgres_changes event never arrives.
+    // Fallback for missed realtime events: periodically re-check active
+    // requests so state stays accurate even if a postgres_changes event
+    // never arrives.
     const pollInterval = window.setInterval(() => {
-      void reconcileTrackedRequests()
       void loadActiveTypes()
     }, 15_000)
 
@@ -317,10 +270,12 @@ export default function PatientPage() {
       return
     }
     const live = data as ActiveRequestRow
-    requestStatusRef.current.set(live.id, { type: typeId, status: live.status })
     setActiveRequestsByType(prev => ({ ...prev, [typeId]: live }))
     setActiveTypeSet(prev => new Set(prev).add(typeId))
     playPatientReceipt()
+    if (voiceEnabled) {
+      speakPatientConfirmation(copy.voiceConfirmation.replace('{request}', getRequestLabel(typeId, baseLabel)), language)
+    }
     setActiveRequest({ id: live.id, type: typeId, baseLabel, time: new Date(live.created_at), status: live.status })
     setSubmitting(false)
   }
@@ -341,10 +296,12 @@ export default function PatientPage() {
       return
     }
     const live = data as ActiveRequestRow
-    requestStatusRef.current.set(live.id, { type: 'nurse', status: live.status })
     setActiveRequestsByType(prev => ({ ...prev, nurse: live }))
     setActiveTypeSet(prev => new Set(prev).add('nurse'))
     playPatientReceipt()
+    if (voiceEnabled) {
+      speakPatientConfirmation(copy.voiceConfirmation.replace('{request}', getRequestLabel('nurse', nurseBaseLabel)), language)
+    }
     setActiveRequest({ id: live.id, type: 'nurse', baseLabel: nurseBaseLabel, time: new Date(live.created_at), status: live.status })
   }
 
@@ -488,13 +445,12 @@ export default function PatientPage() {
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            <PatientNotificationBell
-              notifications={notifications}
-              unreadCount={unreadCount}
-              onOpen={markAllRead}
-              onClear={clearNotifications}
-              copy={copy}
-            />
+            <button
+              onClick={toggleVoice}
+              title={voiceEnabled ? copy.voiceOffLabel : copy.voiceOnLabel}
+              className="relative w-9 h-9 rounded-full flex items-center justify-center text-[var(--patient-text)] hover:bg-[var(--patient-border)] transition-colors">
+              {voiceEnabled ? <SpeakerOnIcon /> : <SpeakerOffIcon />}
+            </button>
             <button
               onClick={toggleTheme}
               title={theme === 'dark' ? copy.lightModeLabel : copy.darkModeLabel}
@@ -969,6 +925,26 @@ function MoonIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  )
+}
+
+// ── Voice toggle icons ──────────────────────────────────────────────────────
+function SpeakerOnIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 5 6 9H2v6h4l5 4z"/>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07M18.36 5.64a9 9 0 0 1 0 12.73"/>
+    </svg>
+  )
+}
+
+function SpeakerOffIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 5 6 9H2v6h4l5 4z"/>
+      <line x1="23" y1="9" x2="17" y2="15"/>
+      <line x1="17" y1="9" x2="23" y2="15"/>
     </svg>
   )
 }
