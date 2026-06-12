@@ -144,6 +144,33 @@ export default function PatientPage() {
       if (!nextByType.nurse) setCallPressed(false)
     }
 
+    // Re-checks previously-seen requests against the database to catch status
+    // transitions (acknowledged/resolved) that happened while this tab's
+    // realtime connection was suspended, e.g. when a phone screen is locked.
+    const reconcileTrackedRequests = async () => {
+      const trackedIds = Array.from(requestStatusRef.current.keys())
+      if (trackedIds.length === 0) return
+
+      const { data } = await supabase
+        .from('requests')
+        .select('id, type, status')
+        .in('id', trackedIds)
+
+      for (const row of (data ?? []) as { id: string; type: string; status: string }[]) {
+        const prevEntry = requestStatusRef.current.get(row.id)
+        if (prevEntry && prevEntry.status !== row.status &&
+            (row.status === 'acknowledged' || row.status === 'resolved')) {
+          const label = getRequestLabel(row.type)
+          pushNotification({
+            id: `${row.id}:${row.status}`,
+            title: row.status === 'resolved' ? copy.notifResolvedTitle : copy.notifAckTitle,
+            body: (row.status === 'resolved' ? copy.notifResolvedBody : copy.notifAckBody).replace('{request}', label),
+          })
+        }
+        requestStatusRef.current.set(row.id, { type: row.type, status: row.status })
+      }
+    }
+
     loadActiveTypes()
 
     const channel = supabase
@@ -187,9 +214,22 @@ export default function PatientPage() {
           void loadActiveTypes()
         }
       )
-      .subscribe()
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') void reconcileTrackedRequests()
+      })
 
-    return () => { supabase.removeChannel(channel) }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void reconcileTrackedRequests()
+        void loadActiveTypes()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      supabase.removeChannel(channel)
+    }
   }, [room, requestTypes])
 
   useEffect(() => {
