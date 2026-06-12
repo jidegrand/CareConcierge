@@ -6,6 +6,7 @@ import { useRoom } from '@/hooks/useRoom'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
 import { useTenantSettings } from '@/hooks/useTenantSettings'
 import { usePatientNotifications } from '@/hooks/usePatientNotifications'
+import { usePatientTheme } from '@/hooks/usePatientTheme'
 import {
   PATIENT_LANGUAGE_OPTIONS,
   PATIENT_LANGUAGE_STORAGE_KEY,
@@ -75,6 +76,7 @@ export default function PatientPage() {
   // Set of request type IDs that already have a pending/acknowledged request for this room
   const [activeTypeSet, setActiveTypeSet] = useState<Set<string>>(new Set())
   const { notifications, unreadCount, pushNotification, markAllRead, clearNotifications } = usePatientNotifications(room?.id)
+  const { theme, toggleTheme } = usePatientTheme()
   // Tracks the last-known status per request id so realtime updates can detect acknowledged/resolved transitions
   const requestStatusRef = useRef<Map<string, { type: string; status: string }>>(new Map())
   const copy = getPatientCopy(language)
@@ -444,18 +446,18 @@ export default function PatientPage() {
 
   return (
     <div
-      className="patient-shell min-h-dvh md:px-6 md:py-8"
+      className={`patient-shell min-h-dvh md:px-6 md:py-8${theme === 'dark' ? ' patient-dark' : ''}`}
       style={{
-        background: 'radial-gradient(circle at top, #f8fbff 0%, #edf2f7 42%, #e5ebf3 100%)',
+        background: 'radial-gradient(circle at top, var(--patient-page-1) 0%, var(--patient-page-2) 42%, var(--patient-page-3) 100%)',
         fontFamily: "'DM Sans', system-ui, sans-serif",
       }}
     >
       <div
         dir={language === 'ar' ? 'rtl' : 'ltr'}
-        className="relative mx-auto flex h-dvh max-w-[480px] flex-col bg-white md:h-auto md:min-h-[calc(100vh-4rem)] md:max-w-[980px] md:overflow-hidden md:rounded-[32px] md:border md:border-white/70 md:shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+        className="relative mx-auto flex h-dvh max-w-[480px] flex-col bg-[var(--patient-surface)] md:h-auto md:min-h-[calc(100vh-4rem)] md:max-w-[980px] md:overflow-hidden md:rounded-[32px] md:border md:border-[var(--patient-frame-border)] md:shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
 
         {/* ── Top bar ── compact single row, no wasted space ─────── */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[#F0F2F5]">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[var(--patient-border)]">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Logo or fallback icon */}
             {tenantSettings.logo_url ? (
@@ -472,8 +474,8 @@ export default function PatientPage() {
               </div>
             )}
             <div className="min-w-0">
-              <p className="truncate text-[14px] font-bold text-[#1A1A2E] leading-tight">{orgName}</p>
-              <p className="truncate text-[11px] text-[#9CA3AF]">{room.unit?.name ?? room.name}</p>
+              <p className="truncate text-[14px] font-bold text-[var(--patient-text)] leading-tight">{orgName}</p>
+              <p className="truncate text-[11px] text-[var(--patient-text-muted)]">{room.unit?.name ?? room.name}</p>
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -484,10 +486,16 @@ export default function PatientPage() {
               onClear={clearNotifications}
               copy={copy}
             />
+            <button
+              onClick={toggleTheme}
+              title={theme === 'dark' ? copy.lightModeLabel : copy.darkModeLabel}
+              className="relative w-9 h-9 rounded-full flex items-center justify-center text-[var(--patient-text)] hover:bg-[var(--patient-border)] transition-colors">
+              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            </button>
             <select
               value={language}
               onChange={event => setLanguage(event.target.value as PatientLanguage)}
-              className="flex-shrink-0 text-[13px] font-semibold text-[#1D6FA8] bg-transparent outline-none cursor-pointer">
+              className="flex-shrink-0 text-[13px] font-semibold text-[var(--patient-accent)] bg-transparent outline-none cursor-pointer">
               {PATIENT_LANGUAGE_OPTIONS.map(option => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
@@ -503,10 +511,10 @@ export default function PatientPage() {
             <>
               {/* ── Page heading ── Uber-style bold section title ── */}
               <div className="px-5 pt-5 pb-4">
-                <h1 className="text-[28px] font-extrabold text-[#1A1A2E] leading-[1.15]">
+                <h1 className="text-[28px] font-extrabold text-[var(--patient-text)] leading-[1.15]">
                   {copy.commonRequests}
                 </h1>
-                <p className="text-[12px] font-medium text-[#9CA3AF] mt-1">
+                <p className="text-[12px] font-medium text-[var(--patient-text-muted)] mt-1">
                   {room.name} · {room.unit?.name}
                 </p>
               </div>
@@ -550,7 +558,7 @@ export default function PatientPage() {
 
               {/* ── Section label ── */}
               <div className="px-5 flex items-center justify-between mb-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#9CA3AF]">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--patient-text-muted)]">
                   {copy.tapToSend}
                 </p>
               </div>
@@ -570,9 +578,9 @@ export default function PatientPage() {
                       style={{
                         minHeight: '86px',
                         background: alreadyActive
-                          ? 'linear-gradient(180deg, #F0FDF4 0%, #DCFCE7 100%)'
-                          : 'linear-gradient(180deg, #FFFFFF 0%, #F7FBFF 100%)',
-                        border: `1.5px solid ${alreadyActive ? '#86EFAC' : '#E2EAF4'}`,
+                          ? 'linear-gradient(180deg, var(--patient-active-card-bg-1) 0%, var(--patient-active-card-bg-2) 100%)'
+                          : 'linear-gradient(180deg, var(--patient-card-bg-1) 0%, var(--patient-card-bg-2) 100%)',
+                        border: `1.5px solid ${alreadyActive ? 'var(--patient-active-card-border)' : 'var(--patient-card-border)'}`,
                         opacity: submitting && !alreadyActive ? 0.5 : 1,
                         boxShadow: '0 1px 4px rgba(15,23,42,0.06)',
                       }}>
@@ -593,7 +601,7 @@ export default function PatientPage() {
                       </div>
                       <span
                         className="text-[10px] font-semibold text-center leading-tight line-clamp-2"
-                        style={{ color: alreadyActive ? '#065F46' : '#374151' }}>
+                        style={{ color: alreadyActive ? 'var(--patient-active-card-text)' : 'var(--patient-label)' }}>
                         {req.translatedLabel}
                       </span>
                     </button>
@@ -631,9 +639,9 @@ export default function PatientPage() {
               <InfoCard title={copy.yourBay} value={room.name} icon="🏥" />
               <InfoCard title={copy.unit} value={room.unit?.name ?? '—'} icon="📍" />
               <InfoCard title={copy.site} value={room.unit?.site?.name ?? '—'} icon="🏢" />
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#F3F4F6]">
-                <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">{copy.about}</p>
-                <p className="text-sm text-[#4B5563] leading-relaxed">
+              <div className="bg-[var(--patient-surface)] rounded-2xl p-5 shadow-sm border border-[var(--patient-border-soft)]">
+                <p className="text-xs font-semibold text-[var(--patient-text-muted)] uppercase tracking-wider mb-2">{copy.about}</p>
+                <p className="text-sm text-[var(--patient-text-secondary)] leading-relaxed">
                   {copy.aboutBody}
                 </p>
               </div>
@@ -643,7 +651,7 @@ export default function PatientPage() {
       </div>
 
         {/* ── Bottom tab bar ── cleaner Uber-style, color-only active ── */}
-        <div className="bg-white border-t border-[#EFEFEF] px-1 pb-[max(env(safe-area-inset-bottom),8px)]"
+        <div className="bg-[var(--patient-surface)] border-t border-[var(--patient-border-strong)] px-1 pb-[max(env(safe-area-inset-bottom),8px)]"
           style={{ boxShadow: '0 -1px 0 rgba(0,0,0,0.05)' }}>
           <div className="flex">
             {tabs.map(tab => {
@@ -653,11 +661,11 @@ export default function PatientPage() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className="flex-1 flex flex-col items-center justify-center pt-2.5 pb-1 gap-0.5 transition-colors">
-                  <div className={`transition-colors ${active ? 'text-[#1D6FA8]' : 'text-[#C7C7CC]'}`}>
+                  <div className={`transition-colors ${active ? 'text-[var(--patient-accent)]' : 'text-[var(--patient-tab-inactive-icon)]'}`}>
                     {tab.icon}
                   </div>
                   <span className={`text-[10px] font-bold transition-colors ${
-                    active ? 'text-[#1D6FA8]' : 'text-[#8E8E93]'
+                    active ? 'text-[var(--patient-accent)]' : 'text-[var(--patient-tab-inactive-text)]'
                   }`}>
                     {tab.label}
                   </span>
@@ -865,19 +873,19 @@ function ComingSoon({ icon, title, sub }: { icon: string; title: string; sub: st
   return (
     <div className="text-center py-20">
       <p className="text-5xl mb-4">{icon}</p>
-      <p className="font-bold text-[#1A1A2E] text-lg mb-1">{title}</p>
-      <p className="text-sm text-[#9CA3AF]">{sub}</p>
+      <p className="font-bold text-[var(--patient-text)] text-lg mb-1">{title}</p>
+      <p className="text-sm text-[var(--patient-text-muted)]">{sub}</p>
     </div>
   )
 }
 
 function InfoCard({ title, value, icon }: { title: string; value: string; icon: string }) {
   return (
-    <div className="bg-white rounded-2xl px-5 py-4 flex items-center gap-4 shadow-sm border border-[#F3F4F6]">
+    <div className="bg-[var(--patient-surface)] rounded-2xl px-5 py-4 flex items-center gap-4 shadow-sm border border-[var(--patient-border-soft)]">
       <span className="text-2xl">{icon}</span>
       <div>
-        <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">{title}</p>
-        <p className="text-base font-bold text-[#1A1A2E] mt-0.5">{value}</p>
+        <p className="text-xs font-semibold text-[var(--patient-text-muted)] uppercase tracking-wider">{title}</p>
+        <p className="text-base font-bold text-[var(--patient-text)] mt-0.5">{value}</p>
       </div>
     </div>
   )
@@ -934,6 +942,24 @@ function TabInfoIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+    </svg>
+  )
+}
+
+// ── Theme toggle icons ───────────────────────────────────────────────────────
+function SunIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
     </svg>
   )
 }

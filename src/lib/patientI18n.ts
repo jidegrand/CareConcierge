@@ -432,6 +432,8 @@ const PATIENT_COPY = {
     notifResolvedTitle: 'Request completed',
     notifResolvedBody: 'Your {request} request has been completed.',
     clearAll: 'Clear all',
+    lightModeLabel: 'Light mode',
+    darkModeLabel: 'Dark mode',
   },
   es: {
     language: 'Idioma',
@@ -486,6 +488,8 @@ const PATIENT_COPY = {
     notifResolvedTitle: 'Solicitud completada',
     notifResolvedBody: 'Su solicitud de {request} ha sido completada.',
     clearAll: 'Borrar todo',
+    lightModeLabel: 'Modo claro',
+    darkModeLabel: 'Modo oscuro',
   },
   fr: {
     language: 'Langue',
@@ -540,6 +544,8 @@ const PATIENT_COPY = {
     notifResolvedTitle: 'Demande terminee',
     notifResolvedBody: 'Votre demande de {request} a ete terminee.',
     clearAll: 'Tout effacer',
+    lightModeLabel: 'Mode clair',
+    darkModeLabel: 'Mode sombre',
   },
   zh: {
     language: '语言',
@@ -594,6 +600,8 @@ const PATIENT_COPY = {
     notifResolvedTitle: '请求已完成',
     notifResolvedBody: '您的{request}请求已完成。',
     clearAll: '清除全部',
+    lightModeLabel: '浅色模式',
+    darkModeLabel: '深色模式',
   },
   pa: {
     language: 'ਭਾਸ਼ਾ',
@@ -648,6 +656,8 @@ const PATIENT_COPY = {
     notifResolvedTitle: 'ਬੇਨਤੀ ਪੂਰੀ ਹੋ ਗਈ',
     notifResolvedBody: 'ਤੁਹਾਡੀ {request} ਬੇਨਤੀ ਪੂਰੀ ਹੋ ਗਈ ਹੈ।',
     clearAll: 'ਸਭ ਸਾਫ਼ ਕਰੋ',
+    lightModeLabel: 'ਲਾਈਟ ਮੋਡ',
+    darkModeLabel: 'ਡਾਰਕ ਮੋਡ',
   },
   yue: {
     language: '語言',
@@ -702,6 +712,8 @@ const PATIENT_COPY = {
     notifResolvedTitle: '請求已完成',
     notifResolvedBody: '您嘅{request}請求已經完成。',
     clearAll: '清除全部',
+    lightModeLabel: '淺色模式',
+    darkModeLabel: '深色模式',
   },
   ar: {
     language: 'اللغة',
@@ -756,6 +768,8 @@ const PATIENT_COPY = {
     notifResolvedTitle: 'تم إكمال الطلب',
     notifResolvedBody: 'تم إكمال طلب {request}.',
     clearAll: 'مسح الكل',
+    lightModeLabel: 'الوضع الفاتح',
+    darkModeLabel: 'الوضع الداكن',
   },
   tl: {
     language: 'Wika',
@@ -810,6 +824,8 @@ const PATIENT_COPY = {
     notifResolvedTitle: 'Nakumpleto ang request',
     notifResolvedBody: 'Ang iyong {request} request ay nakumpleto na.',
     clearAll: 'Burahin lahat',
+    lightModeLabel: 'Maliwanag na mode',
+    darkModeLabel: 'Madilim na mode',
   },
 } as const
 

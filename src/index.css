@@ -70,12 +70,63 @@ html.dark {
 /* Surfaces */
 html.dark .bg-white { background-color: #161B22 !important; }
 
-/* The patient-facing room page has its own fixed light theme and is not
-   dark-mode aware — keep its surfaces white even when html.dark is set,
-   otherwise its dark navy text/icons become invisible on a dark surface. */
-html.dark .patient-shell .bg-white,
-html.dark .patient-shell.bg-white {
-  background-color: #ffffff !important;
+/* ── Patient room page theme ────────────────────────────────────────────────
+   The patient-facing room page (/r/:roomId) ignores html.dark entirely (see
+   main.tsx) and instead has its own light/dark theme toggled via the
+   .patient-dark class, driven by usePatientTheme. */
+.patient-shell {
+  --patient-page-1: #f8fbff;
+  --patient-page-2: #edf2f7;
+  --patient-page-3: #e5ebf3;
+  --patient-surface: #ffffff;
+  --patient-surface-alt: #F7FBFF;
+  --patient-text: #1A1A2E;
+  --patient-text-secondary: #4B5563;
+  --patient-text-body: #6B7280;
+  --patient-text-muted: #9CA3AF;
+  --patient-label: #374151;
+  --patient-border: #F0F2F5;
+  --patient-border-strong: #EFEFEF;
+  --patient-border-soft: #F3F4F6;
+  --patient-card-border: #E2EAF4;
+  --patient-card-bg-1: #FFFFFF;
+  --patient-card-bg-2: #F7FBFF;
+  --patient-active-card-bg-1: #F0FDF4;
+  --patient-active-card-bg-2: #DCFCE7;
+  --patient-active-card-border: #86EFAC;
+  --patient-active-card-text: #065F46;
+  --patient-tab-inactive-icon: #C7C7CC;
+  --patient-tab-inactive-text: #8E8E93;
+  --patient-accent: #1D6FA8;
+  --patient-frame-border: rgba(255,255,255,0.7);
+}
+
+.patient-shell.patient-dark {
+  color-scheme: dark;
+  --patient-page-1: #0c1117;
+  --patient-page-2: #070a0f;
+  --patient-page-3: #03050a;
+  --patient-surface: #161c27;
+  --patient-surface-alt: #1c2330;
+  --patient-text: #F1F5F9;
+  --patient-text-secondary: #C7D0DD;
+  --patient-text-body: #A7B1C2;
+  --patient-text-muted: #7E8AA0;
+  --patient-label: #D7DEE9;
+  --patient-border: #232C3D;
+  --patient-border-strong: #232C3D;
+  --patient-border-soft: #232C3D;
+  --patient-card-border: #2C3A50;
+  --patient-card-bg-1: #161c27;
+  --patient-card-bg-2: #1c2330;
+  --patient-active-card-bg-1: #102019;
+  --patient-active-card-bg-2: #15301F;
+  --patient-active-card-border: #1F5A3D;
+  --patient-active-card-text: #4ADE80;
+  --patient-tab-inactive-icon: #475569;
+  --patient-tab-inactive-text: #64748B;
+  --patient-accent: #5EB3F0;
+  --patient-frame-border: rgba(255,255,255,0.06);
 }
 
 /* Inputs */

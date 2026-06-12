@@ -38,7 +38,7 @@ export default function PatientNotificationBell({ notifications, unreadCount, on
       <button
         onClick={toggleOpen}
         title={copy.notificationsTitle}
-        className="relative w-9 h-9 rounded-full flex items-center justify-center text-[#1A1A2E] hover:bg-[#F0F2F5] transition-colors"
+        className="relative w-9 h-9 rounded-full flex items-center justify-center text-[var(--patient-text)] hover:bg-[var(--patient-border)] transition-colors"
       >
         <BellIcon />
         {unreadCount > 0 && (
@@ -49,13 +49,13 @@ export default function PatientNotificationBell({ notifications, unreadCount, on
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-[300px] max-w-[calc(100vw-2.5rem)] overflow-hidden rounded-2xl border border-[#F0F2F5] bg-white shadow-lg z-50">
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#F0F2F5]">
-            <p className="text-sm font-bold text-[#1A1A2E]">{copy.notificationsTitle}</p>
+        <div className="absolute right-0 top-full mt-2 w-[300px] max-w-[calc(100vw-2.5rem)] overflow-hidden rounded-2xl border border-[var(--patient-border)] bg-[var(--patient-surface)] shadow-lg z-50">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--patient-border)]">
+            <p className="text-sm font-bold text-[var(--patient-text)]">{copy.notificationsTitle}</p>
             {notifications.length > 0 && (
               <button
                 onClick={onClear}
-                className="text-xs font-medium text-[#9CA3AF] hover:text-[#1A1A2E] transition-colors"
+                className="text-xs font-medium text-[var(--patient-text-muted)] hover:text-[var(--patient-text)] transition-colors"
               >
                 {copy.clearAll}
               </button>
@@ -65,15 +65,15 @@ export default function PatientNotificationBell({ notifications, unreadCount, on
           <div className="max-h-[360px] overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="px-4 py-8 text-center">
-                <p className="text-sm font-medium text-[#1A1A2E]">{copy.noNotifications}</p>
+                <p className="text-sm font-medium text-[var(--patient-text)]">{copy.noNotifications}</p>
               </div>
             ) : (
-              <div className="divide-y divide-[#F0F2F5]">
+              <div className="divide-y divide-[var(--patient-border)]">
                 {notifications.map(entry => (
                   <div key={entry.id} className="px-4 py-3">
-                    <p className="text-sm font-semibold text-[#1A1A2E]">{entry.title}</p>
-                    <p className="text-[13px] text-[#6B7280] mt-1 leading-relaxed">{entry.body}</p>
-                    <p className="text-[11px] text-[#9CA3AF] mt-1.5">
+                    <p className="text-sm font-semibold text-[var(--patient-text)]">{entry.title}</p>
+                    <p className="text-[13px] text-[var(--patient-text-body)] mt-1 leading-relaxed">{entry.body}</p>
+                    <p className="text-[11px] text-[var(--patient-text-muted)] mt-1.5">
                       {new Date(entry.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                     </p>
                   </div>
