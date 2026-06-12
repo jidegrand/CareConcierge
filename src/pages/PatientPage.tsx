@@ -1,10 +1,11 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 
 const Entertainment = lazy(() => import('@/pages/Entertainment/Entertainment'))
 import { useParams } from 'react-router-dom'
 import { useRoom } from '@/hooks/useRoom'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
 import { useTenantSettings } from '@/hooks/useTenantSettings'
+import { usePatientNotifications } from '@/hooks/usePatientNotifications'
 import {
   PATIENT_LANGUAGE_OPTIONS,
   PATIENT_LANGUAGE_STORAGE_KEY,
@@ -17,6 +18,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { playPatientReceipt } from '@/lib/sounds'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
+import PatientNotificationBell from '@/components/PatientNotificationBell'
 import { PRODUCT_NAME } from '@/lib/brand'
 
 type TabId = 'requests' | 'services' | 'fun' | 'info'
@@ -72,6 +74,9 @@ export default function PatientPage() {
   const [submitError,  setSubmitError]  = useState<string | null>(null)
   // Set of request type IDs that already have a pending/acknowledged request for this room
   const [activeTypeSet, setActiveTypeSet] = useState<Set<string>>(new Set())
+  const { notifications, unreadCount, pushNotification, markAllRead, clearNotifications } = usePatientNotifications(room?.id)
+  // Tracks the last-known status per request id so realtime updates can detect acknowledged/resolved transitions
+  const requestStatusRef = useRef<Map<string, { type: string; status: string }>>(new Map())
   const copy = getPatientCopy(language)
   const patientIdleRedirectUrl = normalizeRedirectUrl(
     room?.unit?.site?.hospital_url ?? room?.unit?.site?.tenant?.organization_url ?? tenantSettings.patient_idle_redirect_url
@@ -124,6 +129,7 @@ export default function PatientPage() {
       const nextByType: Record<string, ActiveRequestRow> = {}
       for (const row of rows) {
         if (!nextByType[row.type]) nextByType[row.type] = row
+        requestStatusRef.current.set(row.id, { type: row.type, status: row.status })
       }
 
       setActiveRequestsByType(nextByType)
@@ -150,6 +156,19 @@ export default function PatientPage() {
             const nextType = typeof payload.new.type === 'string' ? payload.new.type : null
             const nextId = typeof payload.new.id === 'string' ? payload.new.id : null
             const createdAt = typeof payload.new.created_at === 'string' ? payload.new.created_at : null
+
+            if (nextStatus && nextType && nextId) {
+              const prevEntry = requestStatusRef.current.get(nextId)
+              if (prevEntry && prevEntry.status !== nextStatus &&
+                  (nextStatus === 'acknowledged' || nextStatus === 'resolved')) {
+                const label = getRequestLabel(nextType)
+                pushNotification({
+                  id: `${nextId}:${nextStatus}`,
+                  title: nextStatus === 'resolved' ? copy.notifResolvedTitle : copy.notifAckTitle,
+                  body: (nextStatus === 'resolved' ? copy.notifResolvedBody : copy.notifAckBody).replace('{request}', label),
+                })
+              }
+            }
 
             if (nextStatus === 'resolved' && nextType && nextId) {
               setActiveRequest(prev => {
@@ -247,6 +266,7 @@ export default function PatientPage() {
       return
     }
     const live = data as ActiveRequestRow
+    requestStatusRef.current.set(live.id, { type: typeId, status: live.status })
     setActiveRequestsByType(prev => ({ ...prev, [typeId]: live }))
     setActiveTypeSet(prev => new Set(prev).add(typeId))
     playPatientReceipt()
@@ -270,6 +290,7 @@ export default function PatientPage() {
       return
     }
     const live = data as ActiveRequestRow
+    requestStatusRef.current.set(live.id, { type: 'nurse', status: live.status })
     setActiveRequestsByType(prev => ({ ...prev, nurse: live }))
     setActiveTypeSet(prev => new Set(prev).add('nurse'))
     playPatientReceipt()
@@ -415,14 +436,23 @@ export default function PatientPage() {
               <p className="truncate text-[11px] text-[#9CA3AF]">{room.unit?.name ?? room.name}</p>
             </div>
           </div>
-          <select
-            value={language}
-            onChange={event => setLanguage(event.target.value as PatientLanguage)}
-            className="flex-shrink-0 text-[13px] font-semibold text-[#1D6FA8] bg-transparent outline-none cursor-pointer">
-            {PATIENT_LANGUAGE_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <PatientNotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onOpen={markAllRead}
+              onClear={clearNotifications}
+              copy={copy}
+            />
+            <select
+              value={language}
+              onChange={event => setLanguage(event.target.value as PatientLanguage)}
+              className="flex-shrink-0 text-[13px] font-semibold text-[#1D6FA8] bg-transparent outline-none cursor-pointer">
+              {PATIENT_LANGUAGE_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* ── Tab content ───────────────────────────────────────── */}
