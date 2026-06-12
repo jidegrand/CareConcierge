@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useTenantSettings } from '@/hooks/tenant/useTenantSettings'
+import { supabase } from '@/lib/supabase'
 import { slugify } from '@/lib/utils'
 
 type FormData = {
@@ -11,7 +12,6 @@ type FormData = {
   secondaryColor: string
   defaultLanguage: string
   enablePatientFeedback: boolean
-  enableQrCodes: boolean
 }
 
 type FormErrors = Partial<Record<keyof FormData, string>>
@@ -35,12 +35,13 @@ export default function SettingsPage() {
     secondaryColor: '#1F4788',
     defaultLanguage: 'en',
     enablePatientFeedback: true,
-    enableQrCodes: true,
   })
 
   const [errors, setErrors] = useState<FormErrors>({})
   const [success, setSuccess] = useState(false)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoObjectUrl, setLogoObjectUrl] = useState<string | null>(null)
 
   // Initialize form with tenant and settings data
   useEffect(() => {
@@ -53,13 +54,19 @@ export default function SettingsPage() {
         secondaryColor: settings.secondary_color || '#1F4788',
         defaultLanguage: settings.default_language || 'en',
         enablePatientFeedback: settings.patient_feedback_enabled !== false,
-        enableQrCodes: settings.enable_qr_codes !== false,
       })
       if (settings.logo_url) {
         setLogoPreview(settings.logo_url)
       }
     }
   }, [tenant, settings])
+
+  // Revoke any object-URL preview when replaced or on unmount
+  useEffect(() => {
+    return () => {
+      if (logoObjectUrl) URL.revokeObjectURL(logoObjectUrl)
+    }
+  }, [logoObjectUrl])
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
@@ -102,12 +109,12 @@ export default function SettingsPage() {
       return
     }
 
-    // Create preview
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setLogoPreview(reader.result as string)
-    }
-    reader.readAsDataURL(file)
+    // Create a local preview without storing the file as base64
+    if (logoObjectUrl) URL.revokeObjectURL(logoObjectUrl)
+    const objectUrl = URL.createObjectURL(file)
+    setLogoObjectUrl(objectUrl)
+    setLogoPreview(objectUrl)
+    setLogoFile(file)
 
     setErrors(prev => ({ ...prev, logoUrl: undefined }))
   }
@@ -121,22 +128,40 @@ export default function SettingsPage() {
     e.preventDefault()
 
     if (!validateForm()) return
+    if (!tenant?.id) return
 
     try {
       setSuccess(false)
 
-      // For now, we'll just update settings (logo upload would need separate handling)
+      let logoUrl = formData.logoUrl
+      if (logoFile) {
+        const ext = logoFile.name.split('.').pop() || 'png'
+        const path = `${tenant.id}/logo.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('tenant-logos')
+          .upload(path, logoFile, { upsert: true, contentType: logoFile.type })
+
+        if (uploadError) {
+          setErrors(prev => ({ ...prev, logoUrl: 'Failed to upload logo. Please try again.' }))
+          return
+        }
+
+        const { data } = supabase.storage.from('tenant-logos').getPublicUrl(path)
+        logoUrl = data.publicUrl
+      }
+
       const result = await update({
-        tenant_id: tenant?.id,
-        logo_url: logoPreview,
+        tenant_id: tenant.id,
+        logo_url: logoUrl,
         primary_color: formData.primaryColor,
         secondary_color: formData.secondaryColor,
         default_language: formData.defaultLanguage,
         patient_feedback_enabled: formData.enablePatientFeedback,
-        enable_qr_codes: formData.enableQrCodes,
       })
 
       if (result.success) {
+        setFormData(prev => ({ ...prev, logoUrl }))
+        setLogoFile(null)
         setSuccess(true)
         setTimeout(() => setSuccess(false), 3000)
       }
@@ -345,14 +370,6 @@ export default function SettingsPage() {
               description="Allow patients to rate their request experience after resolution"
               checked={formData.enablePatientFeedback}
               onChange={checked => setFormData({ ...formData, enablePatientFeedback: checked })}
-            />
-
-            {/* QR Codes Toggle */}
-            <ToggleSwitch
-              label="QR Code Access"
-              description="Enable patients to submit requests via QR codes"
-              checked={formData.enableQrCodes}
-              onChange={checked => setFormData({ ...formData, enableQrCodes: checked })}
             />
           </div>
         </section>

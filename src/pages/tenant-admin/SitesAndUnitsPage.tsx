@@ -2,9 +2,16 @@ import { useState } from 'react'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useTenantSites } from '@/hooks/tenant/useTenantSites'
 import { useTenantUnits } from '@/hooks/tenant/useTenantUnits'
+import { useLicenseUsage } from '@/hooks/tenant/useLicenseUsage'
 import type { Site, Unit } from '@/types'
 
 type TabType = 'sites' | 'units'
+
+function usageCountClass(current: number, limit: number): string {
+  if (current >= limit) return 'text-red-600 font-semibold'
+  if (current >= limit * 0.8) return 'text-yellow-600 font-semibold'
+  return ''
+}
 
 interface SiteFormData {
   name: string
@@ -25,6 +32,7 @@ export default function SitesAndUnitsPage() {
   const { tenant } = useTenantContext()
   const { sites, loading: sitesLoading, error: sitesError, createSite, updateSite, deleteSite } = useTenantSites(tenant?.id)
   const { units, loading: unitsLoading, error: unitsError, createUnit, updateUnit, deleteUnit } = useTenantUnits(tenant?.id)
+  const { usage, isLimitExceeded } = useLicenseUsage(tenant?.id || '')
 
   const [activeTab, setActiveTab] = useState<TabType>('sites')
   const [showSiteModal, setShowSiteModal] = useState(false)
@@ -218,7 +226,11 @@ export default function SitesAndUnitsPage() {
               : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'
           }`}
         >
-          Sites ({sites.length})
+          Sites ({sites.length}
+          {usage?.sites.limit && (
+            <span className={usageCountClass(sites.length, usage.sites.limit)}>/{usage.sites.limit}</span>
+          )}
+          )
         </button>
         <button
           onClick={() => setActiveTab('units')}
@@ -228,13 +240,23 @@ export default function SitesAndUnitsPage() {
               : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'
           }`}
         >
-          Units ({units.length})
+          Units ({units.length}
+          {usage?.units.limit && (
+            <span className={usageCountClass(units.length, usage.units.limit)}>/{usage.units.limit}</span>
+          )}
+          )
         </button>
       </div>
 
       {/* Sites Tab */}
       {activeTab === 'sites' && (
         <div className="space-y-4">
+          {isLimitExceeded('sites') && (
+            <div className="p-4 rounded-lg border border-yellow-300 bg-yellow-50 text-yellow-700 text-sm">
+              You've reached your plan's site limit ({usage?.sites.current}/{usage?.sites.limit}). Upgrade your plan to add more sites.
+            </div>
+          )}
+
           <button
             onClick={openCreateSiteModal}
             className="px-4 py-2 bg-[var(--clinical-blue)] text-white rounded-lg font-medium text-sm hover:opacity-90 transition-opacity"
@@ -322,6 +344,12 @@ export default function SitesAndUnitsPage() {
       {/* Units Tab */}
       {activeTab === 'units' && (
         <div className="space-y-4">
+          {isLimitExceeded('units') && (
+            <div className="p-4 rounded-lg border border-yellow-300 bg-yellow-50 text-yellow-700 text-sm">
+              You've reached your plan's unit limit ({usage?.units.current}/{usage?.units.limit}). Upgrade your plan to add more units.
+            </div>
+          )}
+
           <button
             onClick={openCreateUnitModal}
             disabled={sites.length === 0}

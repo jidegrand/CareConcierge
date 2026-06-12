@@ -2,11 +2,9 @@ import { useDarkMode } from '@/hooks/useDarkMode'
 import { useState, useEffect, FormEvent } from 'react'
 import NurseShell from '@/components/NurseShell'
 import { useAuth } from '@/hooks/useAuth'
-import { useTenantSettings } from '@/hooks/useTenantSettings'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useRequests } from '@/hooks/useRequests'
 import { supabase } from '@/lib/supabase'
-import { isAtLeast } from '@/lib/roles'
 import { COMPANY_NAME, PRODUCT_NAME, SYSTEM_LAYER_NAME } from '@/lib/brand'
 const APP_VERSION     = '1.1.0'
 
@@ -91,7 +89,7 @@ export default function SettingsPage() {
             {tab === 'profile'       && <ProfileTab       user={user} profile={profile} unitName={unitName} tenantId={tenantId} />}
             {tab === 'notifications' && <NotificationsTab />}
             {tab === 'security'      && <SecurityTab      user={user} />}
-            {tab === 'preferences'   && <PreferencesTab tenantId={tenantId} role={profile?.role} />}
+            {tab === 'preferences'   && <PreferencesTab />}
           </div>
         </main>
       </div>
@@ -355,20 +353,13 @@ function SecurityTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // TAB: Preferences
 // ─────────────────────────────────────────────────────────────────────────────
-function PreferencesTab({ tenantId, role }: { tenantId: string | undefined; role: string | undefined }) {
+function PreferencesTab() {
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const canManagePatientQrSettings = isAtLeast(role, 'nurse_manager')
-  const { settings, loading: settingsLoading, saveSettings } = useTenantSettings(tenantId)
-  const [patientFeedbackEnabled, setPatientFeedbackEnabled] = useState(false)
 
   const update = (patch: Partial<Prefs>) => setPrefs(p => ({ ...p, ...patch }))
-
-  useEffect(() => {
-    setPatientFeedbackEnabled(settings.patient_feedback_enabled)
-  }, [settings.patient_feedback_enabled])
 
   const handleSave = async () => {
     setSaving(true)
@@ -376,12 +367,6 @@ function PreferencesTab({ tenantId, role }: { tenantId: string | undefined; role
 
     try {
       savePrefs(prefs)
-      if (canManagePatientQrSettings && tenantId) {
-        await saveSettings({
-          patient_feedback_enabled: patientFeedbackEnabled,
-          patient_idle_redirect_url: settings.patient_idle_redirect_url,
-        })
-      }
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err: unknown) {
@@ -502,22 +487,6 @@ function PreferencesTab({ tenantId, role }: { tenantId: string | undefined; role
           </Field>
         </div>
       </Card>
-
-      {canManagePatientQrSettings && (
-        <Card className="mt-4">
-          <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4">Patient QR Experience</p>
-          <Toggle
-            label="Patient satisfaction prompt"
-            sub="Show a quick 1–5 star feedback prompt on the patient QR page after a request is resolved."
-            checked={patientFeedbackEnabled}
-            disabled={settingsLoading || !tenantId}
-            onChange={setPatientFeedbackEnabled}
-          />
-          <p className="mt-3 text-xs text-[var(--text-muted)]">
-            Managers and admins can also configure the patient idle redirect URL in Sites & Rooms for each hospital site.
-          </p>
-        </Card>
-      )}
 
       <Card className="mt-4">
         <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">About {PRODUCT_NAME}</p>

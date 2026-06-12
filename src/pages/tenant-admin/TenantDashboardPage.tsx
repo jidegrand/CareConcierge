@@ -28,7 +28,7 @@ const ONBOARDING_STEPS = [
 export default function TenantDashboardPage() {
   const navigate = useNavigate()
   const { tenant } = useTenantContext()
-  const { usage, isExpiringSoon, isExpired } = useLicenseUsage(tenant?.id || '')
+  const { usage } = useLicenseUsage(tenant?.id || '')
   const { logs } = useAuditLogs(tenant?.id || '')
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null)
   const [loading, setLoading] = useState(true)
@@ -76,43 +76,6 @@ export default function TenantDashboardPage() {
 
   return (
     <div className="p-6 space-y-6 overflow-y-auto">
-      {/* License Alerts */}
-      {isExpired() && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex gap-3">
-            <span className="text-2xl">⚠️</span>
-            <div>
-              <h3 className="font-semibold text-red-900">License Expired</h3>
-              <p className="text-sm text-red-700 mt-1">Your organization's license has expired. Please upgrade to continue.</p>
-              <button
-                onClick={() => navigate('/tenant-admin/licensing')}
-                className="mt-2 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition"
-              >
-                Upgrade Now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isExpiringSoon() && !isExpired() && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <div className="flex gap-3">
-            <span className="text-2xl">⏱️</span>
-            <div>
-              <h3 className="font-semibold text-amber-900">License Expiring Soon</h3>
-              <p className="text-sm text-amber-700 mt-1">Your license expires in {usage?.daysUntilExpiry} days.</p>
-              <button
-                onClick={() => navigate('/tenant-admin/licensing')}
-                className="mt-2 px-3 py-1 bg-amber-600 text-white text-sm rounded hover:bg-amber-700 transition"
-              >
-                View License
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Welcome & Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Welcome Card */}

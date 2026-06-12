@@ -25,6 +25,7 @@ export default function UsersPage() {
 
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [editingRole, setEditingRole] = useState<string | null>(null)
+  const [roleChangeError, setRoleChangeError] = useState<string | null>(null)
 
   const [filterRole, setFilterRole] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -72,10 +73,35 @@ export default function UsersPage() {
   }
 
   const handleRoleChange = async (userId: string, newRole: string) => {
+    setRoleChangeError(null)
+    const targetUser = users.find(u => u.id === userId)
+    if (!targetUser || targetUser.role === newRole) {
+      setEditingUserId(null)
+      setEditingRole(null)
+      return
+    }
+
+    if (targetUser.role === 'tenant_admin') {
+      const activeAdminCount = users.filter(u => u.role === 'tenant_admin' && u.active).length
+      if (activeAdminCount <= 1) {
+        setRoleChangeError('Cannot change role: at least one Organization Admin is required.')
+        return
+      }
+    }
+
+    if (newRole === 'tenant_admin') {
+      const confirmed = window.confirm(
+        `Give ${targetUser.full_name || 'this user'} full Organization Admin access? They will be able to manage billing, users, and settings.`
+      )
+      if (!confirmed) return
+    }
+
     const result = await updateUserRole(userId, newRole)
     if (result.success) {
       setEditingUserId(null)
       setEditingRole(null)
+    } else {
+      setRoleChangeError(result.error || 'Failed to update role')
     }
   }
 
@@ -139,6 +165,12 @@ export default function UsersPage() {
         </select>
       </div>
 
+      {roleChangeError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {roleChangeError}
+        </div>
+      )}
+
       {/* Users Table */}
       <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] overflow-hidden">
         {filteredUsers.length === 0 ? (
@@ -195,7 +227,7 @@ export default function UsersPage() {
                             Save
                           </button>
                           <button
-                            onClick={() => setEditingUserId(null)}
+                            onClick={() => { setEditingUserId(null); setEditingRole(null); setRoleChangeError(null) }}
                             className="px-2 py-1 text-xs border border-[var(--border)] rounded hover:bg-[var(--hover-bg)] transition"
                           >
                             Cancel

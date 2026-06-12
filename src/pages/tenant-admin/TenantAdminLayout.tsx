@@ -47,7 +47,7 @@ export default function TenantAdminLayout() {
   }
 
   const visibleNavItems = NAV_ITEMS.filter(item => item.id !== 'audit-logs' || auditLogsEnabled)
-  const currentNavItem = NAV_ITEMS.find(item => location.pathname.includes(item.path))
+  const currentNavItem = visibleNavItems.find(item => location.pathname.includes(item.path))
 
   return (
     <div className="flex h-screen bg-[var(--page-bg)]">
