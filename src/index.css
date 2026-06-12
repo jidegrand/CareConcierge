@@ -70,6 +70,14 @@ html.dark {
 /* Surfaces */
 html.dark .bg-white { background-color: #161B22 !important; }
 
+/* The patient-facing room page has its own fixed light theme and is not
+   dark-mode aware — keep its surfaces white even when html.dark is set,
+   otherwise its dark navy text/icons become invisible on a dark surface. */
+html.dark .patient-shell .bg-white,
+html.dark .patient-shell.bg-white {
+  background-color: #ffffff !important;
+}
+
 /* Inputs */
 html.dark input:not([disabled]),
 html.dark select:not([disabled]),

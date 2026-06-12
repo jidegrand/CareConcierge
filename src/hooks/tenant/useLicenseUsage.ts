@@ -129,6 +129,22 @@ export function useLicenseUsage(tenantId: string) {
     void fetchUsage()
   }, [tenantId, fetchUsage])
 
+  // Keep plan/status/usage fresh if it changes elsewhere (e.g. a platform
+  // admin updates this tenant's license while this dashboard stays open).
+  useEffect(() => {
+    if (!tenantId) return
+
+    const refreshOnFocus = () => { void fetchUsage() }
+    const interval = window.setInterval(() => { void fetchUsage() }, 60_000)
+
+    window.addEventListener('focus', refreshOnFocus)
+
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshOnFocus)
+    }
+  }, [tenantId, fetchUsage])
+
   return {
     usage,
     loading,

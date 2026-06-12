@@ -444,7 +444,7 @@ export default function PatientPage() {
 
   return (
     <div
-      className="min-h-dvh md:px-6 md:py-8"
+      className="patient-shell min-h-dvh md:px-6 md:py-8"
       style={{
         background: 'radial-gradient(circle at top, #f8fbff 0%, #edf2f7 42%, #e5ebf3 100%)',
         fontFamily: "'DM Sans', system-ui, sans-serif",
