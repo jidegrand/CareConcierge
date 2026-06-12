@@ -12,7 +12,9 @@ interface PatientNotificationBellProps {
 
 export default function PatientNotificationBell({ notifications, unreadCount, onOpen, onClear, copy }: PatientNotificationBellProps) {
   const [open, setOpen] = useState(false)
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -25,6 +27,26 @@ export default function PatientNotificationBell({ notifications, unreadCount, on
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Keep the dropdown anchored to the bell button and within the viewport,
+  // since the button can sit anywhere in the top bar depending on layout.
+  useEffect(() => {
+    if (!open) return
+
+    const updateCoords = () => {
+      const rect = buttonRef.current?.getBoundingClientRect()
+      if (!rect) return
+      setCoords({ top: rect.bottom + 8, right: Math.max(8, window.innerWidth - rect.right) })
+    }
+
+    updateCoords()
+    window.addEventListener('resize', updateCoords)
+    window.addEventListener('scroll', updateCoords, true)
+    return () => {
+      window.removeEventListener('resize', updateCoords)
+      window.removeEventListener('scroll', updateCoords, true)
+    }
+  }, [open])
+
   const toggleOpen = () => {
     setOpen(value => {
       const next = !value
@@ -36,6 +58,7 @@ export default function PatientNotificationBell({ notifications, unreadCount, on
   return (
     <div className="relative" ref={panelRef}>
       <button
+        ref={buttonRef}
         onClick={toggleOpen}
         title={copy.notificationsTitle}
         className="relative w-9 h-9 rounded-full flex items-center justify-center text-[var(--patient-text)] hover:bg-[var(--patient-border)] transition-colors"
@@ -48,8 +71,11 @@ export default function PatientNotificationBell({ notifications, unreadCount, on
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-2 w-[300px] max-w-[calc(100vw-2.5rem)] overflow-hidden rounded-2xl border border-[var(--patient-border)] bg-[var(--patient-surface)] shadow-lg z-50">
+      {open && coords && (
+        <div
+          className="fixed w-[300px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-[var(--patient-border)] bg-[var(--patient-surface)] shadow-lg z-50"
+          style={{ top: coords.top, right: coords.right }}
+        >
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--patient-border)]">
             <p className="text-sm font-bold text-[var(--patient-text)]">{copy.notificationsTitle}</p>
             {notifications.length > 0 && (
