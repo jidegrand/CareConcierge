@@ -22,6 +22,12 @@ export function usePatientVoice() {
     try {
       window.localStorage.setItem(STORAGE_KEY, voiceEnabled ? 'on' : 'off')
     } catch {}
+
+    // Warm up the speech synthesis engine as soon as voice is enabled, so
+    // the voice list is loaded before the first confirmation is spoken.
+    if (voiceEnabled && 'speechSynthesis' in window) {
+      window.speechSynthesis.getVoices()
+    }
   }, [voiceEnabled])
 
   const toggleVoice = () => setVoiceEnabled(prev => !prev)

@@ -256,6 +256,9 @@ export default function PatientPage() {
 
   const submitRequest = async (typeId: string, baseLabel: string, urgent: boolean) => {
     if (!room || submitting || cancelingRequest || activeTypeSet.has(typeId)) return
+    if (voiceEnabled) {
+      speakPatientConfirmation(copy.voiceConfirmation.replace('{request}', getRequestLabel(typeId, baseLabel)), language)
+    }
     setSubmitting(true)
     setSubmitError(null)
     const { data, error } = await supabase.from('requests').insert({
@@ -273,15 +276,15 @@ export default function PatientPage() {
     setActiveRequestsByType(prev => ({ ...prev, [typeId]: live }))
     setActiveTypeSet(prev => new Set(prev).add(typeId))
     playPatientReceipt()
-    if (voiceEnabled) {
-      speakPatientConfirmation(copy.voiceConfirmation.replace('{request}', getRequestLabel(typeId, baseLabel)), language)
-    }
     setActiveRequest({ id: live.id, type: typeId, baseLabel, time: new Date(live.created_at), status: live.status })
     setSubmitting(false)
   }
 
   const handleCallNurse = async () => {
     if (!room || callPressed || cancelingRequest || activeTypeSet.has('nurse')) return
+    if (voiceEnabled) {
+      speakPatientConfirmation(copy.voiceConfirmation.replace('{request}', getRequestLabel('nurse', nurseBaseLabel)), language)
+    }
     setCallPressed(true)
     setSubmitError(null)
     const { data, error } = await supabase.from('requests').insert({
@@ -299,9 +302,6 @@ export default function PatientPage() {
     setActiveRequestsByType(prev => ({ ...prev, nurse: live }))
     setActiveTypeSet(prev => new Set(prev).add('nurse'))
     playPatientReceipt()
-    if (voiceEnabled) {
-      speakPatientConfirmation(copy.voiceConfirmation.replace('{request}', getRequestLabel('nurse', nurseBaseLabel)), language)
-    }
     setActiveRequest({ id: live.id, type: 'nurse', baseLabel: nurseBaseLabel, time: new Date(live.created_at), status: live.status })
   }
 
