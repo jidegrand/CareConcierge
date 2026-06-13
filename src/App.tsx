@@ -18,6 +18,7 @@ import AdminPage       from '@/pages/AdminPage'
 import SettingsPage    from '@/pages/SettingsPage'
 import UserGuidePage   from '@/pages/UserGuidePage'
 import PatientGuidePage from '@/pages/PatientGuidePage'
+import FamilyDashboardPage from '@/pages/FamilyDashboardPage'
 import AdminGuidePage  from '@/pages/AdminGuidePage'
 import Entertainment   from '@/pages/Entertainment/Entertainment'
 
@@ -82,6 +83,7 @@ function HomeRedirect() {
   if (!session) return <Navigate to="/login" replace />
   if (profile?.role === 'super_admin') return <Navigate to="/platform" replace />
   if (profile?.role === 'tenant_admin') return <Navigate to="/tenant-admin" replace />
+  if (profile?.role === 'family') return <Navigate to="/family" replace />
   return <Navigate to="/dashboard" replace />
 }
 
@@ -148,6 +150,7 @@ export default function App() {
             <Route path="/reset-password" element={<PublicTenantShell><ResetPasswordPage /></PublicTenantShell>} />
             <Route path="/set-password"   element={<PublicTenantShell><SetPasswordPage /></PublicTenantShell>} />
             <Route path="/dashboard"  element={<ProtectedRoute><NurseDashboard  /></ProtectedRoute>} />
+            <Route path="/family"     element={<ProtectedRoute><FamilyDashboardPage /></ProtectedRoute>} />
             <Route path="/feed"       element={<ProtectedRoute><PatientFeedPage /></ProtectedRoute>} />
             <Route path="/bay-map"    element={<ProtectedRoute><BayMapPage      /></ProtectedRoute>} />
             <Route path="/staffing"   element={<ProtectedRoute><StaffingPage    /></ProtectedRoute>} />

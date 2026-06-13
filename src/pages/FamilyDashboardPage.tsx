@@ -1,0 +1,183 @@
+import { useState } from 'react'
+import { useAuth } from '@/hooks/useAuth'
+import { useTenantContext } from '@/hooks/useTenantContext'
+import { useFamilyPortal } from '@/hooks/useFamilyPortal'
+import RequestTypeIcon from '@/components/RequestTypeIcon'
+import { formatResidentShortName } from '@/lib/constants'
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+function formatActivityTime(iso: string): string {
+  const date = new Date(iso)
+  const now = new Date()
+  const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+
+  if (date.toDateString() === now.toDateString()) return `Today at ${time}`
+
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (date.toDateString() === yesterday.toDateString()) return `Yesterday, ${time}`
+
+  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`
+}
+
+export default function FamilyDashboardPage() {
+  const { profile, signOut } = useAuth()
+  const { tenantId, tenantName } = useTenantContext()
+  const { loading, error, familyMember, resident, requestTypes, activity, submitRequest } = useFamilyPortal(tenantId)
+  const [submittingId, setSubmittingId] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<string | null>(null)
+
+  const handleRequest = async (typeId: string, label: string) => {
+    setSubmittingId(typeId)
+    setFeedback(null)
+    const result = await submitRequest(typeId)
+    setSubmittingId(null)
+    if (result.success) {
+      setFeedback(`${label} — request sent.`)
+      window.setTimeout(() => setFeedback(null), 3000)
+    } else {
+      setFeedback(result.error ?? 'Failed to send request.')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[var(--page-bg)] flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-[var(--clinical-blue)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (error || !resident) {
+    return (
+      <div className="min-h-screen bg-[var(--page-bg)] flex items-center justify-center p-6">
+        <div className="max-w-sm w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 text-center">
+          <p className="text-[var(--text-primary)] font-semibold mb-1">Unable to load your portal</p>
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
+            {error ?? 'No resident is linked to this account yet.'}
+          </p>
+          <button onClick={() => signOut()} className="text-sm font-semibold text-[var(--clinical-blue)]">
+            Sign out
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const displayName = profile?.full_name ?? familyMember?.full_name ?? 'there'
+  const firstName = displayName.split(' ')[0]
+  const lastActivityTimestamp = activity[0]?.timestamp
+
+  return (
+    <div className="min-h-screen bg-[var(--page-bg)]">
+      <div className="mx-auto max-w-[480px] min-h-screen flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-6 pb-2">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+              {tenantName ?? 'Family Portal'}
+            </p>
+            <h1 className="text-[22px] font-extrabold text-[var(--text-primary)] leading-tight">
+              Hi, {firstName}
+            </h1>
+          </div>
+          <button onClick={() => signOut()} className="text-[13px] font-semibold text-[var(--clinical-blue)]">
+            Sign out
+          </button>
+        </div>
+
+        <div className="flex-1 px-5 pb-8 pt-3 space-y-5">
+          {/* Resident card */}
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)] flex items-center justify-center font-bold text-[15px] flex-shrink-0">
+              {getInitials(resident.display_name)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-[var(--text-primary)] truncate">
+                {formatResidentShortName(resident.display_name)}
+              </p>
+              <p className="text-[12px] text-[var(--text-muted)] truncate">
+                {lastActivityTimestamp
+                  ? `Last activity ${formatActivityTime(lastActivityTimestamp)}`
+                  : 'No recent activity'}
+              </p>
+            </div>
+          </div>
+
+          {/* Feedback toast */}
+          {feedback && (
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm text-[var(--text-secondary)]">
+              {feedback}
+            </div>
+          )}
+
+          {/* Quick requests */}
+          {requestTypes.length > 0 && (
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)] mb-3">
+                Quick Requests
+              </p>
+              <div className="grid grid-cols-2 gap-2.5">
+                {requestTypes.map(rt => (
+                  <button
+                    key={rt.id}
+                    onClick={() => handleRequest(rt.id, rt.label)}
+                    disabled={submittingId !== null}
+                    className="flex flex-col items-start gap-2.5 rounded-2xl p-4 text-left border border-[var(--border)] bg-[var(--surface)] active:scale-[0.97] transition-transform disabled:opacity-60"
+                  >
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-[20px]"
+                      style={{ backgroundColor: `${rt.color}1A` }}
+                    >
+                      <RequestTypeIcon icon={rt.icon} label={rt.label} />
+                    </div>
+                    <span className="text-[13px] font-semibold text-[var(--text-primary)] leading-tight">
+                      {submittingId === rt.id ? 'Sending…' : rt.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Today's activity */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)] mb-3">
+              Today's Activity
+            </p>
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl divide-y divide-[var(--border)]">
+              {activity.length === 0 && (
+                <p className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">No activity yet.</p>
+              )}
+              {activity.map(item => (
+                <div key={item.id} className="flex items-start gap-3 px-4 py-3">
+                  <span
+                    className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${
+                      item.statusColor === 'green' ? 'bg-emerald-500'
+                        : item.statusColor === 'amber' ? 'bg-amber-500'
+                        : 'bg-gray-300'
+                    }`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] text-[var(--text-primary)] leading-snug">
+                      {item.text}
+                      {item.detail && <span className="text-[var(--text-muted)]"> — {item.detail}</span>}
+                    </p>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                      {formatActivityTime(item.timestamp)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

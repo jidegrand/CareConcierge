@@ -83,6 +83,8 @@ export interface Room {
   resident?: { id: string; display_name: string } | null
 }
 
+export type RequestSource = 'patient' | 'staff' | 'family'
+
 export interface Request {
   id: string
   room_id: string
@@ -95,6 +97,7 @@ export interface Request {
   resolved_at: string | null
   resolved_by: string | null
   resident_id?: string | null
+  source?: RequestSource
   // Joined
   room?: Room
   resident?: { id: string; display_name: string } | null
@@ -128,6 +131,16 @@ export interface FamilyMember {
   created_at: string
 }
 
+export interface StaffNote {
+  id: string
+  resident_id: string
+  request_id: string | null
+  author_id: string
+  body: string
+  visible_to_family: boolean
+  created_at: string
+}
+
 export interface RequestFeedback {
   id: string
   request_id: string
@@ -143,6 +156,7 @@ export interface RequestTypeConfig {
   icon: string
   color: string
   urgent: boolean
+  audience?: 'patient' | 'family'
 }
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -156,6 +170,7 @@ export type UserRole =
   | 'super_admin'
   | 'nurse_manager'
   | 'volunteer'
+  | 'family'
 
 export interface UserProfile {
   id: string

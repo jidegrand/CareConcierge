@@ -49,7 +49,7 @@ export function useFamilyMembers(residentId: string | null) {
           email: input.email.trim().toLowerCase(),
           relationship: input.relationship?.trim() || null,
           accessLevel: input.accessLevel ?? 'digest',
-          redirectTo: buildAppUrl('/family/accept'),
+          redirectTo: buildAppUrl('/set-password'),
         },
       })
 
