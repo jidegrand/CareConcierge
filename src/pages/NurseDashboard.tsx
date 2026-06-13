@@ -615,6 +615,15 @@ function PendingCard({
             </span>
           )}
 
+          {/* Family-submitted badge */}
+          {request.source === 'family' && (
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+              style={{ background: '#EDE9FE', color: '#6D28D9' }}
+              title="Submitted by a family member">
+              Family
+            </span>
+          )}
+
           {/* Overdue badge — highest priority */}
           {isOverdue && (
             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
@@ -737,6 +746,15 @@ function InProgressCard({
               In Progress
             </span>
           )}
+
+          {/* Family-submitted badge */}
+          {request.source === 'family' && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+              style={{ background: '#EDE9FE', color: '#6D28D9' }}
+              title="Submitted by a family member">
+              Family
+            </span>
+          )}
         </div>
 
         <p className="text-sm font-bold mb-1.5" style={{ color: '#111827' }}>
@@ -844,6 +862,13 @@ function ResolvedRow({
       <span className="flex-1 text-sm font-medium truncate" style={{ color: '#111827' }}>
         {config?.label ?? request.type}
         {residentName && <span className="text-[var(--text-muted)] font-normal"> · {residentName}</span>}
+        {request.source === 'family' && (
+          <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
+            style={{ background: '#EDE9FE', color: '#6D28D9' }}
+            title="Submitted by a family member">
+            Family
+          </span>
+        )}
       </span>
       {resolverName && (
         <span className="text-xs text-[var(--text-muted)] hidden sm:block truncate max-w-[100px]"
