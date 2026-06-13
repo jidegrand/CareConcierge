@@ -603,7 +603,7 @@ function PendingCard({
         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
             style={{ background: '#DBEAFE', color: '#1D4ED8' }}>
-            {bayLabel}
+            {bayLabel}{residentName ? ` · ${residentName}` : ''}
           </span>
 
           {/* Duplicate count badge */}
@@ -645,9 +645,6 @@ function PendingCard({
         <p className="text-sm font-bold mb-1.5" style={{ color: '#111827' }}>
           {config?.label ?? request.type}
         </p>
-        {residentName && (
-          <p className="text-xs mb-1" style={{ color: '#6B7280' }}>{residentName}</p>
-        )}
         <p className="flex items-center gap-1 text-xs" style={{ color: '#9CA3AF' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -726,7 +723,7 @@ function InProgressCard({
         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
             style={{ background: '#DBEAFE', color: '#1D4ED8' }}>
-            {bayLabel}
+            {bayLabel}{residentName ? ` · ${residentName}` : ''}
           </span>
           {isLongWait ? (
             <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
@@ -745,9 +742,6 @@ function InProgressCard({
         <p className="text-sm font-bold mb-1.5" style={{ color: '#111827' }}>
           {config?.label ?? request.type}
         </p>
-        {residentName && (
-          <p className="text-xs mb-1" style={{ color: '#6B7280' }}>{residentName}</p>
-        )}
 
         <p className="flex items-center gap-1 text-xs mb-1" style={{ color: isLongWait ? '#D97706' : STATUS_COLORS.inProgress.text }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
