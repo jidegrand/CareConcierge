@@ -72,6 +72,18 @@ export function useFamilyChat(residentId: string | undefined, open: boolean): Us
     }
   }, [open, residentId, loadMessages, markRead])
 
+  // Polling fallback alongside the realtime subscription below: guarantees
+  // new messages show up within a few seconds even if the realtime channel
+  // doesn't deliver (e.g. token refresh dropped the socket).
+  useEffect(() => {
+    if (!open || !residentId) return
+    const interval = window.setInterval(() => {
+      void loadMessages()
+      void markRead()
+    }, 4_000)
+    return () => window.clearInterval(interval)
+  }, [open, residentId, loadMessages, markRead])
+
   // Ref mirror so the realtime handler doesn't need loadMessages/markRead as deps
   const openRef = useRef(open)
   openRef.current = open

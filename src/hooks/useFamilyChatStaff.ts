@@ -72,6 +72,24 @@ export function useFamilyChatStaff(enabled: boolean): UseFamilyChatStaffResult {
     void markRead(selectedResidentId).then(loadResidents)
   }, [selectedResidentId, loadMessages, markRead, loadResidents])
 
+  // Polling fallback alongside the realtime subscription below: guarantees
+  // new messages and inbox previews show up within a few seconds even if
+  // the realtime channel doesn't deliver (e.g. token refresh dropped the socket).
+  useEffect(() => {
+    if (!enabled) return
+    const interval = window.setInterval(() => { void loadResidents() }, 10_000)
+    return () => window.clearInterval(interval)
+  }, [enabled, loadResidents])
+
+  useEffect(() => {
+    if (!enabled || !selectedResidentId) return
+    const interval = window.setInterval(() => {
+      void loadMessages(selectedResidentId)
+      void markRead(selectedResidentId)
+    }, 4_000)
+    return () => window.clearInterval(interval)
+  }, [enabled, selectedResidentId, loadMessages, markRead])
+
   const selectedResidentIdRef = useRef(selectedResidentId)
   selectedResidentIdRef.current = selectedResidentId
 
