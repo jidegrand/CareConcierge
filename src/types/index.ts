@@ -142,6 +142,28 @@ export interface StaffNote {
   created_at: string
 }
 
+export type FamilyChatSenderRole = 'family' | 'staff'
+
+export interface FamilyChatMessage {
+  id: string
+  resident_id: string
+  sender_role: FamilyChatSenderRole
+  sender_id: string
+  sender_name: string
+  body: string
+  created_at: string
+}
+
+export interface FamilyChatResidentSummary {
+  resident_id: string
+  resident_name: string
+  room_label: string | null
+  last_message_at: string | null
+  last_message_body: string | null
+  last_message_role: FamilyChatSenderRole | null
+  unread_count: number
+}
+
 export interface RequestFeedback {
   id: string
   request_id: string

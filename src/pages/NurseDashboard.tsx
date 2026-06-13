@@ -11,6 +11,7 @@ import { timeAgo, formatResidentShortName } from '@/lib/constants'
 import { supabase } from '@/lib/supabase'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
 import StaffChatPanel from '@/components/StaffChatPanel'
+import FamilyMessagesPanel from '@/components/FamilyMessagesPanel'
 import HandoverReportModal from '@/pages/HandoverReportModal'
 import type { Request, RequestTypeConfig } from '@/types'
 type Tab = 'all' | 'pending' | 'in-progress' | 'resolved'
@@ -159,6 +160,7 @@ export default function NurseDashboard() {
   const prefs = usePrefs()
   const [showHandover, setShowHandover] = useState(false)
   const [showStaffChat, setShowStaffChat] = useState(false)
+  const [showFamilyMessages, setShowFamilyMessages] = useState(false)
   const overdueIds = useOverdueAlerts(
     requests,
     prefs.overdueThreshold,
@@ -283,14 +285,24 @@ export default function NurseDashboard() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setShowStaffChat(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-white px-4 py-2 text-sm font-semibold text-[var(--text-primary)] transition-all hover:border-[var(--clinical-blue)] hover:bg-[var(--clinical-blue-lt)] hover:text-[var(--clinical-blue)]">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
-              Staff Chat
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowFamilyMessages(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-white px-4 py-2 text-sm font-semibold text-[var(--text-primary)] transition-all hover:border-[#6D28D9] hover:bg-[#EDE9FE] hover:text-[#6D28D9]">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                Family Messages
+              </button>
+              <button
+                onClick={() => setShowStaffChat(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-white px-4 py-2 text-sm font-semibold text-[var(--text-primary)] transition-all hover:border-[var(--clinical-blue)] hover:bg-[var(--clinical-blue-lt)] hover:text-[var(--clinical-blue)]">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                Staff Chat
+              </button>
+            </div>
           </div>
 
           {loading && (
@@ -550,6 +562,7 @@ export default function NurseDashboard() {
       )}
 
       <StaffChatPanel open={showStaffChat} onClose={() => setShowStaffChat(false)} />
+      <FamilyMessagesPanel open={showFamilyMessages} onClose={() => setShowFamilyMessages(false)} />
     </NurseShell>
   )
 }

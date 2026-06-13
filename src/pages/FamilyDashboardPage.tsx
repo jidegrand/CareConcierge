@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useFamilyPortal } from '@/hooks/useFamilyPortal'
+import { useFamilyChat } from '@/hooks/useFamilyChat'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
+import FamilyChatModal from '@/components/FamilyChatModal'
 import { formatResidentShortName } from '@/lib/constants'
 
 function getInitials(name: string): string {
@@ -31,6 +33,8 @@ export default function FamilyDashboardPage() {
   const { loading, error, familyMember, resident, requestTypes, activity, submitRequest } = useFamilyPortal(tenantId)
   const [submittingId, setSubmittingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [showChat, setShowChat] = useState(false)
+  const { unreadCount } = useFamilyChat(resident?.id, showChat)
 
   const handleRequest = async (typeId: string, label: string) => {
     setSubmittingId(typeId)
@@ -178,6 +182,29 @@ export default function FamilyDashboardPage() {
           </div>
         </div>
       </div>
+
+      <button
+        onClick={() => setShowChat(true)}
+        className="fixed bottom-6 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--clinical-blue)] text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
+        aria-label={`Message ${tenantName ?? 'the facility'}`}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      <FamilyChatModal
+        open={showChat}
+        onClose={() => setShowChat(false)}
+        residentId={resident.id}
+        residentName={formatResidentShortName(resident.display_name)}
+        facilityName={tenantName ?? 'the facility'}
+      />
     </div>
   )
 }
