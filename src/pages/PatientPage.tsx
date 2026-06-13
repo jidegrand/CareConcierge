@@ -108,7 +108,7 @@ export default function PatientPage() {
 
   const nurseBaseLabel = getBaseRequestLabel('nurse', 'Call Nurse')
   const commonRequests = requestTypes
-    .filter(item => item.active && item.id !== 'nurse')
+    .filter(item => item.active && item.id !== 'nurse' && item.audience !== 'family')
     .map(item => ({
       ...item,
       translatedLabel: getRequestLabel(item.id, item.label),

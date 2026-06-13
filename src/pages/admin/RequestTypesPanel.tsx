@@ -36,9 +36,16 @@ export default function RequestTypesPanel({ tenantId }: Props) {
   const [editing, setEditing] = useState<ManagedRequestType | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  const activeCount = useMemo(
-    () => requestTypes.filter(item => item.active && item.id !== 'nurse').length,
+  // Family-audience types are managed via the family portal request types,
+  // not the patient-facing "Common Requests" tiles configured here.
+  const patientRequestTypes = useMemo(
+    () => requestTypes.filter(item => item.audience !== 'family'),
     [requestTypes]
+  )
+
+  const activeCount = useMemo(
+    () => patientRequestTypes.filter(item => item.active && item.id !== 'nurse').length,
+    [patientRequestTypes]
   )
 
   const openCreate = () => {
@@ -111,9 +118,9 @@ export default function RequestTypesPanel({ tenantId }: Props) {
       )}
 
       <div className="mb-4 grid grid-cols-3 gap-4">
-        <StatCard label="Total Types" value={String(requestTypes.length)} color="#1D6FA8" />
+        <StatCard label="Total Types" value={String(patientRequestTypes.length)} color="#1D6FA8" />
         <StatCard label="Active Tiles" value={String(activeCount)} color="#059669" />
-        <StatCard label="Urgent Types" value={String(requestTypes.filter(item => item.urgent).length)} color="#DC2626" />
+        <StatCard label="Urgent Types" value={String(patientRequestTypes.filter(item => item.urgent).length)} color="#DC2626" />
       </div>
 
       {loading ? (
@@ -128,7 +135,7 @@ export default function RequestTypesPanel({ tenantId }: Props) {
             <span className="text-right">Actions</span>
           </div>
 
-          {requestTypes.map(item => (
+          {patientRequestTypes.map(item => (
             <div
               key={item.id}
               className="grid grid-cols-[1.1fr_120px_120px_120px_120px] gap-3 border-b border-[var(--border)] px-4 py-3 last:border-0">
@@ -197,7 +204,7 @@ export default function RequestTypesPanel({ tenantId }: Props) {
             </div>
           ))}
 
-          {requestTypes.length === 0 && (
+          {patientRequestTypes.length === 0 && (
             <div className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">
               No request types found yet.
             </div>

@@ -23,6 +23,7 @@ interface RequestTypeRow {
   active: boolean
   sort_order: number
   system: boolean
+  audience: 'patient' | 'family'
 }
 
 const DEFAULT_MANAGED_TYPES: ManagedRequestType[] = DEFAULT_REQUEST_TYPES.map((item, index) => ({
@@ -50,7 +51,7 @@ export function useRequestTypes(tenantId: string | undefined) {
     setLoading(true)
     const { data, error: err } = await supabase
       .from('request_types')
-      .select('id, tenant_id, label, icon, color, urgent, active, sort_order, system')
+      .select('id, tenant_id, label, icon, color, urgent, active, sort_order, system, audience')
       .eq('tenant_id', tenantId)
       .order('sort_order', { ascending: true })
       .order('label', { ascending: true })
