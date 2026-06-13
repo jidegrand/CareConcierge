@@ -31,6 +31,9 @@ export function useRoom(roomId: string | undefined): UseRoomResult {
               *,
               tenant:tenants (*)
             )
+          ),
+          residents (
+            id, display_name, active
           )
         `)
         .eq('id', roomId)
@@ -40,7 +43,11 @@ export function useRoom(roomId: string | undefined): UseRoomResult {
       if (err || !data) {
         setError('Room not found. Please ask a staff member for assistance.')
       } else {
-        setRoom(data as Room)
+        const { residents, ...room } = data as Room & {
+          residents?: { id: string; display_name: string; active: boolean }[]
+        }
+        const resident = residents?.find(r => r.active) ?? null
+        setRoom({ ...room, resident })
       }
       setLoading(false)
     }

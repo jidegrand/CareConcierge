@@ -18,6 +18,7 @@ import {
 } from '@/lib/patientI18n'
 import { supabase } from '@/lib/supabase'
 import { playPatientReceipt } from '@/lib/sounds'
+import { formatResidentShortName } from '@/lib/constants'
 import { speakPatientConfirmation } from '@/lib/speech'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
 import { PRODUCT_NAME } from '@/lib/brand'
@@ -481,6 +482,7 @@ export default function PatientPage() {
                 </h1>
                 <p className="text-[12px] font-medium text-[var(--patient-text-muted)] mt-1">
                   {room.name} · {room.unit?.name}
+                  {room.resident?.display_name && ` · ${formatResidentShortName(room.resident.display_name)}`}
                 </p>
               </div>
 

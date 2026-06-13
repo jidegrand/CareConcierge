@@ -80,6 +80,7 @@ export interface Room {
   created_at: string
   // Joined fields (from view or select with relations)
   unit?: Unit & { site?: Site & { tenant?: Tenant } }
+  resident?: { id: string; display_name: string } | null
 }
 
 export interface Request {
