@@ -391,6 +391,7 @@ function BayDetailPanel({ bay, bays, tenantId, residentProfilesEnabled, canManag
       {residentProfilesEnabled && (
         <RoomDetail
           roomId={bay.roomId}
+          roomLabel={bay.name}
           tenantId={tenantId}
           rooms={bays.map(b => ({ roomId: b.roomId, name: b.label }))}
           canManage={canManageResidents}

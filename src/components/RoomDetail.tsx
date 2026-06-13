@@ -9,6 +9,7 @@ interface RoomOption {
 
 interface RoomDetailProps {
   roomId: string
+  roomLabel: string
   tenantId: string | undefined
   rooms: RoomOption[]
   canManage: boolean
@@ -20,13 +21,16 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-export default function RoomDetail({ roomId, tenantId, rooms, canManage }: RoomDetailProps) {
+function formatMoveInDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+export default function RoomDetail({ roomId, roomLabel, tenantId, rooms, canManage }: RoomDetailProps) {
   const { residents, loading, createResident, assignToRoom, deactivateResident } = useResidents(tenantId)
   const [modal, setModal] = useState<'assign' | 'move' | 'deactivate' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const currentResident = residents.find(r => r.room_id === roomId && r.active) ?? null
-  const unassignedResidents = residents.filter(r => r.active && r.id !== currentResident?.id && !r.room_id)
   const otherRooms = rooms.filter(r => r.roomId !== roomId)
 
   const closeModal = () => { setModal(null); setError(null) }
@@ -52,38 +56,41 @@ export default function RoomDetail({ roomId, tenantId, rooms, canManage }: RoomD
 
   return (
     <div className="px-4 py-4 border-t border-[var(--border)]">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Resident</p>
+      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3">Resident</p>
 
       {currentResident ? (
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
-            style={{ background: 'var(--clinical-blue)' }}>
-            {initials(currentResident.display_name)}
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
+              style={{ background: 'var(--clinical-blue)' }}>
+              {initials(currentResident.display_name)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{currentResident.display_name}</p>
+              <p className="text-xs text-[var(--text-muted)]">Move-in: {formatMoveInDate(currentResident.created_at)}</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{currentResident.display_name}</p>
-            {canManage && (
-              <div className="flex gap-2 mt-2">
-                <button onClick={() => setModal('move')}
-                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
-                  Move
-                </button>
-                <button onClick={() => setModal('deactivate')}
-                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
-                  Deactivate
-                </button>
-              </div>
-            )}
-          </div>
+          {canManage && (
+            <div className="flex gap-2">
+              <button onClick={() => setModal('move')}
+                className="flex-1 text-xs font-semibold px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--page-bg)] transition-colors">
+                → Move
+              </button>
+              <button onClick={() => setModal('deactivate')}
+                className="flex-1 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors"
+                style={{ borderColor: 'var(--danger)', color: 'var(--danger)', background: 'var(--danger-lt)' }}>
+                Deactivate
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div>
-          <p className="text-xs text-[var(--text-muted)] mb-2">No resident assigned</p>
+          <p className="text-xs text-[var(--text-muted)] mb-3">No resident assigned</p>
           {canManage && (
             <button onClick={() => setModal('assign')}
-              className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg text-white transition-colors"
-              style={{ background: 'var(--clinical-blue)' }}>
-              + Assign Resident
+              className="w-full text-xs font-semibold px-3 py-2.5 rounded-lg border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--page-bg)] transition-colors">
+              + Assign resident
             </button>
           )}
         </div>
@@ -91,11 +98,10 @@ export default function RoomDetail({ roomId, tenantId, rooms, canManage }: RoomD
 
       {modal === 'assign' && (
         <AssignModal
-          unassignedResidents={unassignedResidents}
+          roomLabel={roomLabel}
           error={error}
           onClose={closeModal}
-          onCreate={(name) => runMutation(() => createResident(name, roomId))}
-          onAssignExisting={(residentId) => runMutation(() => assignToRoom(residentId, roomId))}
+          onAssign={(name) => runMutation(() => createResident(name, roomId))}
         />
       )}
 
@@ -141,58 +147,47 @@ function ModalShell({ title, children, onClose }: { title: string; children: Rea
   )
 }
 
-// ── Assign modal ────────────────────────────────────────────────────────────
-function AssignModal({ unassignedResidents, error, onClose, onCreate, onAssignExisting }: {
-  unassignedResidents: Resident[]
+// ── Assign / check-in modal ──────────────────────────────────────────────────
+function AssignModal({ roomLabel, error, onClose, onAssign }: {
+  roomLabel: string
   error: string | null
   onClose: () => void
-  onCreate: (name: string) => Promise<boolean>
-  onAssignExisting: (residentId: string) => Promise<boolean>
+  onAssign: (name: string) => Promise<boolean>
 }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const submitNew = async () => {
+  const submit = async () => {
     if (!name.trim()) return
     setBusy(true)
-    await onCreate(name.trim())
-    setBusy(false)
+    const ok = await onAssign(name.trim())
+    if (!ok) setBusy(false)
   }
 
   return (
-    <ModalShell title="Assign Resident" onClose={onClose}>
+    <ModalShell title={`Assign resident to ${roomLabel}`} onClose={onClose}>
       <div className="space-y-3">
         <div>
-          <label className="text-xs font-semibold text-[var(--text-secondary)]">New resident name</label>
-          <div className="flex gap-2 mt-1">
-            <input value={name} onChange={e => setName(e.target.value)}
-              placeholder="e.g. Margaret Hutchins"
-              className="flex-1 text-sm px-3 py-2 rounded-lg border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]" />
-            <button onClick={submitNew} disabled={busy || !name.trim()}
-              className="text-xs font-bold px-3 py-2 rounded-lg text-white disabled:opacity-50"
-              style={{ background: 'var(--clinical-blue)' }}>
-              {busy ? '…' : 'Add'}
-            </button>
-          </div>
+          <label className="text-xs font-semibold text-[var(--text-secondary)]">Resident name</label>
+          <input value={name} onChange={e => setName(e.target.value)}
+            placeholder="e.g. Margaret H."
+            autoFocus
+            className="w-full mt-1 text-sm px-3 py-2 rounded-lg border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]" />
         </div>
 
-        {unassignedResidents.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-[var(--text-secondary)] mb-1">Or move an existing resident here</p>
-            <ul className="space-y-1 max-h-40 overflow-y-auto">
-              {unassignedResidents.map(r => (
-                <li key={r.id}>
-                  <button onClick={() => onAssignExisting(r.id)}
-                    className="w-full text-left text-sm px-3 py-2 rounded-lg border border-[var(--border)] hover:bg-[var(--page-bg)] transition-colors">
-                    {r.display_name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {error && <p className="text-xs" style={{ color: 'var(--danger)' }}>{error}</p>}
 
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose}
+            className="text-xs font-semibold px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
+            Cancel
+          </button>
+          <button onClick={submit} disabled={busy || !name.trim()}
+            className="text-xs font-bold px-3 py-2 rounded-lg text-white disabled:opacity-50"
+            style={{ background: 'var(--clinical-blue)' }}>
+            {busy ? '…' : 'Assign'}
+          </button>
+        </div>
       </div>
     </ModalShell>
   )
@@ -224,7 +219,13 @@ function MoveModal({ resident, rooms, error, onClose, onMove }: {
             ))}
           </ul>
         )}
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs" style={{ color: 'var(--danger)' }}>{error}</p>}
+        <div className="flex justify-end">
+          <button onClick={onClose}
+            className="text-xs font-semibold px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
+            Cancel
+          </button>
+        </div>
       </div>
     </ModalShell>
   )
@@ -241,8 +242,8 @@ function DeactivateModal({ resident, error, onClose, onConfirm }: {
 
   const confirm = async () => {
     setBusy(true)
-    await onConfirm()
-    setBusy(false)
+    const ok = await onConfirm()
+    if (!ok) setBusy(false)
   }
 
   return (
@@ -251,14 +252,15 @@ function DeactivateModal({ resident, error, onClose, onConfirm }: {
         <p className="text-sm text-[var(--text-secondary)]">
           Deactivate <span className="font-semibold">{resident.display_name}</span>? They will be removed from this room and marked inactive.
         </p>
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs" style={{ color: 'var(--danger)' }}>{error}</p>}
         <div className="flex justify-end gap-2">
           <button onClick={onClose}
             className="text-xs font-semibold px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
             Cancel
           </button>
           <button onClick={confirm} disabled={busy}
-            className="text-xs font-bold px-3 py-2 rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50">
+            className="text-xs font-bold px-3 py-2 rounded-lg text-white transition-colors disabled:opacity-50"
+            style={{ background: 'var(--danger)' }}>
             {busy ? '…' : 'Deactivate'}
           </button>
         </div>
