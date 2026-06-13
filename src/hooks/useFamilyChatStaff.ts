@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useNotifications } from '@/hooks/useNotifications'
 import type { FamilyChatMessage, FamilyChatResidentSummary } from '@/types'
 
 interface UseFamilyChatStaffResult {
@@ -20,6 +21,7 @@ export function useFamilyChatStaff(enabled: boolean): UseFamilyChatStaffResult {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { pushNotification } = useNotifications()
 
   const loadResidents = useCallback(async () => {
     if (!enabled) {
@@ -93,17 +95,36 @@ export function useFamilyChatStaff(enabled: boolean): UseFamilyChatStaffResult {
   const selectedResidentIdRef = useRef(selectedResidentId)
   selectedResidentIdRef.current = selectedResidentId
 
+  const residentsRef = useRef(residents)
+  residentsRef.current = residents
+
+  // Ref mirror so the realtime handler doesn't resubscribe every time the
+  // notifications list changes (pushNotification is recreated on each push).
+  const pushNotificationRef = useRef(pushNotification)
+  pushNotificationRef.current = pushNotification
+
   useEffect(() => {
     if (!enabled) return
 
     const channel = supabase
       .channel('family-chat-staff')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'family_chat_messages' }, (payload) => {
-        const incoming = payload.new as { resident_id: string }
+        const incoming = payload.new as FamilyChatMessage
         void loadResidents()
         if (selectedResidentIdRef.current === incoming.resident_id) {
           void loadMessages(incoming.resident_id)
           void markRead(incoming.resident_id)
+        }
+        if (incoming.sender_role === 'family') {
+          const resident = residentsRef.current.find(entry => entry.resident_id === incoming.resident_id)
+          pushNotificationRef.current({
+            title: 'New family message',
+            body: resident?.resident_name
+              ? `${resident.resident_name}'s family: ${incoming.body}`
+              : 'A family member sent you a message.',
+            tone: 'info',
+            dedupeKey: `family-chat:${incoming.id}`,
+          })
         }
       })
       .subscribe()

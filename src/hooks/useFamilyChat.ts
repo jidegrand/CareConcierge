@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useNotifications } from '@/hooks/useNotifications'
 import type { FamilyChatMessage } from '@/types'
 
 interface UseFamilyChatResult {
@@ -18,6 +19,7 @@ export function useFamilyChat(residentId: string | undefined, open: boolean): Us
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
+  const { pushNotification } = useNotifications()
 
   const loadMessages = useCallback(async () => {
     if (!residentId) {
@@ -88,6 +90,11 @@ export function useFamilyChat(residentId: string | undefined, open: boolean): Us
   const openRef = useRef(open)
   openRef.current = open
 
+  // Ref mirror so the realtime handler doesn't resubscribe every time the
+  // notifications list changes (pushNotification is recreated on each push).
+  const pushNotificationRef = useRef(pushNotification)
+  pushNotificationRef.current = pushNotification
+
   // Unique per hook instance: this hook is used both on the dashboard page
   // (for the unread badge) and inside the chat modal (for messages), and
   // two channels sharing the same name would collide.
@@ -101,12 +108,23 @@ export function useFamilyChat(residentId: string | undefined, open: boolean): Us
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'family_chat_messages',
         filter: `resident_id=eq.${residentId}`,
-      }, () => {
+      }, (payload) => {
+        const incoming = payload.new as FamilyChatMessage
         void loadMessages()
         if (openRef.current) {
           void markRead()
         } else {
           void refreshUnread()
+        }
+        if (incoming.sender_role === 'staff') {
+          pushNotificationRef.current({
+            title: 'New message from care team',
+            body: incoming.sender_name
+              ? `${incoming.sender_name}: ${incoming.body}`
+              : 'You have a new message from the care team.',
+            tone: 'info',
+            dedupeKey: `family-chat:${incoming.id}`,
+          })
         }
       })
       .subscribe()
