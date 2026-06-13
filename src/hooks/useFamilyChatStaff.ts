@@ -24,17 +24,13 @@ export function useFamilyChatStaff(enabled: boolean): UseFamilyChatStaffResult {
   const { pushNotification } = useNotifications()
 
   const loadResidents = useCallback(async () => {
-    if (!enabled) {
-      setResidents([])
-      return
-    }
     const { data, error: rpcError } = await supabase.rpc('list_family_chat_residents')
     if (rpcError) {
       setError(rpcError.message)
     } else {
       setResidents((data ?? []) as FamilyChatResidentSummary[])
     }
-  }, [enabled])
+  }, [])
 
   const loadMessages = useCallback(async (residentId: string | null) => {
     if (!residentId) {
@@ -56,14 +52,10 @@ export function useFamilyChatStaff(enabled: boolean): UseFamilyChatStaffResult {
   }, [])
 
   useEffect(() => {
-    if (!enabled) {
-      setLoading(false)
-      return
-    }
     setLoading(true)
     setError(null)
     void loadResidents().finally(() => setLoading(false))
-  }, [enabled, loadResidents])
+  }, [loadResidents])
 
   useEffect(() => {
     if (!selectedResidentId) {
@@ -74,14 +66,13 @@ export function useFamilyChatStaff(enabled: boolean): UseFamilyChatStaffResult {
     void markRead(selectedResidentId).then(loadResidents)
   }, [selectedResidentId, loadMessages, markRead, loadResidents])
 
-  // Polling fallback alongside the realtime subscription below: guarantees
-  // new messages and inbox previews show up within a few seconds even if
-  // the realtime channel doesn't deliver (e.g. token refresh dropped the socket).
+  // Runs even when the panel is closed: keeps the resident list (and unread
+  // counts/names used for notifications) fresh, and is a polling fallback
+  // alongside the realtime subscription below if it doesn't deliver.
   useEffect(() => {
-    if (!enabled) return
     const interval = window.setInterval(() => { void loadResidents() }, 10_000)
     return () => window.clearInterval(interval)
-  }, [enabled, loadResidents])
+  }, [loadResidents])
 
   useEffect(() => {
     if (!enabled || !selectedResidentId) return
@@ -104,8 +95,6 @@ export function useFamilyChatStaff(enabled: boolean): UseFamilyChatStaffResult {
   pushNotificationRef.current = pushNotification
 
   useEffect(() => {
-    if (!enabled) return
-
     const channel = supabase
       .channel('family-chat-staff')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'family_chat_messages' }, (payload) => {
@@ -130,7 +119,7 @@ export function useFamilyChatStaff(enabled: boolean): UseFamilyChatStaffResult {
       .subscribe()
 
     return () => { void supabase.removeChannel(channel) }
-  }, [enabled, loadResidents, loadMessages, markRead])
+  }, [loadResidents, loadMessages, markRead])
 
   const sendMessage = useCallback(async (body: string) => {
     const trimmed = body.trim()
