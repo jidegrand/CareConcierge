@@ -76,11 +76,16 @@ export function useFamilyChat(residentId: string | undefined, open: boolean): Us
   const openRef = useRef(open)
   openRef.current = open
 
+  // Unique per hook instance: this hook is used both on the dashboard page
+  // (for the unread badge) and inside the chat modal (for messages), and
+  // two channels sharing the same name would collide.
+  const instanceIdRef = useRef(Math.random().toString(36).slice(2))
+
   useEffect(() => {
     if (!residentId) return
 
     const channel = supabase
-      .channel(`family-chat:${residentId}`)
+      .channel(`family-chat:${residentId}:${instanceIdRef.current}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'family_chat_messages',
         filter: `resident_id=eq.${residentId}`,
