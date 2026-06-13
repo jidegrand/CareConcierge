@@ -12,6 +12,7 @@ type FormData = {
   secondaryColor: string
   defaultLanguage: string
   enablePatientFeedback: boolean
+  enableResidentProfiles: boolean
 }
 
 type FormErrors = Partial<Record<keyof FormData, string>>
@@ -35,6 +36,7 @@ export default function SettingsPage() {
     secondaryColor: '#1F4788',
     defaultLanguage: 'en',
     enablePatientFeedback: true,
+    enableResidentProfiles: false,
   })
 
   const [errors, setErrors] = useState<FormErrors>({})
@@ -54,6 +56,7 @@ export default function SettingsPage() {
         secondaryColor: settings.secondary_color || '#1F4788',
         defaultLanguage: settings.default_language || 'en',
         enablePatientFeedback: settings.patient_feedback_enabled !== false,
+        enableResidentProfiles: settings.resident_profiles_enabled === true,
       })
       if (settings.logo_url) {
         setLogoPreview(settings.logo_url)
@@ -157,6 +160,7 @@ export default function SettingsPage() {
         secondary_color: formData.secondaryColor,
         default_language: formData.defaultLanguage,
         patient_feedback_enabled: formData.enablePatientFeedback,
+        resident_profiles_enabled: formData.enableResidentProfiles,
       })
 
       if (result.success) {
@@ -370,6 +374,14 @@ export default function SettingsPage() {
               description="Allow patients to rate their request experience after resolution"
               checked={formData.enablePatientFeedback}
               onChange={checked => setFormData({ ...formData, enablePatientFeedback: checked })}
+            />
+
+            {/* Resident Profiles Toggle */}
+            <ToggleSwitch
+              label="Resident Profiles"
+              description="Let staff assign residents to rooms and link them to requests on the Bay Map"
+              checked={formData.enableResidentProfiles}
+              onChange={checked => setFormData({ ...formData, enableResidentProfiles: checked })}
             />
           </div>
         </section>
