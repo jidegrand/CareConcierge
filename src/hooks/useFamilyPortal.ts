@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildRequestTypeMap } from '@/lib/constants'
 import type { FamilyMember, Request, Resident, RequestTypeConfig, StaffNote } from '@/types'
@@ -70,6 +70,9 @@ export function useFamilyPortal(tenantId: string | undefined) {
   const [error, setError] = useState<string | null>(null)
 
   const requestTypeMap = useMemo(() => buildRequestTypeMap(requestTypes), [requestTypes])
+  const requestTypeMapRef = useRef(requestTypeMap)
+  requestTypeMapRef.current = requestTypeMap
+
   const familyRequestTypes = useMemo(
     () => requestTypes.filter(rt => rt.audience === 'family'),
     [requestTypes]
@@ -94,8 +97,8 @@ export function useFamilyPortal(tenantId: string | undefined) {
 
     const requests = (requestsRes.data ?? []) as Request[]
     const notes = (notesRes.data ?? []) as StaffNote[]
-    setActivity(buildActivity(requests, notes, requestTypeMap))
-  }, [requestTypeMap])
+    setActivity(buildActivity(requests, notes, requestTypeMapRef.current))
+  }, [])
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
