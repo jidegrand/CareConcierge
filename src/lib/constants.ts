@@ -25,6 +25,14 @@ export const slugifyRequestTypeId = (label: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
+// "Margaret Hutchins" -> "Margaret H."
+export const formatResidentShortName = (displayName: string): string => {
+  const parts = displayName.trim().split(/\s+/)
+  if (parts.length < 2) return displayName
+  const last = parts[parts.length - 1]
+  return `${parts.slice(0, -1).join(' ')} ${last[0]}.`
+}
+
 export const timeAgo = (dateStr: string): string => {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
   if (seconds < 60) return `${seconds}s ago`

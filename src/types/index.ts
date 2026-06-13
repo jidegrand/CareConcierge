@@ -39,6 +39,7 @@ export interface TenantSetting {
   default_language?: string | null
   enable_patient_feedback?: boolean | null
   enable_qr_codes?: boolean | null
+  resident_profiles_enabled?: boolean
   onboarding_completed?: boolean | null
   onboarding_step?: string | null
   settings?: Record<string, unknown> | null
@@ -92,10 +93,22 @@ export interface Request {
   acknowledged_by: string | null
   resolved_at: string | null
   resolved_by: string | null
+  resident_id?: string | null
   // Joined
   room?: Room
+  resident?: { id: string; display_name: string } | null
   acknowledger?: { id: string; full_name: string | null }
   resolver?: { id: string; full_name: string | null }
+}
+
+export interface Resident {
+  id: string
+  tenant_id: string
+  room_id: string | null
+  display_name: string
+  active: boolean
+  created_at: string
+  updated_at: string
 }
 
 export interface RequestFeedback {

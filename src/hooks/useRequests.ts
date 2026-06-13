@@ -102,6 +102,9 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
             site:sites (tenant_id)
           )
         ),
+        resident:residents (
+          id, display_name
+        ),
         acknowledger:user_profiles!requests_acknowledged_by_profile_fkey (
           id, full_name
         ),

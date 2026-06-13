@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { REQUEST_TYPE_MAP, timeAgo } from '@/lib/constants'
+import { REQUEST_TYPE_MAP, timeAgo, formatResidentShortName } from '@/lib/constants'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
 import type { Request, RequestStatus } from '@/types'
 
@@ -76,6 +76,11 @@ export default function RequestCard({ request, onAcknowledge, onResolve, isNew }
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-[var(--text-primary)]">
             {request.room?.name ?? 'Unknown room'}
+            {request.resident?.display_name && (
+              <span className="text-[var(--text-muted)] font-normal">
+                {' · '}{formatResidentShortName(request.resident.display_name)}
+              </span>
+            )}
           </span>
           {config.urgent && request.status !== 'resolved' && (
             <span className="text-[10px] font-semibold text-red-700 bg-red-100 border border-red-200 px-1.5 py-0.5 rounded uppercase tracking-wide">

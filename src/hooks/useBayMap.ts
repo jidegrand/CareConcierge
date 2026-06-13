@@ -23,6 +23,7 @@ export interface BayState {
   label:    string
   status:   BayStatus
   requests: ActiveRequest[]
+  residentName: string | null
   // Derived
   pendingCount:    number
   inProgressCount: number
@@ -84,6 +85,18 @@ export function useBayMap(
       .gte('created_at', today.toISOString())
       .order('created_at', { ascending: true })
 
+    // Active residents currently assigned to these rooms (RLS-scoped to tenant staff)
+    const { data: residentRows } = await supabase
+      .from('residents')
+      .select('room_id, display_name')
+      .in('room_id', roomIds)
+      .eq('active', true)
+
+    const residentByRoom: Record<string, string> = {}
+    for (const r of (residentRows ?? []) as { room_id: string | null; display_name: string }[]) {
+      if (r.room_id) residentByRoom[r.room_id] = r.display_name
+    }
+
     const now = Date.now()
 
     // Map requests by room
@@ -140,6 +153,7 @@ export function useBayMap(
         label:           room.label ?? room.name,
         status,
         requests:        mapped,
+        residentName:    residentByRoom[room.id] ?? null,
         pendingCount:    pendingReqs.length,
         inProgressCount: inProgReqs.length,
         resolvedCount:   resolvedReqs.length,
@@ -159,6 +173,7 @@ export function useBayMap(
     const channel = supabase
       .channel(`baymap:unit:${unitId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, () => fetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'residents' }, () => fetch())
       .subscribe(s => setConnected(s === 'SUBSCRIBED'))
 
     // Refresh ages every 30s (overdue detection)

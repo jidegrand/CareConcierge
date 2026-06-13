@@ -7,7 +7,7 @@ import { useTenantContext } from '@/hooks/useTenantContext'
 import { useAuth } from '@/hooks/useAuth'
 import { usePrefs } from '@/hooks/usePrefs'
 import { useOverdueAlerts } from '@/hooks/useOverdueAlerts'
-import { timeAgo } from '@/lib/constants'
+import { timeAgo, formatResidentShortName } from '@/lib/constants'
 import { supabase } from '@/lib/supabase'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
 import StaffChatPanel from '@/components/StaffChatPanel'
@@ -37,6 +37,13 @@ const STATUS_COLORS = {
     soft: '#DCFCE7',
     text: '#16A34A',
   },
+}
+
+const roomLabel = (request: Request): string => request.room?.name?.toUpperCase() ?? 'BAY —'
+
+const residentShortName = (request: Request): string | null => {
+  const name = request.resident?.display_name
+  return name ? formatResidentShortName(name) : null
 }
 
 // ── Shift manager fetcher ─────────────────────────────────────────────────────
@@ -577,7 +584,8 @@ function PendingCard({
   const config     = typeMap[request.type]
   const ageSeconds = (Date.now() - new Date(request.created_at).getTime()) / 1000
   const isApproaching = !isOverdue && ageSeconds >= responseTargetSec
-  const bayLabel   = request.room?.name?.toUpperCase() ?? 'BAY —'
+  const bayLabel   = roomLabel(request)
+  const residentName = residentShortName(request)
 
   // Determine border/background based on severity
   const cardStyle = isOverdue
@@ -637,6 +645,9 @@ function PendingCard({
         <p className="text-sm font-bold mb-1.5" style={{ color: '#111827' }}>
           {config?.label ?? request.type}
         </p>
+        {residentName && (
+          <p className="text-xs mb-1" style={{ color: '#6B7280' }}>{residentName}</p>
+        )}
         <p className="flex items-center gap-1 text-xs" style={{ color: '#9CA3AF' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -676,7 +687,8 @@ function InProgressCard({
   onReassign: (newUserId: string, newUserName: string) => void
 }) {
   const config   = typeMap[request.type]
-  const bayLabel = request.room?.name?.toUpperCase() ?? 'BAY —'
+  const bayLabel = roomLabel(request)
+  const residentName = residentShortName(request)
   const [showPicker, setShowPicker] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
 
@@ -733,6 +745,9 @@ function InProgressCard({
         <p className="text-sm font-bold mb-1.5" style={{ color: '#111827' }}>
           {config?.label ?? request.type}
         </p>
+        {residentName && (
+          <p className="text-xs mb-1" style={{ color: '#6B7280' }}>{residentName}</p>
+        )}
 
         <p className="flex items-center gap-1 text-xs mb-1" style={{ color: isLongWait ? '#D97706' : STATUS_COLORS.inProgress.text }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -816,7 +831,8 @@ function ResolvedRow({
   typeMap: Record<string, RequestTypeConfig>
 }) {
   const config   = typeMap[request.type]
-  const bayLabel = request.room?.name?.toUpperCase() ?? 'BAY —'
+  const bayLabel = roomLabel(request)
+  const residentName = residentShortName(request)
   const resolverName = (request as Request & {
     resolver?: { full_name: string | null }
   }).resolver?.full_name
@@ -831,8 +847,9 @@ function ResolvedRow({
       <span className="text-xs font-bold w-14 flex-shrink-0" style={{ color: STATUS_COLORS.resolved.text }}>
         {bayLabel}
       </span>
-      <span className="flex-1 text-sm font-medium" style={{ color: '#111827' }}>
+      <span className="flex-1 text-sm font-medium truncate" style={{ color: '#111827' }}>
         {config?.label ?? request.type}
+        {residentName && <span className="text-[var(--text-muted)] font-normal"> · {residentName}</span>}
       </span>
       {resolverName && (
         <span className="text-xs text-[var(--text-muted)] hidden sm:block truncate max-w-[100px]"
