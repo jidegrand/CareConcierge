@@ -271,6 +271,10 @@ export default function AdminGuidePage() {
                   ))}
                 </div>
               </div>
+
+              <Note>
+                <strong>Family portal accounts</strong> are not managed here. Charge nurses and above invite family members to follow a resident from the resident's room on the <strong>Bay Map</strong> (Family Access). Family accounts only see their linked resident's activity and can message staff via Family Messages — they never appear as staff users, contacts, or roles in Admin → Users.
+              </Note>
             </GuideSection>
 
             {/* Request Types */}

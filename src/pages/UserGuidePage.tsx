@@ -89,6 +89,7 @@ const SECTIONS = [
   { id: 'feed',       label: 'Patient Feed' },
   { id: 'baymap',     label: 'Bay Map' },
   { id: 'family',     label: 'Family Access' },
+  { id: 'family-messages', label: 'Family Messages' },
   { id: 'staffing',   label: 'Staffing' },
   { id: 'reports',    label: 'Reports' },
   { id: 'patient-qr', label: 'Patient QR Page' },
@@ -259,6 +260,30 @@ export default function UserGuidePage() {
               </Step>
               <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
                 <strong>Note:</strong> Family accounts can only see activity for the resident(s) they've been invited to — they have no access to staff tools, other residents, or facility operations.
+              </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <strong>Messaging:</strong> Once a family member's account is active, they can message your team directly from their family portal. Reply from <strong>Family Messages</strong> — see below.
+              </div>
+            </GuideSection>
+
+            {/* Family Messages */}
+            <GuideSection id="family-messages" title="Family Messages">
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                Family Messages is a direct line between your team and the family members you've invited to follow a resident's activity (see <strong>Family Access</strong> above).
+              </p>
+              <div className="space-y-3">
+                <Step n={1} title="Open a resident's thread">
+                  Click <strong>Family Messages</strong> near the top of the dashboard, then pick a resident from the list on the left. Each row shows the family's latest message and an unread badge if there's something new.
+                </Step>
+                <Step n={2} title="Reply to a family member">
+                  Type your reply and click <strong>Send</strong>. The family member sees it immediately on their family portal.
+                </Step>
+                <Step n={3} title="Get notified of new messages">
+                  When a family member sends a message, a notification appears in the bell icon at the top of the dashboard — even if the Family Messages panel is closed. Click the bell to see the Notification Center.
+                </Step>
+              </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <strong>Note:</strong> A resident only appears in Family Messages once they have at least one family member with an active (signed-up) account.
               </div>
             </GuideSection>
 

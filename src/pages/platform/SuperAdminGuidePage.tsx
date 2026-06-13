@@ -183,7 +183,7 @@ export default function SuperAdminGuidePage() {
 
               <div className="rounded-xl border border-[var(--border)] overflow-hidden text-sm">
                 <div className="px-4 py-2.5 bg-[var(--page-bg)] border-b border-[var(--border)]">
-                  <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Two admin surfaces</p>
+                  <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Three application surfaces</p>
                 </div>
                 <div className="divide-y divide-[var(--border)]">
                   <div className="grid grid-cols-[180px,1fr] gap-3 px-4 py-3">
@@ -194,8 +194,16 @@ export default function SuperAdminGuidePage() {
                     <p className="text-sm font-semibold text-[var(--text-primary)]">Operational Admin <InlineCode>/admin</InlineCode></p>
                     <p className="text-xs text-[var(--text-secondary)]">Tenant-scoped workspace — sites, rooms, staff users, QR codes. Accessible to Tenant Admins and managers within one org.</p>
                   </div>
+                  <div className="grid grid-cols-[180px,1fr] gap-3 px-4 py-3">
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">Family Portal <InlineCode>/family</InlineCode></p>
+                    <p className="text-xs text-[var(--text-secondary)]">Read-only activity feed plus direct messaging (Family Messages) for family members invited to follow one resident. No access to staff tools or other residents.</p>
+                  </div>
                 </div>
               </div>
+
+              <Note>
+                <strong>Family chat:</strong> Family members and staff exchange messages via the <InlineCode>family_chat_messages</InlineCode> table, gated by SECURITY DEFINER RPCs (<InlineCode>send_family_chat_message</InlineCode>, <InlineCode>list_family_chat_messages</InlineCode>, etc.) and RLS. Delivery uses a Realtime subscription with a short polling fallback (4-10s) on both the family and staff sides, and surfaces in-app via each user's Notification Center.
+              </Note>
             </GuideSection>
 
             {/* ── Supabase Setup ─────────────────────────────────── */}
