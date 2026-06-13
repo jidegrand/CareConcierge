@@ -169,7 +169,9 @@ export default function NurseDashboard() {
 
   const pending      = requests.filter(r => r.status === 'pending')
   const acknowledged = requests.filter(r => r.status === 'acknowledged')
-  const resolved     = requests.filter(r => r.status === 'resolved')
+  const resolved     = requests
+    .filter(r => r.status === 'resolved')
+    .sort((a, b) => new Date(b.resolved_at ?? b.created_at).getTime() - new Date(a.resolved_at ?? a.created_at).getTime())
 
   // Count duplicates per room+type so PendingCard can show a ×N badge
   const pendingDupeCounts = useMemo(() => {
