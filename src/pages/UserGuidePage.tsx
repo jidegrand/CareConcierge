@@ -88,6 +88,7 @@ const SECTIONS = [
   { id: 'staff-chat', label: 'Staff Chat' },
   { id: 'feed',       label: 'Patient Feed' },
   { id: 'baymap',     label: 'Bay Map' },
+  { id: 'family',     label: 'Family Access' },
   { id: 'staffing',   label: 'Staffing' },
   { id: 'reports',    label: 'Reports' },
   { id: 'patient-qr', label: 'Patient QR Page' },
@@ -237,6 +238,28 @@ export default function UserGuidePage() {
               <Step n={2} title="Click a bay for details">
                 Tap any tile to open a details panel showing all active requests for that room and quick-action buttons.
               </Step>
+            </GuideSection>
+
+            {/* Family Access */}
+            <GuideSection id="family" title="Family Access">
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                Charge nurses and above can invite a resident's family members to follow that resident's activity. This is managed from the resident's room on the Bay Map.
+              </p>
+              <Step n={1} title="Open the resident's room">
+                From the <strong>Bay Map</strong>, click a bay with an assigned resident to open its details panel. The <strong>Family</strong> section appears below the resident's info.
+              </Step>
+              <Step n={2} title="Invite a family member">
+                Click <strong>+ Invite</strong> and enter the family member's name, email, relationship (optional), and access level — <strong>Digest only</strong> for periodic summaries, or <strong>Full activity</strong> for the complete activity feed. Click <strong>Send invite</strong> to email them a sign-up link.
+              </Step>
+              <Step n={3} title="Track invite status">
+                Each family member shows a status pill: <strong>Invited</strong> (email sent, awaiting sign-up) or <strong>Active</strong> (account created and linked to this resident).
+              </Step>
+              <Step n={4} title="Revoke access">
+                Click <strong>Revoke</strong> next to a family member to remove their access to this resident's activity at any time.
+              </Step>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <strong>Note:</strong> Family accounts can only see activity for the resident(s) they've been invited to — they have no access to staff tools, other residents, or facility operations.
+              </div>
             </GuideSection>
 
             {/* Staffing */}
