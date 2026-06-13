@@ -53,6 +53,7 @@ interface UseRequestsResult {
   setSoundEnabled: (v: boolean) => void
   updateStatus: (id: string, status: RequestStatus) => Promise<void>
   reassign:     (requestId: string, newUserId: string, newUserName?: string) => Promise<void>
+  addStaffNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean) => Promise<void>
   clearResolved: () => void
 }
 
@@ -370,6 +371,23 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
     setTimeout(fetchStaffEvents, 500)
   }
 
+  // ── Staff note — caregiver-written note, optionally shared to the family feed ──
+  const addStaffNote = async (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean) => {
+    const trimmed = body.trim()
+    if (!trimmed) return
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    await supabase.from('staff_notes').insert({
+      resident_id: residentId,
+      request_id: requestId,
+      author_id: user.id,
+      body: trimmed,
+      visible_to_family: visibleToFamily,
+    })
+  }
+
   const clearResolved = () =>
     setRequests(prev => prev.filter(r => r.status !== 'resolved'))
 
@@ -389,6 +407,6 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
   return {
     requests, loading, connected, staffEvents,
     stats: { pendingCount, inProgressCount, resolvedTodayCount, avgAckSeconds },
-    soundEnabled, setSoundEnabled, updateStatus, reassign, clearResolved,
+    soundEnabled, setSoundEnabled, updateStatus, reassign, addStaffNote, clearResolved,
   }
 }

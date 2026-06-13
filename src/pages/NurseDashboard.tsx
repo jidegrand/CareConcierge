@@ -151,7 +151,7 @@ export default function NurseDashboard() {
     requests, loading, connected, stats,
     staffEvents,
     soundEnabled, setSoundEnabled,
-    updateStatus, reassign, clearResolved,
+    updateStatus, reassign, addStaffNote, clearResolved,
   } = useRequests(unitId, tenantId)
 
   const shiftManager    = useShiftManager(unitId, tenantId)
@@ -327,7 +327,10 @@ export default function NurseDashboard() {
                         typeMap={requestTypeMap}
                         overdueThresholdSec={prefs.overdueThreshold * 60 * 2}
                         assignableStaff={assignableStaff}
-                        onResolve={() => updateStatus(r.id, 'resolved')}
+                        onResolve={(note) => {
+                          if (note && r.resident_id) addStaffNote(r.resident_id, r.id, note, true)
+                          updateStatus(r.id, 'resolved')
+                        }}
                         onReassign={(newUserId, newUserName) => reassign(r.id, newUserId, newUserName)} />
                     ))}
                   </div>
@@ -689,26 +692,40 @@ function InProgressCard({
   typeMap: Record<string, RequestTypeConfig>
   overdueThresholdSec: number
   assignableStaff: AssignableStaffMember[]
-  onResolve: () => void
+  onResolve: (note?: string) => void
   onReassign: (newUserId: string, newUserName: string) => void
 }) {
   const config   = typeMap[request.type]
   const bayLabel = roomLabel(request)
   const residentName = residentShortName(request)
   const [showPicker, setShowPicker] = useState(false)
+  const [showNoteComposer, setShowNoteComposer] = useState(false)
+  const [noteText, setNoteText] = useState('')
   const pickerRef = useRef<HTMLDivElement>(null)
+  const canAddNote = Boolean(request.resident_id)
 
-  // Close picker when clicking outside
+  const handleResolveClick = () => {
+    if (canAddNote && !showNoteComposer) {
+      setShowNoteComposer(true)
+      return
+    }
+    onResolve(noteText.trim() || undefined)
+    setShowNoteComposer(false)
+    setNoteText('')
+  }
+
+  // Close picker / note composer when clicking outside
   useEffect(() => {
-    if (!showPicker) return
+    if (!showPicker && !showNoteComposer) return
     const handler = (e: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
         setShowPicker(false)
+        setShowNoteComposer(false)
       }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [showPicker])
+  }, [showPicker, showNoteComposer])
 
   // Measure elapsed from acknowledged_at if available, otherwise created_at
   const startMs    = new Date(request.acknowledged_at ?? request.created_at).getTime()
@@ -825,10 +842,49 @@ function InProgressCard({
           )}
         </div>
 
-        <button onClick={onResolve} className="text-xs font-bold transition-colors"
-          style={{ color: isLongWait ? '#D97706' : STATUS_COLORS.inProgress.text }}>
-          Resolve
-        </button>
+        <div className="relative">
+          <button onClick={handleResolveClick} className="text-xs font-bold transition-colors"
+            style={{ color: isLongWait ? '#D97706' : STATUS_COLORS.inProgress.text }}>
+            Resolve
+          </button>
+
+          {showNoteComposer && (
+            <div className="absolute bottom-full right-0 mb-1 z-50 w-64 rounded-xl border bg-white shadow-lg p-3"
+              style={{ borderColor: '#E5E7EB' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5"
+                style={{ color: '#6D28D9' }}>
+                Note for family (optional)
+              </p>
+              <textarea
+                autoFocus
+                rows={3}
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                placeholder={'e.g. "Had a good breakfast, in great spirits"'}
+                className="w-full text-xs rounded-lg border p-2 resize-none focus:outline-none focus:ring-2"
+                style={{ borderColor: '#E5E7EB', color: '#111827' }}
+              />
+              <div className="flex items-center justify-end gap-2 mt-2">
+                <button
+                  onClick={() => {
+                    setShowNoteComposer(false)
+                    setNoteText('')
+                    onResolve(undefined)
+                  }}
+                  className="text-xs font-medium px-2 py-1 rounded-lg transition-colors"
+                  style={{ color: '#6B7280' }}>
+                  Skip
+                </button>
+                <button
+                  onClick={handleResolveClick}
+                  className="text-xs font-bold px-3 py-1 rounded-lg text-white transition-colors"
+                  style={{ background: '#6D28D9' }}>
+                  Resolve
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
