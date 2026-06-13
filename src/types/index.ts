@@ -111,6 +111,22 @@ export interface Resident {
   updated_at: string
 }
 
+export type FamilyAccessLevel = 'full' | 'digest'
+export type FamilyMemberStatus = 'invited' | 'active' | 'revoked'
+
+export interface FamilyMember {
+  id: string
+  resident_id: string
+  auth_user_id: string | null
+  full_name: string
+  relationship: string | null
+  email: string | null
+  phone: string | null
+  access_level: FamilyAccessLevel
+  status: FamilyMemberStatus
+  created_at: string
+}
+
 export interface RequestFeedback {
   id: string
   request_id: string

@@ -9,6 +9,7 @@ export type UserRole =
   | 'site_manager'
   | 'charge_nurse'
   | 'viewer'
+  | 'family'
 
 export const ROLE_CFG: Record<UserRole, {
   label: string
@@ -25,6 +26,7 @@ export const ROLE_CFG: Record<UserRole, {
   nurse:         { label: 'Nurse',         description: 'Full request management',           color: '#065F46', bg: '#ECFDF5', rank: 2 },
   volunteer:     { label: 'Volunteer',     description: 'Limited request handling',          color: '#92400E', bg: '#FEF3C7', rank: 3 },
   viewer:        { label: 'Viewer',        description: 'Read-only unit visibility',         color: '#92400E', bg: '#FEF3C7', rank: 3 },
+  family:        { label: 'Family Member', description: 'Family portal access only',         color: '#0F766E', bg: '#CCFBF1', rank: 99 },
 }
 
 export type Permission =
@@ -133,6 +135,9 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'settings.profile',
     'page.guide',
   ],
+  // Family members have no staff permissions — they're routed to the
+  // separate /family portal, gated by family_members RLS instead.
+  family: [],
 }
 
 export function can(role: UserRole | string | undefined, permission: Permission): boolean {

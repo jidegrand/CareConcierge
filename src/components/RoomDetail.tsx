@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useResidents } from '@/hooks/useResidents'
-import type { Resident } from '@/types'
+import { useFamilyMembers } from '@/hooks/useFamilyMembers'
+import type { FamilyAccessLevel, FamilyMember, Resident } from '@/types'
 
 interface RoomOption {
   roomId: string
@@ -27,13 +28,16 @@ function formatMoveInDate(dateStr: string): string {
 
 export default function RoomDetail({ roomId, roomLabel, tenantId, rooms, canManage }: RoomDetailProps) {
   const { residents, loading, createResident, assignToRoom, deactivateResident } = useResidents(tenantId)
-  const [modal, setModal] = useState<'assign' | 'move' | 'deactivate' | null>(null)
+  const [modal, setModal] = useState<'assign' | 'move' | 'deactivate' | 'inviteFamily' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [familyError, setFamilyError] = useState<string | null>(null)
+  const [familyWarning, setFamilyWarning] = useState<string | null>(null)
 
   const currentResident = residents.find(r => r.room_id === roomId && r.active) ?? null
   const otherRooms = rooms.filter(r => r.roomId !== roomId)
+  const { familyMembers, loading: familyLoading, inviteFamilyMember, revokeFamilyMember } = useFamilyMembers(currentResident?.id ?? null)
 
-  const closeModal = () => { setModal(null); setError(null) }
+  const closeModal = () => { setModal(null); setError(null); setFamilyError(null) }
 
   const runMutation = async (fn: () => Promise<{ success: boolean; error?: string }>) => {
     const result = await fn()
@@ -96,6 +100,50 @@ export default function RoomDetail({ roomId, roomLabel, tenantId, rooms, canMana
         </div>
       )}
 
+      {currentResident && (
+        <div className="mt-4 pt-4 border-t border-[var(--border)]">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Family</p>
+            {canManage && (
+              <button onClick={() => setModal('inviteFamily')}
+                className="text-xs font-semibold text-[var(--clinical-blue)] hover:underline">
+                + Invite
+              </button>
+            )}
+          </div>
+
+          {familyLoading ? (
+            <p className="text-xs text-[var(--text-muted)]">Loading…</p>
+          ) : familyMembers.length === 0 ? (
+            <p className="text-xs text-[var(--text-muted)]">No family members invited yet</p>
+          ) : (
+            <ul className="space-y-2">
+              {familyMembers.map(fm => (
+                <li key={fm.id} className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-[var(--text-primary)] truncate">{fm.full_name}</p>
+                    <p className="text-xs text-[var(--text-muted)] truncate">{fm.relationship ?? 'Family'} · {fm.email}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <FamilyStatusPill status={fm.status} />
+                    {canManage && (
+                      <button onClick={() => revokeFamilyMember(fm.id)}
+                        className="text-xs text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors">
+                        Revoke
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {familyWarning && (
+            <p className="text-xs mt-2" style={{ color: 'var(--clinical-blue)' }}>{familyWarning}</p>
+          )}
+        </div>
+      )}
+
       {modal === 'assign' && (
         <AssignModal
           roomLabel={roomLabel}
@@ -121,6 +169,24 @@ export default function RoomDetail({ roomId, roomLabel, tenantId, rooms, canMana
           error={error}
           onClose={closeModal}
           onConfirm={() => runMutation(() => deactivateResident(currentResident.id))}
+        />
+      )}
+
+      {modal === 'inviteFamily' && currentResident && (
+        <InviteFamilyModal
+          residentName={currentResident.display_name}
+          error={familyError}
+          onClose={closeModal}
+          onInvite={async (input) => {
+            const result = await inviteFamilyMember(input)
+            if (!result.success) {
+              setFamilyError(result.error ?? 'Something went wrong.')
+              return false
+            }
+            if (result.warning) setFamilyWarning(result.warning)
+            closeModal()
+            return true
+          }}
         />
       )}
     </div>
@@ -224,6 +290,101 @@ function MoveModal({ resident, rooms, error, onClose, onMove }: {
           <button onClick={onClose}
             className="text-xs font-semibold px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
             Cancel
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  )
+}
+
+// ── Family status pill ───────────────────────────────────────────────────────
+function FamilyStatusPill({ status }: { status: FamilyMember['status'] }) {
+  const cfg: Record<FamilyMember['status'], { label: string; color: string; bg: string }> = {
+    invited: { label: 'Invited', color: 'var(--text-muted)', bg: 'var(--page-bg)' },
+    active:  { label: 'Active',  color: 'var(--success)',    bg: 'var(--success-lt)' },
+    revoked: { label: 'Revoked', color: 'var(--danger)',     bg: 'var(--danger-lt)' },
+  }
+  const c = cfg[status]
+  return (
+    <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+      style={{ color: c.color, background: c.bg }}>
+      {c.label}
+    </span>
+  )
+}
+
+// ── Invite family member modal ──────────────────────────────────────────────
+function InviteFamilyModal({ residentName, error, onClose, onInvite }: {
+  residentName: string
+  error: string | null
+  onClose: () => void
+  onInvite: (input: { fullName: string; email: string; relationship?: string; accessLevel: FamilyAccessLevel }) => Promise<boolean>
+}) {
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [relationship, setRelationship] = useState('')
+  const [accessLevel, setAccessLevel] = useState<FamilyAccessLevel>('digest')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    if (!fullName.trim() || !email.trim()) return
+    setBusy(true)
+    const ok = await onInvite({ fullName, email, relationship, accessLevel })
+    if (!ok) setBusy(false)
+  }
+
+  return (
+    <ModalShell title={`Invite family member for ${residentName}`} onClose={onClose}>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-secondary)]">Full name</label>
+          <input value={fullName} onChange={e => setFullName(e.target.value)}
+            placeholder="e.g. Margaret Hughes"
+            autoFocus
+            className="w-full mt-1 text-sm px-3 py-2 rounded-lg border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]" />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-secondary)]">Email address</label>
+          <input value={email} onChange={e => setEmail(e.target.value)} type="email"
+            placeholder="family@example.com"
+            className="w-full mt-1 text-sm px-3 py-2 rounded-lg border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]" />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-secondary)]">Relationship (optional)</label>
+          <input value={relationship} onChange={e => setRelationship(e.target.value)}
+            placeholder="e.g. Daughter"
+            className="w-full mt-1 text-sm px-3 py-2 rounded-lg border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]" />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-secondary)]">Access level</label>
+          <div className="flex gap-2 mt-1">
+            {(['digest', 'full'] as const).map(level => (
+              <button key={level} type="button" onClick={() => setAccessLevel(level)}
+                className={`flex-1 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
+                  accessLevel === level
+                    ? 'border-[var(--clinical-blue)] text-[var(--clinical-blue)]'
+                    : 'border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--page-bg)]'
+                }`}>
+                {level === 'digest' ? 'Digest only' : 'Full activity'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && <p className="text-xs" style={{ color: 'var(--danger)' }}>{error}</p>}
+
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose}
+            className="text-xs font-semibold px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
+            Cancel
+          </button>
+          <button onClick={submit} disabled={busy || !fullName.trim() || !email.trim()}
+            className="text-xs font-bold px-3 py-2 rounded-lg text-white disabled:opacity-50"
+            style={{ background: 'var(--clinical-blue)' }}>
+            {busy ? '…' : 'Send invite'}
           </button>
         </div>
       </div>
