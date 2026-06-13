@@ -925,6 +925,14 @@ function ResolvedRow({
             Family
           </span>
         )}
+        {request.staffNote && (
+          <span className="ml-1.5 inline-flex" style={{ color: '#6D28D9' }}
+            title={`Note shared with family: "${request.staffNote.body}"`}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </span>
+        )}
       </span>
       {resolverName && (
         <span className="text-xs text-[var(--text-muted)] hidden sm:block truncate max-w-[100px]"

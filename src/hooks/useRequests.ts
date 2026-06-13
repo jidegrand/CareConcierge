@@ -125,7 +125,26 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
 
     const filtered = (data as ScopedRequestRow[]).filter(r => inScope(r, unitId, tenantId))
 
-    setRequests(filtered as Request[])
+    // Attach staff notes to resolved requests so the Resolved tab can show
+    // a note indicator (the family-facing "human note" left on resolution).
+    const resolvedIds = filtered.filter(r => r.status === 'resolved' && r.resident_id).map(r => r.id)
+    let withNotes = filtered as Request[]
+    if (resolvedIds.length > 0) {
+      const { data: notesData } = await supabase
+        .from('staff_notes')
+        .select('request_id, body')
+        .in('request_id', resolvedIds)
+
+      const notesMap = new Map<string, string>()
+      for (const n of notesData ?? []) {
+        if (n.request_id) notesMap.set(n.request_id, n.body)
+      }
+      withNotes = filtered.map(r =>
+        notesMap.has(r.id) ? { ...r, staffNote: { body: notesMap.get(r.id)! } } : r
+      ) as Request[]
+    }
+
+    setRequests(withNotes)
     setLoading(false)
     knownIds.current = new Set(filtered.map(r => r.id))
   }, [tenantId, unitId])
@@ -379,13 +398,23 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    await supabase.from('staff_notes').insert({
-      resident_id: residentId,
-      request_id: requestId,
-      author_id: user.id,
-      body: trimmed,
-      visible_to_family: visibleToFamily,
-    })
+    const { data, error } = await supabase
+      .from('staff_notes')
+      .insert({
+        resident_id: residentId,
+        request_id: requestId,
+        author_id: user.id,
+        body: trimmed,
+        visible_to_family: visibleToFamily,
+      })
+      .select('body')
+      .single()
+
+    if (!error && data && requestId) {
+      setRequests(prev => prev.map(r =>
+        r.id === requestId ? { ...r, staffNote: { body: data.body } } : r
+      ))
+    }
   }
 
   const clearResolved = () =>

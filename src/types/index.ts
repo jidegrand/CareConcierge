@@ -103,6 +103,7 @@ export interface Request {
   resident?: { id: string; display_name: string } | null
   acknowledger?: { id: string; full_name: string | null }
   resolver?: { id: string; full_name: string | null }
+  staffNote?: { body: string } | null
 }
 
 export interface Resident {
