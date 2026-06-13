@@ -51,6 +51,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function StaffRoute({ children }: { children: React.ReactNode }) {
+  const { session, profile, loading } = useAuth()
+  if (loading) return (
+    <div className="min-h-screen bg-[var(--page-bg)] flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-[var(--clinical-blue)] border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+  if (!session) return <Navigate to="/login" replace />
+  if (profile?.role === 'family') return <Navigate to="/family" replace />
+  return <>{children}</>
+}
+
 function getAuthLinkType(searchString: string, hashString: string) {
   const search = new URLSearchParams(searchString)
   const hash = new URLSearchParams(hashString.replace(/^#/, ''))
@@ -149,14 +161,14 @@ export default function App() {
             <Route path="/login"      element={<PublicTenantShell><LoginPage /></PublicTenantShell>} />
             <Route path="/reset-password" element={<PublicTenantShell><ResetPasswordPage /></PublicTenantShell>} />
             <Route path="/set-password"   element={<PublicTenantShell><SetPasswordPage /></PublicTenantShell>} />
-            <Route path="/dashboard"  element={<ProtectedRoute><NurseDashboard  /></ProtectedRoute>} />
+            <Route path="/dashboard"  element={<StaffRoute><NurseDashboard  /></StaffRoute>} />
             <Route path="/family"     element={<ProtectedRoute><FamilyDashboardPage /></ProtectedRoute>} />
-            <Route path="/feed"       element={<ProtectedRoute><PatientFeedPage /></ProtectedRoute>} />
-            <Route path="/bay-map"    element={<ProtectedRoute><BayMapPage      /></ProtectedRoute>} />
-            <Route path="/staffing"   element={<ProtectedRoute><StaffingPage    /></ProtectedRoute>} />
-            <Route path="/qr-sheet"   element={<ProtectedRoute><QRSheetPage     /></ProtectedRoute>} />
-            <Route path="/reports"    element={<ProtectedRoute><ReportsPage     /></ProtectedRoute>} />
-            <Route path="/platform" element={<ProtectedRoute><PlatformModuleLoader fullscreen><PlatformLayout /></PlatformModuleLoader></ProtectedRoute>}>
+            <Route path="/feed"       element={<StaffRoute><PatientFeedPage /></StaffRoute>} />
+            <Route path="/bay-map"    element={<StaffRoute><BayMapPage      /></StaffRoute>} />
+            <Route path="/staffing"   element={<StaffRoute><StaffingPage    /></StaffRoute>} />
+            <Route path="/qr-sheet"   element={<StaffRoute><QRSheetPage     /></StaffRoute>} />
+            <Route path="/reports"    element={<StaffRoute><ReportsPage     /></StaffRoute>} />
+            <Route path="/platform" element={<StaffRoute><PlatformModuleLoader fullscreen><PlatformLayout /></PlatformModuleLoader></StaffRoute>}>
               <Route index element={<Navigate to="overview" replace />} />
               <Route path="overview" element={<PlatformModuleLoader><PlatformOverviewPage /></PlatformModuleLoader>} />
               <Route path="organizations" element={<PlatformModuleLoader><PlatformOrganizationsPage /></PlatformModuleLoader>} />
@@ -165,7 +177,7 @@ export default function App() {
               <Route path="global-reports" element={<PlatformModuleLoader><PlatformGlobalReportsPage /></PlatformModuleLoader>} />
               <Route path="audit-logs" element={<PlatformModuleLoader><PlatformAuditLogsPage /></PlatformModuleLoader>} />
             </Route>
-            <Route path="/tenant-admin" element={<ProtectedRoute><TenantAdminModuleLoader fullscreen><TenantAdminShell /></TenantAdminModuleLoader></ProtectedRoute>}>
+            <Route path="/tenant-admin" element={<StaffRoute><TenantAdminModuleLoader fullscreen><TenantAdminShell /></TenantAdminModuleLoader></StaffRoute>}>
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<TenantAdminModuleLoader><TenantDashboardPage /></TenantAdminModuleLoader>} />
               <Route path="settings" element={<TenantAdminModuleLoader><TenantSettingsPage /></TenantAdminModuleLoader>} />
@@ -174,13 +186,13 @@ export default function App() {
               <Route path="licensing" element={<TenantAdminModuleLoader><TenantLicensingPage /></TenantAdminModuleLoader>} />
               <Route path="audit-logs" element={<TenantAdminModuleLoader><TenantAuditLogsPage /></TenantAdminModuleLoader>} />
             </Route>
-            <Route path="/admin/*"    element={<ProtectedRoute><AdminPage       /></ProtectedRoute>} />
-            <Route path="/settings"   element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
-            <Route path="/support"    element={<ProtectedRoute><SettingsPage    /></ProtectedRoute>} />
-            <Route path="/entertainment" element={<ProtectedRoute><Entertainment /></ProtectedRoute>} />
-            <Route path="/guide"       element={<ProtectedRoute><UserGuidePage   /></ProtectedRoute>} />
-            <Route path="/admin-guide" element={<ProtectedRoute><AdminGuidePage  /></ProtectedRoute>} />
-            <Route path="/super-admin-guide" element={<ProtectedRoute><PlatformModuleLoader fullscreen><SuperAdminGuidePage /></PlatformModuleLoader></ProtectedRoute>} />
+            <Route path="/admin/*"    element={<StaffRoute><AdminPage       /></StaffRoute>} />
+            <Route path="/settings"   element={<StaffRoute><SettingsPage    /></StaffRoute>} />
+            <Route path="/support"    element={<StaffRoute><SettingsPage    /></StaffRoute>} />
+            <Route path="/entertainment" element={<StaffRoute><Entertainment /></StaffRoute>} />
+            <Route path="/guide"       element={<StaffRoute><UserGuidePage   /></StaffRoute>} />
+            <Route path="/admin-guide" element={<StaffRoute><AdminGuidePage  /></StaffRoute>} />
+            <Route path="/super-admin-guide" element={<StaffRoute><PlatformModuleLoader fullscreen><SuperAdminGuidePage /></PlatformModuleLoader></StaffRoute>} />
             <Route path="*"           element={<HomeRedirect />} />
           </Routes>
         </AuthLinkRedirect>
