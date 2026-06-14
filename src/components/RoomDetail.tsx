@@ -14,6 +14,8 @@ interface RoomDetailProps {
   tenantId: string | undefined
   rooms: RoomOption[]
   canManage: boolean
+  canAddNote: boolean
+  onAddNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean) => Promise<void>
 }
 
 function initials(name: string): string {
@@ -26,12 +28,13 @@ function formatMoveInDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-export default function RoomDetail({ roomId, roomLabel, tenantId, rooms, canManage }: RoomDetailProps) {
+export default function RoomDetail({ roomId, roomLabel, tenantId, rooms, canManage, canAddNote, onAddNote }: RoomDetailProps) {
   const { residents, loading, createResident, assignToRoom, deactivateResident } = useResidents(tenantId)
-  const [modal, setModal] = useState<'assign' | 'move' | 'deactivate' | 'inviteFamily' | null>(null)
+  const [modal, setModal] = useState<'assign' | 'move' | 'deactivate' | 'inviteFamily' | 'addNote' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [familyError, setFamilyError] = useState<string | null>(null)
   const [familyWarning, setFamilyWarning] = useState<string | null>(null)
+  const [noteSent, setNoteSent] = useState(false)
 
   const currentResident = residents.find(r => r.room_id === roomId && r.active) ?? null
   const otherRooms = rooms.filter(r => r.roomId !== roomId)
@@ -144,6 +147,21 @@ export default function RoomDetail({ roomId, roomLabel, tenantId, rooms, canMana
         </div>
       )}
 
+      {currentResident && canAddNote && (
+        <div className="mt-4 pt-4 border-t border-[var(--border)]">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Notes</p>
+            <button onClick={() => setModal('addNote')}
+              className="text-xs font-semibold text-[var(--clinical-blue)] hover:underline">
+              + Add Note
+            </button>
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">
+            {noteSent ? '✓ Note added' : "Share an update with this resident's family."}
+          </p>
+        </div>
+      )}
+
       {modal === 'assign' && (
         <AssignModal
           roomLabel={roomLabel}
@@ -186,6 +204,19 @@ export default function RoomDetail({ roomId, roomLabel, tenantId, rooms, canMana
             if (result.warning) setFamilyWarning(result.warning)
             closeModal()
             return true
+          }}
+        />
+      )}
+
+      {modal === 'addNote' && currentResident && (
+        <AddNoteModal
+          residentName={currentResident.display_name}
+          onClose={closeModal}
+          onSubmit={async (body, visibleToFamily) => {
+            await onAddNote(currentResident.id, null, body, visibleToFamily)
+            setModal(null)
+            setNoteSent(true)
+            window.setTimeout(() => setNoteSent(false), 3000)
           }}
         />
       )}
@@ -423,6 +454,57 @@ function DeactivateModal({ resident, error, onClose, onConfirm }: {
             className="text-xs font-bold px-3 py-2 rounded-lg text-white transition-colors disabled:opacity-50"
             style={{ background: 'var(--danger)' }}>
             {busy ? '…' : 'Deactivate'}
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  )
+}
+
+// ── Add note modal ───────────────────────────────────────────────────────────
+function AddNoteModal({ residentName, onClose, onSubmit }: {
+  residentName: string
+  onClose: () => void
+  onSubmit: (body: string, visibleToFamily: boolean) => Promise<void>
+}) {
+  const [body, setBody] = useState('')
+  const [visibleToFamily, setVisibleToFamily] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    if (!body.trim()) return
+    setBusy(true)
+    await onSubmit(body.trim(), visibleToFamily)
+  }
+
+  return (
+    <ModalShell title={`Add note — ${residentName}`} onClose={onClose}>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-secondary)]">Note</label>
+          <textarea value={body} onChange={e => setBody(e.target.value)}
+            placeholder="e.g. Enjoyed lunch in the dining room and joined the afternoon activity group."
+            rows={4}
+            autoFocus
+            maxLength={1000}
+            className="w-full mt-1 text-sm px-3 py-2 rounded-lg border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)] resize-none" />
+        </div>
+
+        <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+          <input type="checkbox" checked={visibleToFamily} onChange={e => setVisibleToFamily(e.target.checked)}
+            className="rounded border-[var(--border)]" />
+          Visible to family in their activity feed
+        </label>
+
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose}
+            className="text-xs font-semibold px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--page-bg)] transition-colors">
+            Cancel
+          </button>
+          <button onClick={submit} disabled={busy || !body.trim()}
+            className="text-xs font-bold px-3 py-2 rounded-lg text-white disabled:opacity-50"
+            style={{ background: 'var(--clinical-blue)' }}>
+            {busy ? '…' : 'Add note'}
           </button>
         </div>
       </div>

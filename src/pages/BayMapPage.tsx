@@ -7,7 +7,7 @@ import { useRequestTypes } from '@/hooks/useRequestTypes'
 import { useRequests } from '@/hooks/useRequests'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useAuth } from '@/hooks/useAuth'
-import { isAtLeast } from '@/lib/roles'
+import { can, isAtLeast } from '@/lib/roles'
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<BayStatus, {
@@ -34,10 +34,11 @@ export default function BayMapPage() {
   const { profile } = useAuth()
   const { requestTypeMap } = useRequestTypes(tenantId)
   const { bays, summary, loading, connected, updateStatus } = useBayMap(unitId, requestTypeMap)
-  const { requests, stats, soundEnabled, setSoundEnabled } = useRequests(unitId, tenantId)
+  const { requests, stats, soundEnabled, setSoundEnabled, addStaffNote } = useRequests(unitId, tenantId)
   const [selectedBay, setSelectedBay] = useState<BayState | null>(null)
   const residentProfilesEnabled = settings?.resident_profiles_enabled ?? false
   const canManageResidents = isAtLeast(profile?.role, 'charge_nurse')
+  const canAddNote = can(profile?.role, 'requests.resolve')
   const unitName = requests[0]?.room?.unit?.name ?? (tenantName ?? 'Assigned Unit')
 
   // Keep selected bay in sync with live data
@@ -231,6 +232,8 @@ export default function BayMapPage() {
               tenantId={tenantId}
               residentProfilesEnabled={residentProfilesEnabled}
               canManageResidents={canManageResidents}
+              canAddNote={canAddNote}
+              onAddNote={addStaffNote}
               onClose={() => setSelectedBay(null)}
               onUpdateStatus={updateStatus}
             />
@@ -326,12 +329,14 @@ function BayCell({ bay, selected, onClick }: {
 }
 
 // ── Bay detail panel ──────────────────────────────────────────────────────────
-function BayDetailPanel({ bay, bays, tenantId, residentProfilesEnabled, canManageResidents, onClose, onUpdateStatus }: {
+function BayDetailPanel({ bay, bays, tenantId, residentProfilesEnabled, canManageResidents, canAddNote, onAddNote, onClose, onUpdateStatus }: {
   bay: BayState
   bays: BayState[]
   tenantId: string | undefined
   residentProfilesEnabled: boolean
   canManageResidents: boolean
+  canAddNote: boolean
+  onAddNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean) => Promise<void>
   onClose: () => void
   onUpdateStatus: (id: string, status: 'acknowledged' | 'resolved') => Promise<void>
 }) {
@@ -396,6 +401,8 @@ function BayDetailPanel({ bay, bays, tenantId, residentProfilesEnabled, canManag
           tenantId={tenantId}
           rooms={bays.map(b => ({ roomId: b.roomId, name: b.label }))}
           canManage={canManageResidents}
+          canAddNote={canAddNote}
+          onAddNote={onAddNote}
         />
       )}
     </div>
