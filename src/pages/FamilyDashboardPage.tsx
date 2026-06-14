@@ -171,7 +171,7 @@ export default function FamilyDashboardPage() {
           </div>
         </div>
 
-        <div className="flex-1 px-5 pb-8 pt-3 space-y-5">
+        <div className="flex-1 px-5 pb-24 pt-3 space-y-5">
           {/* Resident card */}
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)] flex items-center justify-center font-bold text-[15px] flex-shrink-0">
@@ -216,7 +216,7 @@ export default function FamilyDashboardPage() {
                     >
                       <RequestTypeIcon icon={rt.icon} label={rt.label} imageClassName="h-5 w-5 object-contain" />
                     </div>
-                    <span className="text-[11px] font-semibold text-[var(--text-primary)] leading-tight line-clamp-2">
+                    <span className="text-[11px] font-semibold text-[var(--text-primary)] leading-tight line-clamp-2 break-words">
                       {submittingId === rt.id ? 'Sending…' : rt.label}
                     </span>
                   </button>
