@@ -123,6 +123,72 @@ Deno.serve(async (req) => {
 
     let familyMemberId = existing?.id
 
+    // If this email already has a Supabase auth account (e.g. they're a
+    // revoked family member of a different resident), link it directly.
+    // handle_new_user() only links pending invites for brand-new signups,
+    // so re-inviting an existing account would otherwise leave this row
+    // stuck in status='invited' forever with no auth_user_id.
+    const { data: existingAuthId } = await admin.rpc('find_auth_user_id_by_email', { p_email: email })
+
+    if (existingAuthId) {
+      // auth_user_id is unique on family_members — at most one row can hold
+      // it. If that row belongs to a different resident, only repoint it
+      // when it's no longer active; otherwise this account is genuinely in
+      // use elsewhere and we shouldn't silently move it.
+      const { data: conflictRow, error: conflictError } = await admin
+        .from('family_members')
+        .select('id, status')
+        .eq('auth_user_id', existingAuthId)
+        .maybeSingle()
+
+      if (conflictError) return json(400, { error: conflictError.message })
+
+      if (conflictRow && conflictRow.id !== familyMemberId) {
+        if (conflictRow.status === 'active') {
+          return json(400, { error: `${email} is already linked to an active family member account for another resident.` })
+        }
+        const { error: clearError } = await admin
+          .from('family_members')
+          .update({ auth_user_id: null })
+          .eq('id', conflictRow.id)
+        if (clearError) return json(400, { error: clearError.message })
+      }
+
+      if (familyMemberId) {
+        const { error: updateError } = await admin
+          .from('family_members')
+          .update({
+            full_name: fullName,
+            relationship,
+            access_level: callerFamily.access_level,
+            status: 'active',
+            auth_user_id: existingAuthId,
+            invited_by: authUser.user.id,
+          })
+          .eq('id', familyMemberId)
+        if (updateError) return json(400, { error: updateError.message })
+      } else {
+        const { error: insertError } = await admin
+          .from('family_members')
+          .insert({
+            resident_id: resident.id,
+            full_name: fullName,
+            relationship,
+            email,
+            access_level: callerFamily.access_level,
+            status: 'active',
+            auth_user_id: existingAuthId,
+            invited_by: authUser.user.id,
+          })
+        if (insertError) return json(400, { error: insertError.message })
+      }
+
+      return json(200, {
+        success: true,
+        warning: `${email} already has an account on this platform. They can now sign out and back in to see this resident — no new invite email was sent.`,
+      })
+    }
+
     if (familyMemberId) {
       const { error: updateError } = await admin
         .from('family_members')
