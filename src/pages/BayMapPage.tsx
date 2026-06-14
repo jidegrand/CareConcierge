@@ -268,8 +268,9 @@ function BayCell({ bay, selected, onClick }: {
       <span className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full"
         style={{ background: cfg.dot }} />
 
-      {/* Bay name — always dark so it's readable in every status state */}
-      <p className="text-sm font-bold pr-5 leading-tight" style={{ color: 'var(--text-primary)' }}>
+      {/* Bay name — fixed dark text; this card's background is a fixed light
+          color regardless of app theme, so it can't follow var(--text-primary) */}
+      <p className="text-sm font-bold pr-5 leading-tight" style={{ color: '#111827' }}>
         {bay.name}
       </p>
 
@@ -454,7 +455,7 @@ function RequestItem({ request: r, onUpdateStatus }: {
           className="text-lg leading-none"
           imageClassName="h-5 w-5 object-contain"
         />
-        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <p className="text-sm font-semibold" style={{ color: '#111827' }}>
           {r.label}
         </p>
         {r.isUrgent && r.status !== 'resolved' && (
