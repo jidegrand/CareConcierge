@@ -196,7 +196,7 @@ export default function SuperAdminGuidePage() {
                   </div>
                   <div className="grid grid-cols-[180px,1fr] gap-3 px-4 py-3">
                     <p className="text-sm font-semibold text-[var(--text-primary)]">Family Portal <InlineCode>/family</InlineCode></p>
-                    <p className="text-xs text-[var(--text-secondary)]">Read-only activity feed plus direct messaging (Family Messages) for family members invited to follow one resident. No access to staff tools or other residents.</p>
+                    <p className="text-xs text-[var(--text-secondary)]">Activity feed (with staff attribution), a Quick Requests grid for tenant-configured family requests, and direct messaging (Family Messages) for family members invited to follow one resident. Includes a light/dark theme toggle. No access to staff tools or other residents.</p>
                   </div>
                 </div>
               </div>

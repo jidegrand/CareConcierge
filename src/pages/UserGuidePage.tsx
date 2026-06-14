@@ -264,6 +264,12 @@ export default function UserGuidePage() {
               <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
                 <strong>Messaging:</strong> Once a family member's account is active, they can message your team directly from their family portal. Reply from <strong>Family Messages</strong> — see below.
               </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <strong>Staff attribution:</strong> When you resolve a request or leave a note marked visible to family, your name and role (e.g. "Maria Santos, RN") appear next to that update in the family member's activity feed.
+              </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <strong>Quick Requests:</strong> Family members can also send their own quick requests (e.g. "Check on resident", "Visitor coming") from a Quick Requests grid on their dashboard. Tenant Admins configure which tiles appear there from <strong>Admin → Common Requests → Family Portal Requests</strong>.
+              </div>
             </GuideSection>
 
             {/* Family Messages */}

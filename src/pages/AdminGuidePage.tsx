@@ -280,20 +280,20 @@ export default function AdminGuidePage() {
             {/* Request Types */}
             <GuideSection id="requests" title="Request Types">
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Request types are the buttons that appear on the patient QR page. You can add custom types, reorder them, mark some as urgent, and temporarily hide others — all without touching any code.
+                Request types are the buttons patients and family members tap to send a request. You can add custom types, mark some as urgent, and temporarily hide others — all without touching any code. Patients and family members each have their own set of tiles, managed separately.
               </p>
 
               <Step n={1} title="Open Request Types">
-                Go to <strong>Admin → Common Requests</strong>. You'll see all currently configured request types for your organisation.
+                Go to <strong>Admin → Common Requests</strong>. You'll see two sections: <strong>Common Requests</strong> (shown on the patient QR page) and <strong>Family Portal Requests</strong> (shown to family members in their portal).
               </Step>
               <Step n={2} title="Add a new request type">
-                Click <strong>Add request type</strong>. Enter a label (e.g. "Medication"), pick an icon or emoji, choose a colour, and decide if it should be marked as urgent. Click <strong>Save</strong>.
+                In either section, click <strong>+ Add Request</strong>. Enter a label (e.g. "Medication"), pick an emoji or upload a small icon image, choose a colour, and decide if it should be marked as urgent. Click <strong>Save</strong>.
               </Step>
-              <Step n={3} title="Edit or reorder">
-                Drag rows to reorder — the order here is the order patients see on their QR page. Click the pencil icon to edit an existing type's label, icon, or colour.
+              <Step n={3} title="Edit an existing type">
+                Click <strong>Edit</strong> on any row to change its label, icon, colour, or urgency.
               </Step>
-              <Step n={4} title="Hide a request type">
-                Toggle the <strong>Active</strong> switch off to hide a type from patients without deleting it. Useful for types that are only needed seasonally.
+              <Step n={4} title="Hide or delete a request type">
+                Toggle <strong>Hide</strong> / <strong>Show</strong> to control whether a tile is currently offered without losing its configuration, or click <strong>Delete</strong> to remove a custom type entirely. Existing request history is kept either way.
               </Step>
 
               <Warning>
@@ -315,6 +315,10 @@ export default function AdminGuidePage() {
                   </div>
                 ))}
               </div>
+
+              <Note>
+                <strong>Family Portal Requests</strong> appear as a 4-across grid of <strong>Quick Requests</strong> on each family member's dashboard. Requests sent from there are tagged with a "from family" source so staff can tell them apart from patient-initiated requests. Editing or hiding a Common Request has no effect on Family Portal Requests, and vice versa — they're independent lists.
+              </Note>
             </GuideSection>
 
             {/* QR Codes */}
