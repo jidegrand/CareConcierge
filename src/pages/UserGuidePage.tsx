@@ -270,6 +270,12 @@ export default function UserGuidePage() {
               <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
                 <strong>Quick Requests:</strong> Family members can also send their own quick requests (e.g. "Check on resident", "Visitor coming") from a Quick Requests grid on their dashboard. Tenant Admins configure which tiles appear there from <strong>Admin → Common Requests → Family Portal Requests</strong>.
               </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <strong>One active request per type:</strong> After a family member sends a quick request, that tile shows an "In progress" checkmark and is disabled until the request is resolved or cancelled. Other request types remain available — only the same type is blocked while it's active.
+              </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <strong>Request received confirmation:</strong> Submitting a quick request opens a "Received" confirmation on the family member's dashboard, mirroring the patient acknowledgment screen. From there they can <strong>Cancel request</strong> if it's no longer needed, or <strong>Dismiss</strong> to close the confirmation and keep tracking it in Today's Activity.
+              </div>
             </GuideSection>
 
             {/* Family Messages */}

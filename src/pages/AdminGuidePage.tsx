@@ -221,6 +221,9 @@ export default function AdminGuidePage() {
               <Step n={4} title="Activate or deactivate rooms">
                 Toggle the <strong>Active</strong> switch on any room to control whether its QR code is live. Inactive rooms still appear in the admin panel but patients cannot submit requests from them.
               </Step>
+              <Step n={5} title="Split a shared room into multiple beds">
+                For multi-bed rooms, click the <strong>+</strong> icon on a room chip to add a bed. The first split renames the room to "<strong>-A</strong>" and adds a "<strong>-B</strong>" sibling (e.g. "Bay 4" becomes "Bay 4-A" and "Bay 4-B"); clicking <strong>+</strong> again adds "-C", and so on. Each bed is its own room with its own QR code, so patients in the same bay can submit requests independently.
+              </Step>
 
               <Warning>
                 Room names are printed on QR codes and shown to patients. Keep them short and recognisable — "Bay 4" is better than "Room 4 — Emergency Ward ICU North".
@@ -297,7 +300,7 @@ export default function AdminGuidePage() {
               </Step>
 
               <Warning>
-                The <strong>Call Nurse</strong> request type is built-in and always shown at the top of the patient page. It cannot be removed, but you can customise the label.
+                The <strong>Call Nurse</strong> request type is built-in and always shown at the top of the patient page. It cannot be removed, but you can customise the label — the big banner on the patient page will show your custom text (e.g. "Emergency Help") while keeping its prominent styling and behaviour.
               </Warning>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
