@@ -57,9 +57,11 @@ function formatActivityTime(iso: string): string {
 export default function FamilyDashboardPage() {
   const { profile, signOut } = useAuth()
   const { tenantId, tenantName } = useTenantContext()
-  const { loading, error, familyMember, resident, requestTypes, activity, activeFamilyRequestTypes, submitRequest } = useFamilyPortal(tenantId)
+  const { loading, error, familyMember, resident, requestTypes, activity, activeFamilyRequestTypes, submitRequest, cancelRequest } = useFamilyPortal(tenantId)
   const [submittingId, setSubmittingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [activeRequestModal, setActiveRequestModal] = useState<{ requestId: string; label: string } | null>(null)
+  const [canceling, setCanceling] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const { unreadCount } = useFamilyChat(resident?.id, showChat)
   const { dark, toggle: toggleDark } = useDarkMode()
@@ -98,11 +100,22 @@ export default function FamilyDashboardPage() {
     setFeedback(null)
     const result = await submitRequest(typeId)
     setSubmittingId(null)
-    if (result.success) {
-      setFeedback(`${label} — request sent.`)
-      window.setTimeout(() => setFeedback(null), 3000)
+    if (result.success && result.requestId) {
+      setActiveRequestModal({ requestId: result.requestId, label })
     } else {
       setFeedback(result.error ?? 'Failed to send request.')
+    }
+  }
+
+  const handleCancelRequest = async () => {
+    if (!activeRequestModal) return
+    setCanceling(true)
+    const result = await cancelRequest(activeRequestModal.requestId)
+    setCanceling(false)
+    if (result.success) {
+      setActiveRequestModal(null)
+    } else {
+      setFeedback(result.error ?? 'Failed to cancel request.')
     }
   }
 
@@ -292,6 +305,94 @@ export default function FamilyDashboardPage() {
         residentName={formatResidentShortName(resident.display_name)}
         facilityName={tenantName ?? 'the facility'}
       />
+
+      {activeRequestModal && (
+        <FamilyRequestStatusModal
+          label={activeRequestModal.label}
+          canceling={canceling}
+          onCancel={handleCancelRequest}
+          onDismiss={() => setActiveRequestModal(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Request received modal ────────────────────────────────────────────────────
+// Shows a confirmation after a family member sends a quick request, mirroring
+// the patient-facing "request received" acknowledgement.
+function FamilyRequestStatusModal({ label, canceling, onCancel, onDismiss }: {
+  label: string
+  canceling: boolean
+  onCancel: () => void
+  onDismiss: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-md rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center bg-[var(--success-lt)]">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+
+          <div className="flex-1">
+            <div className="mb-1 flex items-center gap-2 flex-wrap">
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)]">
+                Received
+              </span>
+              <span className="text-xs text-[var(--text-muted)]">{label}</span>
+            </div>
+            <p className="text-base font-bold leading-tight text-[var(--text-primary)] md:text-lg">
+              Your request has been received
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+              The care team has been notified and will follow up shortly.
+            </p>
+            <p className="mt-2 text-xs font-medium text-[var(--text-muted)]">
+              You can cancel this request if it's no longer needed.
+            </p>
+          </div>
+
+          <button onClick={onDismiss} className="mt-0.5 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div className="mb-5 rounded-2xl border border-[var(--success)]/20 bg-[var(--success-lt)] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-[var(--success)] flex items-center justify-center flex-shrink-0">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </span>
+            <p className="text-sm font-medium text-[var(--success)]">
+              We have received your request and alerted the care team.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={canceling}
+            className="w-full rounded-2xl px-4 py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-70 bg-[var(--danger-lt)] text-[var(--danger)]"
+          >
+            {canceling ? 'Cancelling…' : 'Cancel request'}
+          </button>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] bg-[var(--clinical-blue)]"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

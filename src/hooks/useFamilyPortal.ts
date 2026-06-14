@@ -44,6 +44,10 @@ interface MutationResult {
   error?: string
 }
 
+interface SubmitRequestResult extends MutationResult {
+  requestId?: string
+}
+
 const formatMinutes = (seconds: number): string => {
   const minutes = Math.max(1, Math.round(seconds / 60))
   if (minutes < 60) return `${minutes} min`
@@ -201,26 +205,38 @@ export function useFamilyPortal(tenantId: string | undefined) {
     }
   }, [resident, fetchActivity])
 
-  const submitRequest = useCallback(async (typeId: string): Promise<MutationResult> => {
+  const submitRequest = useCallback(async (typeId: string): Promise<SubmitRequestResult> => {
     if (!resident) return { success: false, error: 'No resident found.' }
     if (!resident.room_id) return { success: false, error: 'Resident is not currently assigned to a room.' }
     if (activeFamilyRequestTypes.has(typeId)) return { success: false, error: 'This request is already in progress.' }
 
     const typeConfig = requestTypeMap[typeId]
 
-    const { error: err } = await supabase.from('requests').insert({
+    const { data, error: err } = await supabase.from('requests').insert({
       room_id: resident.room_id,
       resident_id: resident.id,
       type: typeId,
       is_urgent: typeConfig?.urgent ?? false,
       status: 'pending',
       source: 'family',
-    })
+    }).select('id').single()
 
     if (err) return { success: false, error: err.message }
     await fetchActivity(resident.id)
-    return { success: true }
+    return { success: true, requestId: (data as { id: string }).id }
   }, [resident, requestTypeMap, activeFamilyRequestTypes, fetchActivity])
+
+  const cancelRequest = useCallback(async (requestId: string): Promise<MutationResult> => {
+    const { error: err } = await supabase
+      .from('requests')
+      .delete()
+      .eq('id', requestId)
+      .in('status', ['pending', 'acknowledged'])
+
+    if (err) return { success: false, error: err.message }
+    if (resident) await fetchActivity(resident.id)
+    return { success: true }
+  }, [resident, fetchActivity])
 
   return {
     loading,
@@ -231,6 +247,7 @@ export function useFamilyPortal(tenantId: string | undefined) {
     activity,
     activeFamilyRequestTypes,
     submitRequest,
+    cancelRequest,
     refresh: fetchAll,
   }
 }
