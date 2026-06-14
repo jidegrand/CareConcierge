@@ -78,6 +78,7 @@ export function useStaffing(tenantId: string | undefined, unitId: string | undef
       .select('id, full_name, role, unit_id, unit:units(name)')
       .eq('tenant_id', tenantId)
       .eq('active', true)
+      .neq('role', 'family')
       .order('role')
 
     // If unit-scoped nurse, only show their unit + admins

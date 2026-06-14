@@ -17,6 +17,10 @@ const ROLE_CFG: Record<string, { label: string; bg: string; text: string }> = {
   volunteer:     { label: 'Volunteer',      bg: '#FEF3C7', text: '#92400E' },
   viewer:        { label: 'Viewer',         bg: '#FEF3C7', text: '#92400E' },
 }
+const DEFAULT_ROLE_CFG = { label: 'Staff', bg: '#F3F4F6', text: '#374151' }
+function roleCfgFor(role: string) {
+  return ROLE_CFG[role] ?? DEFAULT_ROLE_CFG
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtSec(s: number | null): string {
@@ -186,7 +190,7 @@ export default function StaffingPage() {
               All roles
             </button>
             {roles.map(r => {
-              const cfg = ROLE_CFG[r]
+              const cfg = roleCfgFor(r)
               return (
                 <button key={r} onClick={() => setRoleFilter(r)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
@@ -240,7 +244,7 @@ export default function StaffingPage() {
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
                     {visible.map(s => {
-                      const roleCfg = ROLE_CFG[s.role]
+                      const roleCfg = roleCfgFor(s.role)
                       const color   = avatarColor(s.id)
                       return (
                         <tr key={s.id}
@@ -323,7 +327,7 @@ export default function StaffingPage() {
             {!loading && visible.length > 0 && view === 'workload' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {visible.map(s => {
-                  const roleCfg = ROLE_CFG[s.role]
+                  const roleCfg = roleCfgFor(s.role)
                   const color   = avatarColor(s.id)
                   return (
                     <div key={s.id}
@@ -419,7 +423,7 @@ function StaffDetailPanel({ staff: s, onClose }: {
   staff: StaffMember; onClose: () => void
 }) {
   const color   = avatarColor(s.id)
-  const roleCfg = ROLE_CFG[s.role]
+  const roleCfg = roleCfgFor(s.role)
 
   return (
     <div className="flex flex-col h-full">
