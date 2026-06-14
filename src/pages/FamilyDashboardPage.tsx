@@ -57,7 +57,7 @@ function formatActivityTime(iso: string): string {
 export default function FamilyDashboardPage() {
   const { profile, signOut } = useAuth()
   const { tenantId, tenantName } = useTenantContext()
-  const { loading, error, familyMember, resident, requestTypes, activity, submitRequest } = useFamilyPortal(tenantId)
+  const { loading, error, familyMember, resident, requestTypes, activity, activeFamilyRequestType, submitRequest } = useFamilyPortal(tenantId)
   const [submittingId, setSubmittingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [showChat, setShowChat] = useState(false)
@@ -202,12 +202,17 @@ export default function FamilyDashboardPage() {
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)] mb-3">
                 Quick Requests
               </p>
+              {activeFamilyRequestType && (
+                <p className="text-[12px] text-[var(--text-muted)] mb-3">
+                  You have a request in progress. New requests are paused until it's resolved.
+                </p>
+              )}
               <div className="grid grid-cols-4 gap-2 sm:gap-3">
                 {requestTypes.map(rt => (
                   <button
                     key={rt.id}
                     onClick={() => handleRequest(rt.id, rt.label)}
-                    disabled={submittingId !== null}
+                    disabled={submittingId !== null || activeFamilyRequestType !== null}
                     className="flex flex-col items-center gap-2 rounded-2xl p-2.5 text-center border border-[var(--border)] bg-[var(--surface)] active:scale-[0.97] transition-transform disabled:opacity-60"
                   >
                     <div

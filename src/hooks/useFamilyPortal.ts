@@ -97,6 +97,7 @@ export function useFamilyPortal(tenantId: string | undefined) {
   const [resident, setResident] = useState<Resident | null>(null)
   const [requestTypes, setRequestTypes] = useState<RequestTypeConfig[]>([])
   const [activity, setActivity] = useState<FamilyActivityItem[]>([])
+  const [activeFamilyRequestType, setActiveFamilyRequestType] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -118,6 +119,11 @@ export function useFamilyPortal(tenantId: string | undefined) {
     const requests = (requestsRes.data ?? []) as FamilyActivityRequest[]
     const notes = (notesRes.data ?? []) as FamilyActivityNote[]
     setActivity(buildActivity(requests, notes, requestTypeMapRef.current))
+
+    const activeFamilyRequest = requests.find(r =>
+      r.source === 'family' && (r.status === 'pending' || r.status === 'acknowledged')
+    )
+    setActiveFamilyRequestType(activeFamilyRequest?.type ?? null)
   }, [])
 
   const fetchAll = useCallback(async () => {
@@ -198,6 +204,7 @@ export function useFamilyPortal(tenantId: string | undefined) {
   const submitRequest = useCallback(async (typeId: string): Promise<MutationResult> => {
     if (!resident) return { success: false, error: 'No resident found.' }
     if (!resident.room_id) return { success: false, error: 'Resident is not currently assigned to a room.' }
+    if (activeFamilyRequestType) return { success: false, error: 'You already have a request in progress. Please wait until it is resolved before sending another.' }
 
     const typeConfig = requestTypeMap[typeId]
 
@@ -213,7 +220,7 @@ export function useFamilyPortal(tenantId: string | undefined) {
     if (err) return { success: false, error: err.message }
     await fetchActivity(resident.id)
     return { success: true }
-  }, [resident, requestTypeMap, fetchActivity])
+  }, [resident, requestTypeMap, activeFamilyRequestType, fetchActivity])
 
   return {
     loading,
@@ -222,6 +229,7 @@ export function useFamilyPortal(tenantId: string | undefined) {
     resident,
     requestTypes: familyRequestTypes,
     activity,
+    activeFamilyRequestType,
     submitRequest,
     refresh: fetchAll,
   }
