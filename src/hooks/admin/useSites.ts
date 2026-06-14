@@ -187,6 +187,44 @@ export function useSites(tenantId: string | undefined) {
     await fetch()
   }
 
+  // Add a second (or third+) bed to an existing room. If the room has no
+  // bed suffix yet, it's renamed "<name>-A" and the new bed becomes
+  // "<name>-B"; otherwise the new bed gets the next free letter after
+  // the existing siblings sharing the same base name.
+  const addBed = async (room: Room, siblingRooms: Room[]) => {
+    const suffixMatch = room.name.match(/^(.*)-([A-Za-z])$/)
+    const base = suffixMatch ? suffixMatch[1] : room.name
+
+    const usedLetters = new Set<string>()
+    for (const r of siblingRooms) {
+      const m = r.name.match(/^(.*)-([A-Za-z])$/)
+      if (m && m[1] === base) usedLetters.add(m[2].toUpperCase())
+    }
+
+    if (usedLetters.size === 0) {
+      const renamedName = `${base}-A`
+      const { error: renameErr } = await supabase
+        .from('rooms')
+        .update({ name: renamedName, label: room.label === room.name ? renamedName : room.label })
+        .eq('id', room.id)
+      if (renameErr) throw new Error(renameErr.message)
+      usedLetters.add('A')
+    }
+
+    let code = 65 // 'A'
+    while (usedLetters.has(String.fromCharCode(code))) code++
+    const newName = `${base}-${String.fromCharCode(code)}`
+
+    const { error: err } = await supabase.from('rooms').insert({
+      unit_id: room.unit_id,
+      name: newName,
+      label: newName,
+      active: true,
+    })
+    if (err) throw new Error(err.message)
+    await fetch()
+  }
+
   const toggleRoom = async (id: string, active: boolean) => {
     const { error: err } = await supabase.from('rooms').update({ active }).eq('id', id)
     if (err) throw new Error(err.message)
@@ -230,6 +268,6 @@ export function useSites(tenantId: string | undefined) {
     sites, loading, error, refresh: fetch,
     createSite, updateSite, deleteSite,
     createUnit, updateUnit, deleteUnit,
-    createRoomsFromTemplate, updateRoom, toggleRoom, deleteRoom,
+    createRoomsFromTemplate, updateRoom, addBed, toggleRoom, deleteRoom,
   }
 }

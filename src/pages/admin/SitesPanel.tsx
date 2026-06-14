@@ -72,6 +72,14 @@ export default function SitesPanel({ tenantId }: Props) {
     }
   }
 
+  const handleAddBed = async (unit: UnitWithRooms, room: Room) => {
+    try {
+      await ops.addBed(room, unit.rooms ?? [])
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Failed to add bed')
+    }
+  }
+
   const handleDelete = async (kind: string, id: string, name: string) => {
     const confirmation = kind === 'room'
       ? `Delete "${name}"?\n\nRooms with request history are archived instead of being permanently removed.`
@@ -128,6 +136,7 @@ export default function SitesPanel({ tenantId }: Props) {
               onEditRoom={(r) => setModal({ kind: 'edit-room', id: r.id, name: r.name, label: r.label ?? r.name })}
               onToggleRoom={(r) => ops.toggleRoom(r.id, !r.active)}
               onDeleteRoom={(r) => handleDelete('room', r.id, r.name)}
+              onAddBed={handleAddBed}
             />
           ))}
         </div>
@@ -150,7 +159,7 @@ export default function SitesPanel({ tenantId }: Props) {
 
 // ── Site row ──────────────────────────────────────────────────────────────────
 function SiteRow({ site, expanded, onToggle, onEdit, onDelete, onAddUnit,
-  onEditUnit, onDeleteUnit, onAddRoom, onEditRoom, onToggleRoom, onDeleteRoom
+  onEditUnit, onDeleteUnit, onAddRoom, onEditRoom, onToggleRoom, onDeleteRoom, onAddBed
 }: {
   site: SiteWithUnits
   expanded: boolean
@@ -164,6 +173,7 @@ function SiteRow({ site, expanded, onToggle, onEdit, onDelete, onAddUnit,
   onEditRoom: (r: Room) => void
   onToggleRoom: (r: Room) => void
   onDeleteRoom: (r: Room) => void
+  onAddBed: (u: UnitWithRooms, r: Room) => void
 }) {
   const unitCount = site.units?.length ?? 0
   const roomCount = site.units?.reduce((a, u) => a + (u.rooms?.length ?? 0), 0) ?? 0
@@ -209,6 +219,7 @@ function SiteRow({ site, expanded, onToggle, onEdit, onDelete, onAddUnit,
                 onEditRoom={onEditRoom}
                 onToggleRoom={onToggleRoom}
                 onDeleteRoom={onDeleteRoom}
+                onAddBed={(r) => onAddBed(unit, r)}
               />
             ))
           )}
@@ -219,7 +230,7 @@ function SiteRow({ site, expanded, onToggle, onEdit, onDelete, onAddUnit,
 }
 
 // ── Unit row ──────────────────────────────────────────────────────────────────
-function UnitRow({ unit, onEdit, onDelete, onAddRoom, onEditRoom, onToggleRoom, onDeleteRoom }: {
+function UnitRow({ unit, onEdit, onDelete, onAddRoom, onEditRoom, onToggleRoom, onDeleteRoom, onAddBed }: {
   unit: UnitWithRooms
   onEdit: () => void
   onDelete: () => void
@@ -227,6 +238,7 @@ function UnitRow({ unit, onEdit, onDelete, onAddRoom, onEditRoom, onToggleRoom, 
   onEditRoom: (r: Room) => void
   onToggleRoom: (r: Room) => void
   onDeleteRoom: (r: Room) => void
+  onAddBed: (r: Room) => void
 }) {
   const [open, setOpen] = useState(true)
   const rooms = unit.rooms ?? []
@@ -267,6 +279,7 @@ function UnitRow({ unit, onEdit, onDelete, onAddRoom, onEditRoom, onToggleRoom, 
                   onEdit={() => onEditRoom(r)}
                   onToggle={() => onToggleRoom(r)}
                   onDelete={() => onDeleteRoom(r)}
+                  onAddBed={() => onAddBed(r)}
                 />
               ))}
             </div>
@@ -278,11 +291,12 @@ function UnitRow({ unit, onEdit, onDelete, onAddRoom, onEditRoom, onToggleRoom, 
 }
 
 // ── Room chip ─────────────────────────────────────────────────────────────────
-function RoomChip({ room, onEdit, onToggle, onDelete }: {
+function RoomChip({ room, onEdit, onToggle, onDelete, onAddBed }: {
   room: Room
   onEdit: () => void
   onToggle: () => void
   onDelete: () => void
+  onAddBed: () => void
 }) {
   return (
     <div className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs transition-all ${
@@ -301,6 +315,10 @@ function RoomChip({ room, onEdit, onToggle, onDelete }: {
         <button onClick={onEdit} title="Edit room"
           className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--clinical-blue)] transition-colors">
           <EditIcon size={10} />
+        </button>
+        <button onClick={onAddBed} title="Add bed"
+          className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--clinical-blue)] transition-colors">
+          <PlusIcon size={10} />
         </button>
         <button onClick={onDelete} title="Delete room"
           className="p-0.5 rounded text-[var(--text-muted)] hover:text-red-500 transition-colors">
@@ -498,7 +516,7 @@ const mk = (size = 14) => (d: React.ReactNode) => (
 
 const SiteIcon  = () => mk(14)(<><rect x="3" y="9" width="18" height="12" rx="2"/><path d="M3 9l9-6 9 6"/></>)
 const UnitIcon  = () => mk(12)(<><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></>)
-const PlusIcon  = () => mk(14)(<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>)
+const PlusIcon  = ({ size = 14 }: { size?: number } = {}) => mk(size)(<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>)
 const EditIcon  = ({ size = 13 }: { size?: number }) => mk(size)(<><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></>)
 const TrashIcon = ({ size = 13 }: { size?: number }) => mk(size)(<><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></>)
 const EyeIcon   = () => mk(12)(<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>)
