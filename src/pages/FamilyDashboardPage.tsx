@@ -126,21 +126,21 @@ export default function FamilyDashboardPage() {
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)] mb-3">
                 Quick Requests
               </p>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-4 gap-2 sm:gap-3">
                 {requestTypes.map(rt => (
                   <button
                     key={rt.id}
                     onClick={() => handleRequest(rt.id, rt.label)}
                     disabled={submittingId !== null}
-                    className="flex flex-col items-start gap-2.5 rounded-2xl p-4 text-left border border-[var(--border)] bg-[var(--surface)] active:scale-[0.97] transition-transform disabled:opacity-60"
+                    className="flex flex-col items-center gap-2 rounded-2xl p-2.5 text-center border border-[var(--border)] bg-[var(--surface)] active:scale-[0.97] transition-transform disabled:opacity-60"
                   >
                     <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-[20px]"
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-[16px] flex-shrink-0"
                       style={{ backgroundColor: `${rt.color}1A` }}
                     >
-                      <RequestTypeIcon icon={rt.icon} label={rt.label} />
+                      <RequestTypeIcon icon={rt.icon} label={rt.label} imageClassName="h-5 w-5 object-contain" />
                     </div>
-                    <span className="text-[13px] font-semibold text-[var(--text-primary)] leading-tight">
+                    <span className="text-[11px] font-semibold text-[var(--text-primary)] leading-tight line-clamp-2">
                       {submittingId === rt.id ? 'Sending…' : rt.label}
                     </span>
                   </button>
