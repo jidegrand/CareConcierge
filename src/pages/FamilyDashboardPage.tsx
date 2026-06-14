@@ -3,9 +3,27 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useFamilyPortal } from '@/hooks/useFamilyPortal'
 import { useFamilyChat } from '@/hooks/useFamilyChat'
+import { useDarkMode } from '@/hooks/useDarkMode'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
 import FamilyChatModal from '@/components/FamilyChatModal'
 import { formatResidentShortName } from '@/lib/constants'
+
+function SunIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  )
+}
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -35,6 +53,7 @@ export default function FamilyDashboardPage() {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [showChat, setShowChat] = useState(false)
   const { unreadCount } = useFamilyChat(resident?.id, showChat)
+  const { dark, toggle: toggleDark } = useDarkMode()
 
   const handleRequest = async (typeId: string, label: string) => {
     setSubmittingId(typeId)
@@ -90,9 +109,18 @@ export default function FamilyDashboardPage() {
               Hi, {firstName}
             </h1>
           </div>
-          <button onClick={() => signOut()} className="text-[13px] font-semibold text-[var(--clinical-blue)]">
-            Sign out
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleDark}
+              aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--page-bg)]"
+            >
+              {dark ? <SunIcon /> : <MoonIcon />}
+            </button>
+            <button onClick={() => signOut()} className="text-[13px] font-semibold text-[var(--clinical-blue)]">
+              Sign out
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 px-5 pb-8 pt-3 space-y-5">
