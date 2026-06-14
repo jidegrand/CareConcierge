@@ -675,9 +675,9 @@ WHERE id = (
                 Four CSV exports are available:
                 <ul className="mt-2 space-y-1.5">
                   {[
-                    ['Platform Summary CSV',          'Total requests, response times, and resolution rates per org'],
+                    ['Platform Summary CSV',          'Total requests, response times, resolution rates, and family message totals per org'],
                     ['Daily Trend CSV',               'Day-by-day request volume across the selected date range'],
-                    ['Organization Activity CSV',     'Per-org breakdown of all activity metrics'],
+                    ['Organization Activity CSV',     'Per-org breakdown of all activity metrics, including family messages'],
                     ['Request Mix CSV',               'Request type distribution across the platform'],
                   ].map(([name, desc]) => (
                     <li key={name as string} className="flex gap-2 text-xs">
@@ -687,6 +687,9 @@ WHERE id = (
                   ))}
                 </ul>
               </Step>
+              <Note>
+                The summary cards include a <strong>Family Messages</strong> count for the selected range, and the Organization Activity list shows each org's family message volume alongside requests, urgent, and resolved counts.
+              </Note>
             </GuideSection>
 
             {/* ── Audit Logs ──────────────────────────────────────── */}

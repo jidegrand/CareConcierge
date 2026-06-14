@@ -132,12 +132,13 @@ export default function PlatformGlobalReportsPage() {
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         <ReportCard label="Requests" value={reports.totalRequests} color="#1D6FA8" />
         <ReportCard label="Urgent" value={reports.urgentRequests} color="#DC2626" />
         <ReportCard label="Resolved" value={reports.resolvedRequests} color="#059669" />
         <ReportCard label="Active Organizations" value={reports.activeOrganizations} color="#5B21B6" />
         <ReportCard label="Avg Resolution (min)" value={reports.avgResolutionMinutes ?? '—'} color="#D97706" />
+        <ReportCard label="Family Messages" value={reports.totalFamilyMessages} color="#1D6FA8" />
       </div>
 
       <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr,0.9fr]">
@@ -151,7 +152,7 @@ export default function PlatformGlobalReportsPage() {
                 <div>
                   <p className="text-sm font-semibold text-[var(--text-primary)]">{organization.name}</p>
                   <p className="text-xs text-[var(--text-muted)]">
-                    {organization.urgent} urgent · {organization.resolved} resolved
+                    {organization.urgent} urgent · {organization.resolved} resolved · {organization.familyMessages} family msgs
                   </p>
                 </div>
                 <span className="text-sm font-bold text-[var(--clinical-blue)]">{organization.requests}</span>

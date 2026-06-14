@@ -15,6 +15,9 @@ export function exportPlatformSummaryCSV(
       ['Resolved Requests', snapshot.resolvedRequests],
       ['Active Organizations', snapshot.activeOrganizations],
       ['Avg Resolution Minutes', snapshot.avgResolutionMinutes ?? ''],
+      ['Total Family Messages', snapshot.totalFamilyMessages],
+      ['Family Messages from Families', snapshot.familyMessagesFromFamily],
+      ['Family Messages from Staff', snapshot.familyMessagesFromStaff],
     ],
   )
 }
@@ -25,8 +28,8 @@ export function exportOrganizationActivityCSV(
 ) {
   exportCSV(
     `${PRODUCT_FILE_PREFIX}_OrganizationActivity_${fileToken(meta.rangeStart, meta.rangeEnd, meta.scopeLabel)}.csv`,
-    ['Organization', 'Requests', 'Urgent', 'Resolved'],
-    snapshot.organizations.map(org => [org.name, org.requests, org.urgent, org.resolved]),
+    ['Organization', 'Requests', 'Urgent', 'Resolved', 'Family Messages'],
+    snapshot.organizations.map(org => [org.name, org.requests, org.urgent, org.resolved, org.familyMessages]),
   )
 }
 

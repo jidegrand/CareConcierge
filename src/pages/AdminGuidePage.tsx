@@ -351,10 +351,10 @@ export default function AdminGuidePage() {
               <Screenshot src="/screenshot/newReports.png" alt="Reports — detailed analytics view" />
 
               <Step n={1} title="View today's analytics">
-                Open <strong>Reports</strong> from the sidebar. The Analytics tab shows today's totals: request volume, average response time, resolution rate, and request type breakdown.
+                Open <strong>Reports</strong> from the sidebar. The Analytics tab shows today's totals: request volume, average response time, resolution rate, request type breakdown, and a <strong>Family Messages</strong> card (messages sent today and how many family threads are active).
               </Step>
               <Step n={2} title="Export data">
-                Switch to the <strong>Export</strong> tab and choose a report type: Bay Summary, Open Requests, Staff Performance, Request Log, or a full Shift Report. Select a date range and click the export button to download.
+                Switch to the <strong>Export</strong> tab and choose a report type: Bay Summary, Open Requests, Staff Performance, Request Log, Family Messages, or a full Shift Report. Select a date range and click the export button to download.
               </Step>
               <Step n={3} title="Generate a handover report">
                 From the main Dashboard, click the <strong>Handover Report</strong> button in the right panel. This generates a structured end-of-shift summary including all active requests, staff activity, and key metrics.
@@ -374,6 +374,7 @@ export default function AdminGuidePage() {
                     { format: 'Request Log CSV',          desc: 'Full audit trail — every request and status change' },
                     { format: 'Staff Performance CSV',    desc: 'Per-nurse response times and resolved counts' },
                     { format: 'Urgent Requests CSV',      desc: 'All requests flagged urgent in the selected range' },
+                    { format: 'Family Messages CSV',      desc: 'Every family chat message in the range — resident, sender, and message text' },
                     { format: 'Shift Report DOCX',        desc: 'Formatted Word document for manager sign-off' },
                   ].map(r => (
                     <div key={r.format} className="flex items-start gap-3 px-4 py-3">

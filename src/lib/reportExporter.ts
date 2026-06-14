@@ -31,6 +31,16 @@ export interface ReportStaffMember {
   avgHandleSec: number | null
 }
 
+export interface ReportFamilyMessage {
+  id: string
+  resident_name: string
+  room_name: string
+  sender_role: string
+  sender_name: string | null
+  body: string
+  created_at: string
+}
+
 export interface ReportData {
   unitName:    string
   siteName:    string
@@ -41,6 +51,7 @@ export interface ReportData {
   generatedAt: string
   requests:    ReportRequest[]
   staff:       ReportStaffMember[]
+  familyMessages: ReportFamilyMessage[]
   requestTypeMap: Record<string, RequestTypeConfig>
 }
 
@@ -59,6 +70,12 @@ function fmtDateRange(startIso: string, endIso: string): string {
 
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function fmtDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-CA', {
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
 }
 
 function fmtSec(s: number | null): string {
@@ -96,7 +113,7 @@ export async function fetchReportData(
   const endExclusive = new Date(`${rangeEnd}T00:00:00`)
   endExclusive.setDate(endExclusive.getDate() + 1)
 
-  const [requestsRes, profilesRes, requestTypesRes, tenantRes] = await Promise.all([
+  const [requestsRes, profilesRes, requestTypesRes, tenantRes, familyChatRes] = await Promise.all([
     supabase
       .from('requests')
       .select(`
@@ -134,6 +151,22 @@ export async function fetchReportData(
       .select('name')
       .eq('id', tenantId)
       .single(),
+
+    supabase
+      .from('family_chat_messages')
+      .select(`
+        id, sender_role, sender_name, body, created_at, resident_id,
+        resident:residents (
+          id, display_name,
+          room:rooms (
+            id, name,
+            unit:units (id)
+          )
+        )
+      `)
+      .gte('created_at', start.toISOString())
+      .lt('created_at', endExclusive.toISOString())
+      .order('created_at', { ascending: true }),
   ])
 
   // Scope to unit
@@ -227,6 +260,46 @@ export async function fetchReportData(
     }
   }).sort((a, b) => b.resolvedCount - a.resolvedCount)
 
+  // Family chat messages, scoped to unit if applicable
+  type RawFamilyChatMessage = {
+    id: string
+    sender_role: string
+    sender_name: string | null
+    body: string
+    created_at: string
+    resident_id: string
+    resident?: MaybeArray<{
+      id?: string
+      display_name?: string
+      room?: MaybeArray<{
+        id?: string
+        name?: string
+        unit?: MaybeArray<{ id?: string }>
+      }>
+    }>
+  }
+
+  const familyMessages: ReportFamilyMessage[] = ((familyChatRes.data ?? []) as RawFamilyChatMessage[])
+    .filter(m => {
+      const resident = getSingle(m.resident)
+      const room = getSingle(resident?.room)
+      const unit = getSingle(room?.unit)
+      return unitId ? unit?.id === unitId : true
+    })
+    .map(m => {
+      const resident = getSingle(m.resident)
+      const room = getSingle(resident?.room)
+      return {
+        id: m.id,
+        resident_name: resident?.display_name ?? '—',
+        room_name: room?.name ?? '—',
+        sender_role: m.sender_role,
+        sender_name: m.sender_name,
+        body: m.body,
+        created_at: m.created_at,
+      }
+    })
+
   return {
     unitName, siteName, orgName,
     date:        fmtDateRange(rangeStart, rangeEnd),
@@ -235,6 +308,7 @@ export async function fetchReportData(
     generatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     requests,
     staff,
+    familyMessages,
     requestTypeMap,
   }
 }
@@ -451,6 +525,23 @@ export function exportRequestTypeSummaryCSV(data: ReportData) {
   const csv = buildCSV(headers, rows)
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   downloadBlob(blob, `${PRODUCT_FILE_PREFIX}_RequestTypeSummary_${safeFilenamePart(data.unitName)}_${reportRangeToken(data)}.csv`)
+}
+
+export function exportFamilyMessagesCSV(data: ReportData) {
+  const headers = ['Bay', 'Resident', 'Sender', 'Sender Role', 'Message', 'Sent At']
+
+  const rows = data.familyMessages.map(m => [
+    m.room_name,
+    m.resident_name,
+    m.sender_name ?? (m.sender_role === 'staff' ? 'Care team' : 'Family'),
+    m.sender_role,
+    m.body,
+    fmtDateTime(m.created_at),
+  ])
+
+  const csv = buildCSV(headers, rows)
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  downloadBlob(blob, `${PRODUCT_FILE_PREFIX}_FamilyMessages_${safeFilenamePart(data.unitName)}_${reportRangeToken(data)}.csv`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

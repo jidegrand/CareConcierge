@@ -41,6 +41,10 @@ export interface AnalyticsSummary {
   csatPct: number | null
   csatAvg: number | null
   csatResponses: number
+  familyMessagesToday: number
+  familyMessagesFromFamily: number
+  familyMessagesFromStaff: number
+  activeFamilyThreads: number
 }
 
 export interface AnalyticsData {
@@ -76,6 +80,10 @@ export function useAnalytics(
       csatPct: null,
       csatAvg: null,
       csatResponses: 0,
+      familyMessagesToday: 0,
+      familyMessagesFromFamily: 0,
+      familyMessagesFromStaff: 0,
+      activeFamilyThreads: 0,
     },
     hourlyVolume:  [],
     shiftVolume:   [],
@@ -94,8 +102,8 @@ export function useAnalytics(
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    // Fetch all of today's requests and feedback for this scope.
-    const [requestsRes, feedbackRes] = await Promise.all([
+    // Fetch all of today's requests, feedback, and family chat messages for this scope.
+    const [requestsRes, feedbackRes, familyChatRes] = await Promise.all([
       supabase
         .from('requests')
         .select(`
@@ -126,10 +134,27 @@ export function useAnalytics(
         `)
         .gte('created_at', today.toISOString())
         .order('created_at', { ascending: true }),
+      supabase
+        .from('family_chat_messages')
+        .select(`
+          id, sender_role, resident_id, created_at,
+          resident:residents (
+            id,
+            room:rooms (
+              id,
+              unit:units (
+                id,
+                site:sites (tenant_id)
+              )
+            )
+          )
+        `)
+        .gte('created_at', today.toISOString()),
     ])
 
     const rows = requestsRes.data
     const feedbackRows = feedbackRes.data
+    const familyChatRows = familyChatRes.data
     if (!rows) { setLoading(false); return }
 
     type RawRequest = {
@@ -163,6 +188,23 @@ export function useAnalytics(
       }>
     }
 
+    type RawFamilyChatMessage = {
+      id: string
+      sender_role: string
+      resident_id: string
+      created_at: string
+      resident?: MaybeArray<{
+        id?: string
+        room?: MaybeArray<{
+          id?: string
+          unit?: MaybeArray<{
+            id?: string
+            site?: MaybeArray<{ tenant_id?: string }>
+          }>
+        }>
+      }>
+    }
+
     // Filter to unit
     const requests = (rows as RawRequest[]).filter(r => {
       const room = getSingle(r.room)
@@ -174,6 +216,14 @@ export function useAnalytics(
     const feedback = ((feedbackRows ?? []) as RawFeedback[]).filter(item => {
       const request = getSingle(item.request)
       const room = getSingle(request?.room)
+      const unit = getSingle(room?.unit)
+      const site = getSingle(unit?.site)
+      return unitId ? unit?.id === unitId : site?.tenant_id === tenantId
+    })
+
+    const familyChatMessages = ((familyChatRows ?? []) as RawFamilyChatMessage[]).filter(item => {
+      const resident = getSingle(item.resident)
+      const room = getSingle(resident?.room)
       const unit = getSingle(room?.unit)
       const site = getSingle(unit?.site)
       return unitId ? unit?.id === unitId : site?.tenant_id === tenantId
@@ -212,6 +262,12 @@ export function useAnalytics(
     const csatPct = csatResponses > 0
       ? Math.round((feedback.filter(item => item.rating >= 4).length / csatResponses) * 100)
       : null
+
+    // ── Family chat ───────────────────────────────────────────────
+    const familyMessagesToday = familyChatMessages.length
+    const familyMessagesFromFamily = familyChatMessages.filter(m => m.sender_role === 'family').length
+    const familyMessagesFromStaff = familyChatMessages.filter(m => m.sender_role === 'staff').length
+    const activeFamilyThreads = new Set(familyChatMessages.map(m => m.resident_id)).size
 
     // ── Hourly volume ─────────────────────────────────────────────
     const hourMap: Record<number, { requests: number; urgent: number }> = {}
@@ -295,7 +351,10 @@ export function useAnalytics(
       .sort((a, b) => b.count - a.count)
 
     setData({
-      summary: { totalToday: total, avgResponseSec, fastestSec, resolvedPct, csatPct, csatAvg, csatResponses },
+      summary: {
+        totalToday: total, avgResponseSec, fastestSec, resolvedPct, csatPct, csatAvg, csatResponses,
+        familyMessagesToday, familyMessagesFromFamily, familyMessagesFromStaff, activeFamilyThreads,
+      },
       hourlyVolume,
       shiftVolume,
       bayDemand,
