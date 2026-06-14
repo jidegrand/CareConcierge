@@ -120,6 +120,7 @@ export function useRequestTypes(tenantId: string | undefined) {
     icon: string
     color?: string
     urgent?: boolean
+    audience?: 'patient' | 'family'
   }) => {
     if (!tenantId) throw new Error('No tenant available.')
     if (setupRequired) throw new Error(REQUEST_TYPES_TABLE_MISSING)
@@ -129,9 +130,14 @@ export function useRequestTypes(tenantId: string | undefined) {
     if (!label) throw new Error('Label is required.')
     if (!icon) throw new Error('Icon is required.')
 
-    const id = slugifyRequestTypeId(label)
-    if (!id) throw new Error('Could not generate an ID from that label.')
+    const audience = input.audience ?? 'patient'
+    const slug = slugifyRequestTypeId(label)
+    if (!slug) throw new Error('Could not generate an ID from that label.')
+    const id = audience === 'family' ? `family_${slug}` : slug
     if (requestTypes.some(item => item.id === id)) throw new Error('A request with that name already exists.')
+
+    const sameAudienceCount = requestTypes.filter(item => (item.audience ?? 'patient') === audience).length
+    const sortOrder = audience === 'family' ? 100 + sameAudienceCount : sameAudienceCount
 
     const { error: err } = await supabase
       .from('request_types')
@@ -143,8 +149,9 @@ export function useRequestTypes(tenantId: string | undefined) {
         color: input.color?.trim() || '#1D6FA8',
         urgent: Boolean(input.urgent),
         active: true,
-        sort_order: requestTypes.length,
+        sort_order: sortOrder,
         system: false,
+        audience,
       })
 
     if (err) throw new Error(err.message)

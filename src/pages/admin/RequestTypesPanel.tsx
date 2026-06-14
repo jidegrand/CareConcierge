@@ -20,6 +20,12 @@ const EMPTY_FORM: FormState = {
   urgent: false,
 }
 
+interface ModalState {
+  type: 'create' | 'edit'
+  audience: 'patient' | 'family'
+  editing: ManagedRequestType | null
+}
+
 export default function RequestTypesPanel({ tenantId }: Props) {
   const {
     requestTypes,
@@ -32,44 +38,39 @@ export default function RequestTypesPanel({ tenantId }: Props) {
     deleteRequestType,
   } = useRequestTypes(tenantId)
 
-  const [modalType, setModalType] = useState<'create' | 'edit' | null>(null)
-  const [editing, setEditing] = useState<ManagedRequestType | null>(null)
+  const [modalState, setModalState] = useState<ModalState | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  // Family-audience types are managed via the family portal request types,
-  // not the patient-facing "Common Requests" tiles configured here.
   const patientRequestTypes = useMemo(
     () => requestTypes.filter(item => item.audience !== 'family'),
     [requestTypes]
   )
 
-  const activeCount = useMemo(
-    () => patientRequestTypes.filter(item => item.active && item.id !== 'nurse').length,
-    [patientRequestTypes]
+  const familyRequestTypes = useMemo(
+    () => requestTypes.filter(item => item.audience === 'family'),
+    [requestTypes]
   )
 
-  const openCreate = () => {
-    setEditing(null)
+  const openCreate = (audience: 'patient' | 'family') => {
     setErr(null)
-    setModalType('create')
+    setModalState({ type: 'create', audience, editing: null })
   }
 
   const openEdit = (item: ManagedRequestType) => {
-    setEditing(item)
     setErr(null)
-    setModalType('edit')
+    setModalState({ type: 'edit', audience: item.audience === 'family' ? 'family' : 'patient', editing: item })
   }
 
   const handleSubmit = async (values: FormState) => {
+    if (!modalState) return
     setErr(null)
     try {
-      if (modalType === 'create') {
-        await createRequestType(values)
-      } else if (modalType === 'edit' && editing) {
-        await updateRequestType(editing.id, values)
+      if (modalState.type === 'create') {
+        await createRequestType({ ...values, audience: modalState.audience })
+      } else if (modalState.editing) {
+        await updateRequestType(modalState.editing.id, values)
       }
-      setModalType(null)
-      setEditing(null)
+      setModalState(null)
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Unable to save request type.')
     }
@@ -84,7 +85,8 @@ export default function RequestTypesPanel({ tenantId }: Props) {
   }
 
   const handleDelete = async (item: ManagedRequestType) => {
-    const confirmed = window.confirm(`Delete "${item.label}"? Existing request history will remain, but this common request will no longer appear for patients.`)
+    const audience = item.audience === 'family' ? 'family members' : 'patients'
+    const confirmed = window.confirm(`Delete "${item.label}"? Existing request history will remain, but this common request will no longer appear for ${audience}.`)
     if (!confirmed) return
 
     try {
@@ -94,150 +96,198 @@ export default function RequestTypesPanel({ tenantId }: Props) {
     }
   }
 
+  if (loading) return <PanelLoading />
+
+  return (
+    <div className="space-y-8">
+      {setupRequired && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Run <code className="rounded bg-white/70 px-1.5 py-0.5 text-xs">supabase/migrations/004_request_types.sql</code> in your Supabase SQL Editor, then refresh this page. The fallback list below is local-only until that table exists.
+        </div>
+      )}
+
+      <RequestTypeSection
+        title="Common Requests"
+        description="Add patient-facing request tiles with a label, icon, and urgency setting."
+        items={patientRequestTypes}
+        setupRequired={setupRequired}
+        emptyMessage="No request types found yet."
+        onAdd={() => openCreate('patient')}
+        onEdit={openEdit}
+        onToggle={handleToggle}
+        onDelete={handleDelete}
+      />
+
+      <RequestTypeSection
+        title="Family Portal Requests"
+        description="Add quick-request tiles family members can send from the family portal."
+        items={familyRequestTypes}
+        setupRequired={setupRequired}
+        emptyMessage="No family portal request types found yet."
+        onAdd={() => openCreate('family')}
+        onEdit={openEdit}
+        onToggle={handleToggle}
+        onDelete={handleDelete}
+      />
+
+      {(error || err) && !setupRequired && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {err ?? error}
+        </div>
+      )}
+
+      {modalState && (
+        <RequestTypeModal
+          title={
+            modalState.type === 'create'
+              ? (modalState.audience === 'family' ? 'Add Family Portal Request' : 'Add Common Request')
+              : (modalState.audience === 'family' ? 'Edit Family Portal Request' : 'Edit Common Request')
+          }
+          defaults={modalState.editing
+            ? {
+                label: modalState.editing.label,
+                icon: modalState.editing.icon,
+                color: modalState.editing.color,
+                urgent: modalState.editing.urgent,
+              }
+            : EMPTY_FORM}
+          error={err}
+          onClose={() => setModalState(null)}
+          onSubmit={handleSubmit}
+        />
+      )}
+    </div>
+  )
+}
+
+function RequestTypeSection({
+  title,
+  description,
+  items,
+  setupRequired,
+  emptyMessage,
+  onAdd,
+  onEdit,
+  onToggle,
+  onDelete,
+}: {
+  title: string
+  description: string
+  items: ManagedRequestType[]
+  setupRequired: boolean
+  emptyMessage: string
+  onAdd: () => void
+  onEdit: (item: ManagedRequestType) => void
+  onToggle: (item: ManagedRequestType) => void
+  onDelete: (item: ManagedRequestType) => void
+}) {
+  const activeCount = items.filter(item => item.active && item.id !== 'nurse').length
+
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-[var(--text-primary)]">Common Requests</h3>
-          <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-            Add patient-facing request tiles with a label, icon, and urgency setting.
-          </p>
+          <h3 className="text-base font-bold text-[var(--text-primary)]">{title}</h3>
+          <p className="mt-0.5 text-xs text-[var(--text-muted)]">{description}</p>
         </div>
         <button
-          onClick={openCreate}
+          onClick={onAdd}
           disabled={setupRequired}
           className="rounded-xl bg-[var(--clinical-blue)] px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--clinical-blue-dk)]">
           + Add Request
         </button>
       </div>
 
-      {setupRequired && (
-        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Run <code className="rounded bg-white/70 px-1.5 py-0.5 text-xs">supabase/migrations/004_request_types.sql</code> in your Supabase SQL Editor, then refresh this page. The fallback list below is local-only until that table exists.
-        </div>
-      )}
-
       <div className="mb-4 grid grid-cols-3 gap-4">
-        <StatCard label="Total Types" value={String(patientRequestTypes.length)} color="#1D6FA8" />
+        <StatCard label="Total Types" value={String(items.length)} color="#1D6FA8" />
         <StatCard label="Active Tiles" value={String(activeCount)} color="#059669" />
-        <StatCard label="Urgent Types" value={String(patientRequestTypes.filter(item => item.urgent).length)} color="#DC2626" />
+        <StatCard label="Urgent Types" value={String(items.filter(item => item.urgent).length)} color="#DC2626" />
       </div>
 
-      {loading ? (
-        <PanelLoading />
-      ) : (
-        <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white">
-          <div className="grid grid-cols-[1.1fr_120px_120px_120px_120px] gap-3 border-b border-[var(--border)] px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-            <span>Request</span>
-            <span>Type ID</span>
-            <span>Urgent</span>
-            <span>Status</span>
-            <span className="text-right">Actions</span>
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white">
+        <div className="grid grid-cols-[1.1fr_120px_120px_120px_120px] gap-3 border-b border-[var(--border)] px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+          <span>Request</span>
+          <span>Type ID</span>
+          <span>Urgent</span>
+          <span>Status</span>
+          <span className="text-right">Actions</span>
+        </div>
+
+        {items.map(item => (
+          <div
+            key={item.id}
+            className="grid grid-cols-[1.1fr_120px_120px_120px_120px] gap-3 border-b border-[var(--border)] px-4 py-3 last:border-0">
+            <div className="flex min-w-0 items-center gap-3">
+              <div
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border"
+                style={{ background: `${item.color}14`, borderColor: `${item.color}33` }}>
+                <RequestTypeIcon
+                  icon={item.icon}
+                  label={item.label}
+                  className="text-xl"
+                  imageClassName="h-7 w-7 object-contain"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{item.label}</p>
+                <p className="truncate text-xs text-[var(--text-muted)]">
+                  {item.system ? 'System request' : 'Custom request'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              <code className="rounded bg-[var(--page-bg)] px-2 py-1 text-[11px] text-[var(--text-secondary)]">
+                {item.id}
+              </code>
+            </div>
+
+            <div className="flex items-center">
+              <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                item.urgent ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {item.urgent ? 'Urgent' : 'Standard'}
+              </span>
+            </div>
+
+            <div className="flex items-center">
+              <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                item.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {item.active ? 'Active' : 'Hidden'}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => onEdit(item)}
+                className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--clinical-blue)] transition-colors hover:bg-[var(--clinical-blue-lt)]">
+                Edit
+              </button>
+              {item.id !== 'nurse' && (
+                <>
+                  <button
+                    onClick={() => onToggle(item)}
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--page-bg)]">
+                    {item.active ? 'Hide' : 'Show'}
+                  </button>
+                  <button
+                    onClick={() => onDelete(item)}
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50">
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
           </div>
+        ))}
 
-          {patientRequestTypes.map(item => (
-            <div
-              key={item.id}
-              className="grid grid-cols-[1.1fr_120px_120px_120px_120px] gap-3 border-b border-[var(--border)] px-4 py-3 last:border-0">
-              <div className="flex min-w-0 items-center gap-3">
-                <div
-                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border"
-                  style={{ background: `${item.color}14`, borderColor: `${item.color}33` }}>
-                  <RequestTypeIcon
-                    icon={item.icon}
-                    label={item.label}
-                    className="text-xl"
-                    imageClassName="h-7 w-7 object-contain"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{item.label}</p>
-                  <p className="truncate text-xs text-[var(--text-muted)]">
-                    {item.system ? 'System request' : 'Custom request'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center">
-                <code className="rounded bg-[var(--page-bg)] px-2 py-1 text-[11px] text-[var(--text-secondary)]">
-                  {item.id}
-                </code>
-              </div>
-
-              <div className="flex items-center">
-                <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                  item.urgent ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
-                }`}>
-                  {item.urgent ? 'Urgent' : 'Standard'}
-                </span>
-              </div>
-
-              <div className="flex items-center">
-                <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                  item.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                }`}>
-                  {item.active ? 'Active' : 'Hidden'}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  onClick={() => openEdit(item)}
-                  className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--clinical-blue)] transition-colors hover:bg-[var(--clinical-blue-lt)]">
-                  Edit
-                </button>
-                {item.id !== 'nurse' && (
-                  <>
-                    <button
-                      onClick={() => handleToggle(item)}
-                      className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--page-bg)]">
-                      {item.active ? 'Hide' : 'Show'}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item)}
-                      className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50">
-                      Delete
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {patientRequestTypes.length === 0 && (
-            <div className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">
-              No request types found yet.
-            </div>
-          )}
-        </div>
-      )}
-
-      {(error || err) && !setupRequired && (
-        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {err ?? error}
-        </div>
-      )}
-
-      {modalType && (
-        <RequestTypeModal
-          title={modalType === 'create' ? 'Add Common Request' : 'Edit Common Request'}
-          defaults={editing
-            ? {
-                label: editing.label,
-                icon: editing.icon,
-                color: editing.color,
-                urgent: editing.urgent,
-              }
-            : EMPTY_FORM}
-          error={err}
-          onClose={() => {
-            setModalType(null)
-            setEditing(null)
-            setErr(null)
-          }}
-          onSubmit={handleSubmit}
-        />
-      )}
+        {items.length === 0 && (
+          <div className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">
+            {emptyMessage}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
