@@ -29,8 +29,8 @@ const normalizeRoomNamingTemplate = (value: string | undefined) => {
   return template
 }
 
-const buildRoomNameFromTemplate = (template: string, index: number) =>
-  template.replace(/\{n\}/g, String(index))
+const buildRoomNameFromTemplate = (template: string, index: number, bedLetter = '') =>
+  template.replace(/\{n\}/g, String(index)).replace(/\{bed\}/g, bedLetter)
 
 const ACTIVE_REQUEST_STATUSES = ['pending', 'acknowledged'] as const
 
@@ -143,26 +143,38 @@ export function useSites(tenantId: string | undefined) {
     startNumber: number
     roomCount: number
     labelTemplate?: string
+    bedsPerRoom?: number
   }) => {
     const template = normalizeRoomNamingTemplate(input.template)
     const roomCount = Math.max(1, Math.floor(input.roomCount))
     const startNumber = Math.max(1, Math.floor(input.startNumber))
     const labelTemplate = input.labelTemplate?.trim() || ''
+    const bedsPerRoom = Math.max(1, Math.floor(input.bedsPerRoom ?? 1))
+
+    if (bedsPerRoom > 1 && !template.includes('{bed}')) {
+      throw new Error('Room naming template must include {bed} when beds per room is more than 1 (e.g. Room {n}-{bed}).')
+    }
+
+    const bedLetters = bedsPerRoom > 1
+      ? Array.from({ length: bedsPerRoom }, (_, i) => String.fromCharCode(65 + i))
+      : ['']
 
     const rows = Array.from({ length: roomCount }, (_, offset) => {
       const roomNumber = startNumber + offset
-      const name = buildRoomNameFromTemplate(template, roomNumber)
-      const label = labelTemplate
-        ? buildRoomNameFromTemplate(labelTemplate, roomNumber)
-        : name
+      return bedLetters.map(bedLetter => {
+        const name = buildRoomNameFromTemplate(template, roomNumber, bedLetter)
+        const label = labelTemplate
+          ? buildRoomNameFromTemplate(labelTemplate, roomNumber, bedLetter)
+          : name
 
-      return {
-        unit_id: input.unitId,
-        name,
-        label,
-        active: true,
-      }
-    })
+        return {
+          unit_id: input.unitId,
+          name,
+          label,
+          active: true,
+        }
+      })
+    }).flat()
 
     const { error: err } = await supabase.from('rooms').insert(rows)
     if (err) throw new Error(err.message)

@@ -20,7 +20,9 @@ const escapeRegex = (value: string) =>
 
 const getNextRoomNumber = (unit: UnitWithRooms) => {
   const template = unit.room_naming_template?.trim() || DEFAULT_ROOM_TEMPLATE
-  const pattern = `^${escapeRegex(template).replace(escapeRegex('{n}'), '(\\d+)')}$`
+  // Allow an optional trailing bed-letter suffix (e.g. "Room 257-A") so
+  // shared rooms created via {bed} don't throw off the next-number count.
+  const pattern = `^${escapeRegex(template).replace(escapeRegex('{n}'), '(\\d+)')}(-[A-Za-z])?$`
   const regex = new RegExp(pattern, 'i')
 
   const maxNumber = (unit.rooms ?? []).reduce((max, room) => {
@@ -60,6 +62,7 @@ export default function SitesPanel({ tenantId }: Props) {
           startNumber: Number(values.startNumber || modal.nextNumber),
           roomCount: Number(values.roomCount || 1),
           labelTemplate: values.labelTemplate,
+          bedsPerRoom: Number(values.bedsPerRoom || 1),
         })
       }
       if (modal.kind === 'edit-room')    await ops.updateRoom(modal.id, values.name, values.label)
@@ -387,6 +390,7 @@ function modalFields(m: NonNullable<ModalState>) {
       { key: 'template',      label: 'Room naming template', placeholder: 'Bay {n}', hint: 'Use {n} where the room number should appear.' },
       { key: 'startNumber',   label: 'Starting number',      placeholder: '1', hint: 'The first room will use this number in the template.' },
       { key: 'roomCount',     label: 'How many rooms',       placeholder: '1', hint: 'Create a sequential batch in one save.' },
+      { key: 'bedsPerRoom',   label: 'Beds per room',        placeholder: '1', hint: 'For shared rooms, set to 2+ and add {bed} to the template (e.g. Room {n}-{bed}) to generate A/B/C suffixes.' },
       { key: 'labelTemplate', label: 'Print label template', placeholder: 'ED Bay {n} (optional)', hint: 'Optional. Leave blank to reuse the generated room name.' },
     ]
   }
@@ -420,6 +424,7 @@ function modalDefaults(m: NonNullable<ModalState>): Record<string, string> {
     template: m.roomNamingTemplate || DEFAULT_ROOM_TEMPLATE,
     startNumber: String(m.nextNumber),
     roomCount: '1',
+    bedsPerRoom: '1',
     labelTemplate: '',
   }
   if (m.kind === 'edit-room')  return { name: m.name, label: m.label }
