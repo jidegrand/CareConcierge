@@ -169,6 +169,15 @@ export default function FamilyDashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowInvite(true)}
+              aria-label="Invite a family member"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--page-bg)]"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+              </svg>
+            </button>
+            <button
               onClick={handleBellClick}
               aria-label={hasNewActivity ? 'New updates available' : 'Activity'}
               className="relative flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--page-bg)]"
@@ -208,27 +217,6 @@ export default function FamilyDashboardPage() {
               </p>
             </div>
           </div>
-
-          {/* Invite a family member */}
-          <button
-            onClick={() => setShowInvite(true)}
-            className="w-full flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition-colors hover:bg-[var(--page-bg)]"
-          >
-            <div className="w-10 h-10 rounded-full bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)] flex items-center justify-center flex-shrink-0">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-[var(--text-primary)]">Invite a family member</p>
-              <p className="text-[12px] text-[var(--text-muted)] truncate">
-                Let another relative follow {formatResidentShortName(resident.display_name)}'s updates too
-              </p>
-            </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
-          </button>
 
           {/* Feedback toast */}
           {feedback && (
