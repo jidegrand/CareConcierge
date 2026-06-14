@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { DEFAULT_REQUEST_TYPES, buildRequestTypeMap, slugifyRequestTypeId } from '@/lib/constants'
 import type { RequestTypeConfig } from '@/types'
@@ -38,9 +38,11 @@ export function useRequestTypes(tenantId: string | undefined) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [setupRequired, setSetupRequired] = useState(false)
+  const loadedTenantRef = useRef<string | null>(null)
 
   const fetch = useCallback(async () => {
     if (!tenantId) {
+      loadedTenantRef.current = null
       setRequestTypes(DEFAULT_MANAGED_TYPES)
       setError(null)
       setSetupRequired(false)
@@ -48,7 +50,10 @@ export function useRequestTypes(tenantId: string | undefined) {
       return
     }
 
-    setLoading(true)
+    // Only show the loading state on the first load for this tenant -
+    // background refreshes (interval, focus, realtime) shouldn't blank
+    // the panel and unmount any open create/edit modal.
+    if (loadedTenantRef.current !== tenantId) setLoading(true)
     const { data, error: err } = await supabase
       .from('request_types')
       .select('id, tenant_id, label, icon, color, urgent, active, sort_order, system, audience')
@@ -61,6 +66,7 @@ export function useRequestTypes(tenantId: string | undefined) {
       setSetupRequired(missingTable)
       setError(missingTable ? REQUEST_TYPES_TABLE_MISSING : err.message)
       setRequestTypes(DEFAULT_MANAGED_TYPES)
+      loadedTenantRef.current = tenantId
       setLoading(false)
       return
     }
@@ -69,6 +75,7 @@ export function useRequestTypes(tenantId: string | undefined) {
     setRequestTypes(rows.length > 0 ? rows : DEFAULT_MANAGED_TYPES)
     setSetupRequired(false)
     setError(null)
+    loadedTenantRef.current = tenantId
     setLoading(false)
   }, [tenantId])
 
