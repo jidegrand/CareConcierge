@@ -8,6 +8,12 @@ import RequestTypeIcon from '@/components/RequestTypeIcon'
 import FamilyChatModal from '@/components/FamilyChatModal'
 import { formatResidentShortName } from '@/lib/constants'
 
+interface InviteSiblingResult {
+  success: boolean
+  error?: string
+  warning?: string
+}
+
 function SunIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -57,12 +63,13 @@ function formatActivityTime(iso: string): string {
 export default function FamilyDashboardPage() {
   const { profile, signOut } = useAuth()
   const { tenantId, tenantName } = useTenantContext()
-  const { loading, error, familyMember, resident, requestTypes, activity, activeFamilyRequestTypes, submitRequest, cancelRequest } = useFamilyPortal(tenantId)
+  const { loading, error, familyMember, resident, requestTypes, activity, activeFamilyRequestTypes, submitRequest, cancelRequest, inviteSibling } = useFamilyPortal(tenantId)
   const [submittingId, setSubmittingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [activeRequestModal, setActiveRequestModal] = useState<{ requestId: string; label: string } | null>(null)
   const [canceling, setCanceling] = useState(false)
   const [showChat, setShowChat] = useState(false)
+  const [showInvite, setShowInvite] = useState(false)
   const { unreadCount } = useFamilyChat(resident?.id, showChat)
   const { dark, toggle: toggleDark } = useDarkMode()
   const [activitySeenAt, setActivitySeenAt] = useState<string | null>(null)
@@ -202,6 +209,27 @@ export default function FamilyDashboardPage() {
             </div>
           </div>
 
+          {/* Invite a family member */}
+          <button
+            onClick={() => setShowInvite(true)}
+            className="w-full flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition-colors hover:bg-[var(--page-bg)]"
+          >
+            <div className="w-10 h-10 rounded-full bg-[var(--clinical-blue-lt)] text-[var(--clinical-blue)] flex items-center justify-center flex-shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-[var(--text-primary)]">Invite a family member</p>
+              <p className="text-[12px] text-[var(--text-muted)] truncate">
+                Let another relative follow {formatResidentShortName(resident.display_name)}'s updates too
+              </p>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+
           {/* Feedback toast */}
           {feedback && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm text-[var(--text-secondary)]">
@@ -314,6 +342,14 @@ export default function FamilyDashboardPage() {
           onDismiss={() => setActiveRequestModal(null)}
         />
       )}
+
+      {showInvite && (
+        <InviteFamilyMemberModal
+          residentName={formatResidentShortName(resident.display_name)}
+          onClose={() => setShowInvite(false)}
+          onInvite={inviteSibling}
+        />
+      )}
     </div>
   )
 }
@@ -392,6 +428,121 @@ function FamilyRequestStatusModal({ label, canceling, onCancel, onDismiss }: {
             Dismiss
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Invite family member modal ────────────────────────────────────────────────
+// Lets a signed-in family member invite a sibling/relative to also follow the
+// resident, without involving staff. Reuses the same staff invite pipeline
+// (token + pending_family_invites + auth invite email) via an edge function
+// scoped to the caller's own resident.
+function InviteFamilyMemberModal({ residentName, onClose, onInvite }: {
+  residentName: string
+  onClose: () => void
+  onInvite: (input: { fullName: string; email: string; relationship?: string }) => Promise<InviteSiblingResult>
+}) {
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [relationship, setRelationship] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState<string | null>(null)
+
+  const submit = async () => {
+    if (!fullName.trim() || !email.trim()) return
+    setBusy(true)
+    setError(null)
+    const result = await onInvite({ fullName, email, relationship: relationship.trim() || undefined })
+    setBusy(false)
+    if (result.success) {
+      setSent(result.warning ?? `Invite sent to ${email.trim()}.`)
+    } else {
+      setError(result.error ?? 'Failed to send invite.')
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-md rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-base font-bold text-[var(--text-primary)] md:text-lg">Invite a family member</p>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+              Let another relative follow {residentName}'s updates and message the care team.
+            </p>
+          </div>
+          <button onClick={onClose} className="mt-0.5 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {sent ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-[var(--success)]/20 bg-[var(--success-lt)] px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-[var(--success)] flex items-center justify-center flex-shrink-0">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </span>
+                <p className="text-sm font-medium text-[var(--success)]">{sent}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] bg-[var(--clinical-blue)]"
+            >
+              Done
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)]">Full name</label>
+              <input value={fullName} onChange={e => setFullName(e.target.value)}
+                placeholder="e.g. James Carter"
+                autoFocus
+                className="w-full mt-1 text-sm px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]/20 focus:border-[var(--clinical-blue)]" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)]">Email address</label>
+              <input value={email} onChange={e => setEmail(e.target.value)} type="email"
+                placeholder="name@example.com"
+                className="w-full mt-1 text-sm px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]/20 focus:border-[var(--clinical-blue)]" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)]">Relationship (optional)</label>
+              <input value={relationship} onChange={e => setRelationship(e.target.value)}
+                placeholder="e.g. Brother"
+                className="w-full mt-1 text-sm px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]/20 focus:border-[var(--clinical-blue)]" />
+            </div>
+
+            {error && <p className="text-xs font-medium text-[var(--danger)]">{error}</p>}
+
+            <div className="flex flex-col gap-3 pt-1">
+              <button
+                type="button"
+                onClick={submit}
+                disabled={busy || !fullName.trim() || !email.trim()}
+                className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-60 bg-[var(--clinical-blue)]"
+              >
+                {busy ? 'Sending…' : 'Send invite'}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full rounded-2xl px-4 py-3 text-sm font-bold transition-transform active:scale-[0.98] bg-[var(--page-bg)] text-[var(--text-secondary)]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildRequestTypeMap } from '@/lib/constants'
+import { buildAppUrl } from '@/lib/tenant'
+import { getInviteAuthorizationHeaders, getInviteFunctionError, formatInviteEmailError } from '@/lib/invites'
 import type { FamilyMember, Resident, RequestTypeConfig } from '@/types'
 
 export interface FamilyActivityItem {
@@ -42,6 +44,7 @@ function formatStaffAttribution(name: string | null, roleTitle: string | null): 
 interface MutationResult {
   success: boolean
   error?: string
+  warning?: string
 }
 
 interface SubmitRequestResult extends MutationResult {
@@ -226,6 +229,33 @@ export function useFamilyPortal(tenantId: string | undefined) {
     return { success: true, requestId: (data as { id: string }).id }
   }, [resident, requestTypeMap, activeFamilyRequestTypes, fetchActivity])
 
+  const inviteSibling = useCallback(async (input: {
+    fullName: string
+    email: string
+    relationship?: string
+  }): Promise<MutationResult> => {
+    try {
+      const headers = await getInviteAuthorizationHeaders()
+      const { data, error: err } = await supabase.functions.invoke('send-family-sibling-invite', {
+        headers,
+        body: {
+          fullName: input.fullName.trim(),
+          email: input.email.trim().toLowerCase(),
+          relationship: input.relationship?.trim() || null,
+          redirectTo: buildAppUrl('/set-password'),
+        },
+      })
+
+      const errorMessage = await getInviteFunctionError(data, err)
+      if (errorMessage) throw new Error(errorMessage)
+
+      return { success: true, warning: (data as { warning?: string } | null)?.warning }
+    } catch (e) {
+      const rawMessage = e instanceof Error ? e.message : 'Failed to send invite'
+      return { success: false, error: formatInviteEmailError(rawMessage) }
+    }
+  }, [])
+
   const cancelRequest = useCallback(async (requestId: string): Promise<MutationResult> => {
     const { error: err } = await supabase
       .from('requests')
@@ -248,6 +278,7 @@ export function useFamilyPortal(tenantId: string | undefined) {
     activeFamilyRequestTypes,
     submitRequest,
     cancelRequest,
+    inviteSibling,
     refresh: fetchAll,
   }
 }
