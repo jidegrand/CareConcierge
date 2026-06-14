@@ -18,7 +18,7 @@ const STATUS_CFG: Record<BayStatus, {
   pending:     { bg: '#FFF7ED', border: '#FCD34D', dot: '#D97706', text: '#92400E', label: 'Pending',     pulse: true  },
   'in-progress':{ bg: '#EFF6FF', border: '#93C5FD', dot: '#1D6FA8', text: '#1E40AF', label: 'In Progress', pulse: false },
   resolved:    { bg: '#ECFDF5', border: '#6EE7B7', dot: '#059669', text: '#065F46', label: 'Resolved',    pulse: false },
-  idle:        { bg: '#F9FAFB', border: '#E5E7EB', dot: '#D1D5DB', text: '#9CA3AF', label: 'Idle',        pulse: false },
+  idle:        { bg: '#F9FAFB', border: '#E5E7EB', dot: '#D1D5DB', text: '#6B7280', label: 'Idle',        pulse: false },
 }
 
 function fmtAge(s: number | null): string {
@@ -409,14 +409,14 @@ function RequestSection({ label, color, requests, onUpdateStatus, muted }: {
   muted?: boolean
 }) {
   return (
-    <div className={muted ? 'opacity-60' : ''}>
+    <div>
       <div className="flex items-center gap-2 mb-2">
         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
         <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
           {label} ({requests.length})
         </p>
       </div>
-      <div className="space-y-2">
+      <div className={`space-y-2 ${muted ? 'opacity-80' : ''}`}>
         {requests.map(r => (
           <RequestItem key={r.id} request={r} onUpdateStatus={onUpdateStatus} />
         ))}
