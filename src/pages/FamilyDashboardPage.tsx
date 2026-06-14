@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenantContext } from '@/hooks/useTenantContext'
 import { useFamilyPortal } from '@/hooks/useFamilyPortal'
@@ -21,6 +21,15 @@ function MoonIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  )
+}
+
+function BellIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
     </svg>
   )
 }
@@ -54,6 +63,35 @@ export default function FamilyDashboardPage() {
   const [showChat, setShowChat] = useState(false)
   const { unreadCount } = useFamilyChat(resident?.id, showChat)
   const { dark, toggle: toggleDark } = useDarkMode()
+  const [activitySeenAt, setActivitySeenAt] = useState<string | null>(null)
+  const activitySectionRef = useRef<HTMLDivElement>(null)
+  const initializedSeenRef = useRef(false)
+
+  // First time activity loads for this resident: adopt any previously stored
+  // "seen" timestamp, or (on a brand-new device) treat current activity as
+  // already seen so the bell doesn't light up on first visit.
+  useEffect(() => {
+    if (!resident || activity.length === 0 || initializedSeenRef.current) return
+    initializedSeenRef.current = true
+    const key = `bayrequest_family_activity_seen_${resident.id}`
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      setActivitySeenAt(stored)
+    } else {
+      localStorage.setItem(key, activity[0].timestamp)
+      setActivitySeenAt(activity[0].timestamp)
+    }
+  }, [resident, activity])
+
+  const hasNewActivity = activity.length > 0 && !!activitySeenAt && new Date(activity[0].timestamp) > new Date(activitySeenAt)
+
+  const handleBellClick = () => {
+    if (resident && activity.length > 0) {
+      localStorage.setItem(`bayrequest_family_activity_seen_${resident.id}`, activity[0].timestamp)
+      setActivitySeenAt(activity[0].timestamp)
+    }
+    activitySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const handleRequest = async (typeId: string, label: string) => {
     setSubmittingId(typeId)
@@ -110,6 +148,16 @@ export default function FamilyDashboardPage() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleBellClick}
+              aria-label={hasNewActivity ? 'New updates available' : 'Activity'}
+              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--page-bg)]"
+            >
+              <BellIcon />
+              {hasNewActivity && (
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />
+              )}
+            </button>
             <button
               onClick={toggleDark}
               aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -178,7 +226,7 @@ export default function FamilyDashboardPage() {
           )}
 
           {/* Today's activity */}
-          <div>
+          <div ref={activitySectionRef}>
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)] mb-3">
               Today's Activity
             </p>
