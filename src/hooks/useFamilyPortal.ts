@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildRequestTypeMap } from '@/lib/constants'
-import type { FamilyMember, Request, Resident, RequestTypeConfig, StaffNote } from '@/types'
+import type { FamilyMember, Resident, RequestTypeConfig } from '@/types'
 
 export interface FamilyActivityItem {
   id: string
@@ -9,6 +9,34 @@ export interface FamilyActivityItem {
   detail: string | null
   timestamp: string
   statusColor: 'green' | 'amber' | 'gray'
+  staffAttribution: string | null
+}
+
+interface FamilyActivityRequest {
+  id: string
+  type: string
+  status: 'pending' | 'acknowledged' | 'resolved'
+  is_urgent: boolean
+  source: 'patient' | 'staff' | 'family' | null
+  created_at: string
+  acknowledged_at: string | null
+  resolved_at: string | null
+  resolved_by_name: string | null
+  resolved_by_role_title: string | null
+}
+
+interface FamilyActivityNote {
+  id: string
+  request_id: string | null
+  body: string
+  created_at: string
+  author_name: string | null
+  author_role_title: string | null
+}
+
+function formatStaffAttribution(name: string | null, roleTitle: string | null): string | null {
+  if (!name) return null
+  return roleTitle ? `${name} ${roleTitle}` : name
 }
 
 interface MutationResult {
@@ -24,7 +52,7 @@ const formatMinutes = (seconds: number): string => {
   return remMinutes ? `${hours} hr ${remMinutes} min` : `${hours} hr`
 }
 
-function buildActivity(requests: Request[], notes: StaffNote[], requestTypeMap: Record<string, RequestTypeConfig>): FamilyActivityItem[] {
+function buildActivity(requests: FamilyActivityRequest[], notes: FamilyActivityNote[], requestTypeMap: Record<string, RequestTypeConfig>): FamilyActivityItem[] {
   const fromRequests: FamilyActivityItem[] = requests.map(r => {
     const config = requestTypeMap[r.type]
     const label = config?.label ?? r.type.replace(/_/g, ' ')
@@ -33,10 +61,12 @@ function buildActivity(requests: Request[], notes: StaffNote[], requestTypeMap: 
 
     let detail: string | null = null
     let statusColor: FamilyActivityItem['statusColor'] = 'gray'
+    let staffAttribution: string | null = null
     if (r.status === 'resolved' && r.resolved_at) {
       const seconds = (new Date(r.resolved_at).getTime() - new Date(r.created_at).getTime()) / 1000
       detail = `resolved in ${formatMinutes(seconds)}`
       statusColor = 'green'
+      staffAttribution = formatStaffAttribution(r.resolved_by_name, r.resolved_by_role_title)
     } else if (r.status === 'acknowledged') {
       detail = 'in progress'
       statusColor = 'amber'
@@ -45,7 +75,7 @@ function buildActivity(requests: Request[], notes: StaffNote[], requestTypeMap: 
       statusColor = 'amber'
     }
 
-    return { id: `request-${r.id}`, text, detail, timestamp: r.created_at, statusColor }
+    return { id: `request-${r.id}`, text, detail, timestamp: r.created_at, statusColor, staffAttribution }
   })
 
   const fromNotes: FamilyActivityItem[] = notes.map(n => ({
@@ -54,6 +84,7 @@ function buildActivity(requests: Request[], notes: StaffNote[], requestTypeMap: 
     detail: null,
     timestamp: n.created_at,
     statusColor: 'green',
+    staffAttribution: formatStaffAttribution(n.author_name, n.author_role_title),
   }))
 
   return [...fromRequests, ...fromNotes]
@@ -80,23 +111,12 @@ export function useFamilyPortal(tenantId: string | undefined) {
 
   const fetchActivity = useCallback(async (residentId: string) => {
     const [requestsRes, notesRes] = await Promise.all([
-      supabase
-        .from('requests')
-        .select('*')
-        .eq('resident_id', residentId)
-        .order('created_at', { ascending: false })
-        .limit(20),
-      supabase
-        .from('staff_notes')
-        .select('*')
-        .eq('resident_id', residentId)
-        .eq('visible_to_family', true)
-        .order('created_at', { ascending: false })
-        .limit(20),
+      supabase.rpc('list_family_requests', { target_resident_id: residentId }),
+      supabase.rpc('list_family_notes', { target_resident_id: residentId }),
     ])
 
-    const requests = (requestsRes.data ?? []) as Request[]
-    const notes = (notesRes.data ?? []) as StaffNote[]
+    const requests = (requestsRes.data ?? []) as FamilyActivityRequest[]
+    const notes = (notesRes.data ?? []) as FamilyActivityNote[]
     setActivity(buildActivity(requests, notes, requestTypeMapRef.current))
   }, [])
 

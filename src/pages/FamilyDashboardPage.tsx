@@ -173,6 +173,7 @@ export default function FamilyDashboardPage() {
                       {item.detail && <span className="text-[var(--text-muted)]"> — {item.detail}</span>}
                     </p>
                     <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                      {item.staffAttribution && `— ${item.staffAttribution}, `}
                       {formatActivityTime(item.timestamp)}
                     </p>
                   </div>
