@@ -873,6 +873,21 @@ export const translateRequestTypeLabel = (
   return fallbackLabel
 }
 
+// The "nurse" type ID is a system request whose label is admin-editable
+// (e.g. renamed "Emergency Help"). translateRequestTypeLabel always matches
+// 'nurse' directly to the built-in "Call Nurse" translation, which would
+// silently discard that customisation. When the tenant has renamed it away
+// from the default, show the tenant's text verbatim instead of translating —
+// the bigger "Call Nurse" banner treatment stays the same either way.
+export const resolveRequestLabel = (
+  language: PatientLanguage,
+  type: string,
+  fallbackLabel: string
+): string => {
+  if (type === 'nurse' && fallbackLabel !== 'Call Nurse') return fallbackLabel
+  return translateRequestTypeLabel(language, type, fallbackLabel)
+}
+
 export const formatFeedbackThanks = (language: PatientLanguage, rating: number) => {
   switch (language) {
     case 'es':

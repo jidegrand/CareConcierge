@@ -13,7 +13,7 @@ import {
   formatFeedbackThanks,
   getInitialPatientLanguage,
   getPatientCopy,
-  translateRequestTypeLabel,
+  resolveRequestLabel,
   type PatientLanguage,
 } from '@/lib/patientI18n'
 import { supabase } from '@/lib/supabase'
@@ -91,7 +91,7 @@ export default function PatientPage() {
   const getBaseRequestLabel = (type: string, fallbackLabel?: string) =>
     fallbackLabel ?? requestTypes.find(item => item.id === type)?.label ?? copy.requestGeneric
   const getRequestLabel = (type: string, fallbackLabel?: string) =>
-    translateRequestTypeLabel(language, type, getBaseRequestLabel(type, fallbackLabel))
+    resolveRequestLabel(language, type, getBaseRequestLabel(type, fallbackLabel))
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -106,7 +106,7 @@ export default function PatientPage() {
     })
   }, [language, requestTypes])
 
-  const nurseBaseLabel = getBaseRequestLabel('nurse', 'Call Nurse')
+  const nurseBaseLabel = requestTypes.find(item => item.id === 'nurse')?.label || 'Call Nurse'
   const commonRequests = requestTypes
     .filter(item => item.active && item.id !== 'nurse' && item.audience !== 'family')
     .map(item => ({
@@ -502,7 +502,7 @@ export default function PatientPage() {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-white font-bold text-[16px] leading-tight">{copy.callNurseTitle}</p>
+                    <p className="text-white font-bold text-[16px] leading-tight">{getRequestLabel('nurse', nurseBaseLabel)}</p>
                     <p className="text-white/70 text-[12px] mt-0.5">
                       {activeTypeSet.has('nurse') ? copy.nurseNotified : copy.callNurseSub}
                     </p>
@@ -691,7 +691,7 @@ function RequestStatusModal({
 }) {
   const { type, baseLabel, status } = request
   const copy = getPatientCopy(language)
-  const label = translateRequestTypeLabel(language, type, baseLabel)
+  const label = resolveRequestLabel(language, type, baseLabel)
   const canCancel = status === 'pending' || status === 'acknowledged'
   const acknowledgementNote = status === 'acknowledged'
   const resolved = status === 'resolved'
