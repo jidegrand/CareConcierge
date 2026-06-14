@@ -10,12 +10,11 @@ interface Props {
 }
 
 function formatMessageTime(iso: string) {
-  return new Date(iso).toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  const date = new Date(iso)
+  const isToday = date.toDateString() === new Date().toDateString()
+  return date.toLocaleString([], isToday
+    ? { hour: 'numeric', minute: '2-digit' }
+    : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
 export default function FamilyChatModal({ open, onClose, residentId, residentName, facilityName }: Props) {
@@ -88,7 +87,9 @@ export default function FamilyChatModal({ open, onClose, residentId, residentNam
                     }`}>
                       <p className="text-sm leading-relaxed">{message.body}</p>
                       <p className={`mt-1.5 text-[11px] ${mine ? 'text-white/75' : 'text-[var(--text-muted)]'}`}>
-                        {mine ? 'You' : message.sender_name} · {formatMessageTime(message.created_at)}
+                        {mine
+                          ? `You · ${formatMessageTime(message.created_at)}`
+                          : `— ${message.sender_name}${message.sender_role_title ? ` ${message.sender_role_title}` : ''}, ${formatMessageTime(message.created_at)}`}
                       </p>
                     </div>
                   </div>

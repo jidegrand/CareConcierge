@@ -150,6 +150,7 @@ export interface FamilyChatMessage {
   sender_role: FamilyChatSenderRole
   sender_id: string
   sender_name: string
+  sender_role_title: string | null
   body: string
   created_at: string
 }
