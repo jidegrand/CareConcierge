@@ -105,6 +105,7 @@ export function useFamilyPortal(tenantId: string | undefined) {
   const [requestTypes, setRequestTypes] = useState<RequestTypeConfig[]>([])
   const [activity, setActivity] = useState<FamilyActivityItem[]>([])
   const [activeFamilyRequestTypes, setActiveFamilyRequestTypes] = useState<Set<string>>(new Set())
+  const [activeFamilyRequestIds, setActiveFamilyRequestIds] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -127,10 +128,10 @@ export function useFamilyPortal(tenantId: string | undefined) {
     const notes = (notesRes.data ?? []) as FamilyActivityNote[]
     setActivity(buildActivity(requests, notes, requestTypeMapRef.current))
 
-    const activeTypes = requests
+    const activeRequests = requests
       .filter(r => r.source === 'family' && (r.status === 'pending' || r.status === 'acknowledged'))
-      .map(r => r.type)
-    setActiveFamilyRequestTypes(new Set(activeTypes))
+    setActiveFamilyRequestTypes(new Set(activeRequests.map(r => r.type)))
+    setActiveFamilyRequestIds(Object.fromEntries(activeRequests.map(r => [r.type, r.id])))
   }, [])
 
   const fetchAll = useCallback(async () => {
@@ -276,6 +277,7 @@ export function useFamilyPortal(tenantId: string | undefined) {
     requestTypes: familyRequestTypes,
     activity,
     activeFamilyRequestTypes,
+    activeFamilyRequestIds,
     submitRequest,
     cancelRequest,
     inviteSibling,

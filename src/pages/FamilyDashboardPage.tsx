@@ -63,7 +63,7 @@ function formatActivityTime(iso: string): string {
 export default function FamilyDashboardPage() {
   const { profile, signOut } = useAuth()
   const { tenantId, tenantName } = useTenantContext()
-  const { loading, error, familyMember, resident, requestTypes, activity, activeFamilyRequestTypes, submitRequest, cancelRequest, inviteSibling } = useFamilyPortal(tenantId)
+  const { loading, error, familyMember, resident, requestTypes, activity, activeFamilyRequestTypes, activeFamilyRequestIds, submitRequest, cancelRequest, inviteSibling } = useFamilyPortal(tenantId)
   const [submittingId, setSubmittingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [activeRequestModal, setActiveRequestModal] = useState<{ requestId: string; label: string } | null>(null)
@@ -237,8 +237,15 @@ export default function FamilyDashboardPage() {
                   return (
                     <button
                       key={rt.id}
-                      onClick={() => handleRequest(rt.id, rt.label)}
-                      disabled={submittingId !== null || alreadyActive}
+                      onClick={() => {
+                        if (alreadyActive) {
+                          const requestId = activeFamilyRequestIds[rt.id]
+                          if (requestId) setActiveRequestModal({ requestId, label: rt.label })
+                          return
+                        }
+                        handleRequest(rt.id, rt.label)
+                      }}
+                      disabled={submittingId !== null}
                       className="relative flex flex-col items-center gap-2 rounded-2xl p-2.5 text-center border border-[var(--border)] bg-[var(--surface)] active:scale-[0.97] transition-transform disabled:opacity-60"
                     >
                       {alreadyActive && (
