@@ -70,6 +70,7 @@ export default function FamilyDashboardPage() {
   const [canceling, setCanceling] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
+  const [inviteSentMessage, setInviteSentMessage] = useState<string | null>(null)
   const { unreadCount } = useFamilyChat(resident?.id, showChat)
   const { dark, toggle: toggleDark } = useDarkMode()
   const [activitySeenAt, setActivitySeenAt] = useState<string | null>(null)
@@ -343,6 +344,17 @@ export default function FamilyDashboardPage() {
           residentName={formatResidentShortName(resident.display_name)}
           onClose={() => setShowInvite(false)}
           onInvite={inviteSibling}
+          onSent={message => {
+            setShowInvite(false)
+            setInviteSentMessage(message)
+          }}
+        />
+      )}
+
+      {inviteSentMessage && (
+        <InviteSentModal
+          message={inviteSentMessage}
+          onClose={() => setInviteSentMessage(null)}
         />
       )}
     </div>
@@ -433,17 +445,17 @@ function FamilyRequestStatusModal({ label, canceling, onCancel, onDismiss }: {
 // resident, without involving staff. Reuses the same staff invite pipeline
 // (token + pending_family_invites + auth invite email) via an edge function
 // scoped to the caller's own resident.
-function InviteFamilyMemberModal({ residentName, onClose, onInvite }: {
+function InviteFamilyMemberModal({ residentName, onClose, onInvite, onSent }: {
   residentName: string
   onClose: () => void
   onInvite: (input: { fullName: string; email: string; relationship?: string }) => Promise<InviteSiblingResult>
+  onSent: (message: string) => void
 }) {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [relationship, setRelationship] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [sent, setSent] = useState<string | null>(null)
 
   const submit = async () => {
     if (!fullName.trim() || !email.trim()) return
@@ -452,7 +464,7 @@ function InviteFamilyMemberModal({ residentName, onClose, onInvite }: {
     const result = await onInvite({ fullName, email, relationship: relationship.trim() || undefined })
     setBusy(false)
     if (result.success) {
-      setSent(result.warning ?? `Invite sent to ${email.trim()}.`)
+      onSent(result.warning ?? `Invite sent to ${email.trim()}.`)
     } else {
       setError(result.error ?? 'Failed to send invite.')
     }
@@ -475,69 +487,92 @@ function InviteFamilyMemberModal({ residentName, onClose, onInvite }: {
           </button>
         </div>
 
-        {sent ? (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-[var(--success)]/20 bg-[var(--success-lt)] px-4 py-3">
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-[var(--success)] flex items-center justify-center flex-shrink-0">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                </span>
-                <p className="text-sm font-medium text-[var(--success)]">{sent}</p>
-              </div>
-            </div>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-secondary)]">Full name</label>
+            <input value={fullName} onChange={e => setFullName(e.target.value)}
+              placeholder="e.g. James Carter"
+              autoFocus
+              className="w-full mt-1 text-sm px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]/20 focus:border-[var(--clinical-blue)]" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-secondary)]">Email address</label>
+            <input value={email} onChange={e => setEmail(e.target.value)} type="email"
+              placeholder="name@example.com"
+              className="w-full mt-1 text-sm px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]/20 focus:border-[var(--clinical-blue)]" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-secondary)]">Relationship (optional)</label>
+            <input value={relationship} onChange={e => setRelationship(e.target.value)}
+              placeholder="e.g. Brother"
+              className="w-full mt-1 text-sm px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]/20 focus:border-[var(--clinical-blue)]" />
+          </div>
+
+          {error && <p className="text-xs font-medium text-[var(--danger)]">{error}</p>}
+
+          <div className="flex flex-col gap-3 pt-1">
+            <button
+              type="button"
+              onClick={submit}
+              disabled={busy || !fullName.trim() || !email.trim()}
+              className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-60 bg-[var(--clinical-blue)]"
+            >
+              {busy ? 'Sending…' : 'Send invite'}
+            </button>
             <button
               type="button"
               onClick={onClose}
-              className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] bg-[var(--clinical-blue)]"
+              className="w-full rounded-2xl px-4 py-3 text-sm font-bold transition-transform active:scale-[0.98] bg-[var(--page-bg)] text-[var(--text-secondary)]"
             >
-              Done
+              Cancel
             </button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-semibold text-[var(--text-secondary)]">Full name</label>
-              <input value={fullName} onChange={e => setFullName(e.target.value)}
-                placeholder="e.g. James Carter"
-                autoFocus
-                className="w-full mt-1 text-sm px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]/20 focus:border-[var(--clinical-blue)]" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[var(--text-secondary)]">Email address</label>
-              <input value={email} onChange={e => setEmail(e.target.value)} type="email"
-                placeholder="name@example.com"
-                className="w-full mt-1 text-sm px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]/20 focus:border-[var(--clinical-blue)]" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[var(--text-secondary)]">Relationship (optional)</label>
-              <input value={relationship} onChange={e => setRelationship(e.target.value)}
-                placeholder="e.g. Brother"
-                className="w-full mt-1 text-sm px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--page-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]/20 focus:border-[var(--clinical-blue)]" />
-            </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-            {error && <p className="text-xs font-medium text-[var(--danger)]">{error}</p>}
-
-            <div className="flex flex-col gap-3 pt-1">
-              <button
-                type="button"
-                onClick={submit}
-                disabled={busy || !fullName.trim() || !email.trim()}
-                className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-60 bg-[var(--clinical-blue)]"
-              >
-                {busy ? 'Sending…' : 'Send invite'}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full rounded-2xl px-4 py-3 text-sm font-bold transition-transform active:scale-[0.98] bg-[var(--page-bg)] text-[var(--text-secondary)]"
-              >
-                Cancel
-              </button>
-            </div>
+// ── Invite sent modal ─────────────────────────────────────────────────────────
+// Confirms that a family invite was sent successfully, mirroring the
+// "request received" acknowledgement shown for quick requests.
+function InviteSentModal({ message, onClose }: { message: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-md rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center bg-[var(--success-lt)]">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
           </div>
-        )}
+
+          <div className="flex-1">
+            <span className="mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[var(--success-lt)] text-[var(--success)]">
+              Sent
+            </span>
+            <p className="text-base font-bold leading-tight text-[var(--text-primary)] md:text-lg">
+              Invite sent
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
+              {message}
+            </p>
+          </div>
+
+          <button onClick={onClose} className="mt-0.5 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full rounded-2xl px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] bg-[var(--clinical-blue)]"
+        >
+          Done
+        </button>
       </div>
     </div>
   )
