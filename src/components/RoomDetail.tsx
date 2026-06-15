@@ -546,14 +546,24 @@ export function AddNoteModal({ residentName, onClose, onSubmit }: {
               </button>
             </div>
           ) : (
-            <label className="mt-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] cursor-pointer hover:bg-[var(--page-bg)] transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              Add photo or file
-              <input type="file" accept="image/*,.pdf,.doc,.docx" className="hidden"
-                onChange={e => pickFile(e.target.files?.[0] ?? null)} />
-            </label>
+            <div className="mt-1 flex gap-2">
+              <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] cursor-pointer hover:bg-[var(--page-bg)] transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
+                </svg>
+                Take photo
+                <input type="file" accept="image/*" capture="environment" className="hidden"
+                  onChange={e => pickFile(e.target.files?.[0] ?? null)} />
+              </label>
+              <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] cursor-pointer hover:bg-[var(--page-bg)] transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Choose file
+                <input type="file" accept="image/*,.pdf,.doc,.docx" className="hidden"
+                  onChange={e => pickFile(e.target.files?.[0] ?? null)} />
+              </label>
+            </div>
           )}
           {attachmentError && <p className="mt-1 text-[11px] text-[var(--danger)]">{attachmentError}</p>}
         </div>
