@@ -24,6 +24,7 @@ export interface BayState {
   status:   BayStatus
   requests: ActiveRequest[]
   residentName: string | null
+  residentId: string | null
   // Derived
   pendingCount:    number
   inProgressCount: number
@@ -88,13 +89,17 @@ export function useBayMap(
     // Active residents currently assigned to these rooms (RLS-scoped to tenant staff)
     const { data: residentRows } = await supabase
       .from('residents')
-      .select('room_id, display_name')
+      .select('id, room_id, display_name')
       .in('room_id', roomIds)
       .eq('active', true)
 
     const residentByRoom: Record<string, string> = {}
-    for (const r of (residentRows ?? []) as { room_id: string | null; display_name: string }[]) {
-      if (r.room_id) residentByRoom[r.room_id] = r.display_name
+    const residentIdByRoom: Record<string, string> = {}
+    for (const r of (residentRows ?? []) as { id: string; room_id: string | null; display_name: string }[]) {
+      if (r.room_id) {
+        residentByRoom[r.room_id] = r.display_name
+        residentIdByRoom[r.room_id] = r.id
+      }
     }
 
     const now = Date.now()
@@ -154,6 +159,7 @@ export function useBayMap(
         status,
         requests:        mapped,
         residentName:    residentByRoom[room.id] ?? null,
+        residentId:      residentIdByRoom[room.id] ?? null,
         pendingCount:    pendingReqs.length,
         inProgressCount: inProgReqs.length,
         resolvedCount:   resolvedReqs.length,

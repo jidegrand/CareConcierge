@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import NurseShell from '@/components/NurseShell'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
-import RoomDetail from '@/components/RoomDetail'
+import RoomDetail, { AddNoteModal } from '@/components/RoomDetail'
 import { useBayMap, type BayState, type BayStatus, type ActiveRequest } from '@/hooks/useBayMap'
 import { useRequestTypes } from '@/hooks/useRequestTypes'
 import { useRequests } from '@/hooks/useRequests'
@@ -36,6 +36,8 @@ export default function BayMapPage() {
   const { bays, summary, loading, connected, updateStatus } = useBayMap(unitId, requestTypeMap)
   const { requests, stats, soundEnabled, setSoundEnabled, addStaffNote } = useRequests(unitId, tenantId)
   const [selectedBay, setSelectedBay] = useState<BayState | null>(null)
+  const [noteBay, setNoteBay] = useState<BayState | null>(null)
+  const [noteConfirmation, setNoteConfirmation] = useState<string | null>(null)
   const residentProfilesEnabled = settings?.resident_profiles_enabled ?? false
   const canManageResidents = isAtLeast(profile?.role, 'charge_nurse')
   const canAddNote = can(profile?.role, 'requests.resolve')
@@ -158,9 +160,11 @@ export default function BayMapPage() {
                         {northWing.map(bay => (
                           <BayCell key={bay.roomId} bay={bay}
                             selected={liveBay?.roomId === bay.roomId}
+                            canAddNote={canAddNote && residentProfilesEnabled}
                             onClick={() => setSelectedBay(
                               liveBay?.roomId === bay.roomId ? null : bay
-                            )} />
+                            )}
+                            onAddNote={() => setNoteBay(bay)} />
                         ))}
                       </div>
                     </div>
@@ -196,9 +200,11 @@ export default function BayMapPage() {
                         {southWing.map(bay => (
                           <BayCell key={bay.roomId} bay={bay}
                             selected={liveBay?.roomId === bay.roomId}
+                            canAddNote={canAddNote && residentProfilesEnabled}
                             onClick={() => setSelectedBay(
                               liveBay?.roomId === bay.roomId ? null : bay
-                            )} />
+                            )}
+                            onAddNote={() => setNoteBay(bay)} />
                         ))}
                       </div>
                     </div>
@@ -240,13 +246,35 @@ export default function BayMapPage() {
           )}
         </div>
       </div>
+
+      {/* Note added toast */}
+      {noteConfirmation && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full text-sm font-semibold text-white shadow-lg"
+          style={{ background: '#059669' }}>
+          ✓ Note added for {noteConfirmation}
+        </div>
+      )}
+
+      {/* Add note modal — launched directly from the bay floor */}
+      {noteBay && noteBay.residentId && (
+        <AddNoteModal
+          residentName={noteBay.residentName ?? noteBay.label}
+          onClose={() => setNoteBay(null)}
+          onSubmit={async (body, visibleToFamily) => {
+            await addStaffNote(noteBay.residentId as string, null, body, visibleToFamily)
+            setNoteConfirmation(noteBay.label)
+            setNoteBay(null)
+            window.setTimeout(() => setNoteConfirmation(null), 3000)
+          }}
+        />
+      )}
     </NurseShell>
   )
 }
 
 // ── Bay cell ──────────────────────────────────────────────────────────────────
-function BayCell({ bay, selected, onClick }: {
-  bay: BayState; selected: boolean; onClick: () => void
+function BayCell({ bay, selected, canAddNote, onClick, onAddNote }: {
+  bay: BayState; selected: boolean; canAddNote: boolean; onClick: () => void; onAddNote: () => void
 }) {
   const cfg      = STATUS_CFG[bay.status]
   const pulseClass = bay.status === 'urgent' ? 'pulse-urgent'
@@ -323,6 +351,22 @@ function BayCell({ bay, selected, onClick }: {
             </span>
           )}
         </div>
+      )}
+
+      {/* Add note — quick access from the floor, doesn't open the side panel */}
+      {canAddNote && bay.residentId && (
+        <span
+          role="button"
+          aria-label={`Add note for ${bay.label}`}
+          onClick={(e) => { e.stopPropagation(); onAddNote() }}
+          className="absolute bottom-2.5 right-2.5 flex h-6 w-6 items-center justify-center rounded-full border bg-white/80 transition-colors hover:bg-white"
+          style={{ borderColor: cfg.border, color: cfg.text }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </span>
       )}
     </button>
   )

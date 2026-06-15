@@ -462,7 +462,7 @@ function DeactivateModal({ resident, error, onClose, onConfirm }: {
 }
 
 // ── Add note modal ───────────────────────────────────────────────────────────
-function AddNoteModal({ residentName, onClose, onSubmit }: {
+export function AddNoteModal({ residentName, onClose, onSubmit }: {
   residentName: string
   onClose: () => void
   onSubmit: (body: string, visibleToFamily: boolean) => Promise<void>
