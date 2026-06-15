@@ -22,6 +22,9 @@ export interface FeedEvent {
   timestamp: string    // ISO
   elapsed: number      // seconds since previous event on same request
   noteBody?: string    // note text, for kind === 'note'
+  attachmentUrl?: string | null    // signed URL for the note's attachment, if any
+  attachmentType?: string | null   // MIME type of the attachment
+  attachmentName?: string | null   // original filename of the attachment
 }
 
 export interface ActiveBay {
@@ -67,6 +70,9 @@ interface FeedNoteRow {
   id: string
   body: string
   created_at: string
+  attachment_path: string | null
+  attachment_type: string | null
+  attachment_name: string | null
   resident?: MaybeArray<{
     id?: string
     display_name?: string
@@ -147,7 +153,7 @@ function buildEvents(
   )
 }
 
-function buildNoteEvents(notes: FeedNoteRow[]): FeedEvent[] {
+function buildNoteEvents(notes: (FeedNoteRow & { attachmentUrl?: string | null })[]): FeedEvent[] {
   return notes.map(note => {
     const resident = getSingle(note.resident)
     const room     = getSingle(resident?.room)
@@ -166,6 +172,9 @@ function buildNoteEvents(notes: FeedNoteRow[]): FeedEvent[] {
       timestamp:  note.created_at,
       elapsed:    0,
       noteBody:   note.body,
+      attachmentUrl:  note.attachmentUrl,
+      attachmentType: note.attachment_type,
+      attachmentName: note.attachment_name,
     }
   })
 }
@@ -184,7 +193,7 @@ export function useFeed(
   const [connected, setConnected] = useState(false)
   const rawRequests = useRef<FeedRequestRow[]>([])
 
-  const process = useCallback((requests: FeedRequestRow[], notes: FeedNoteRow[]) => {
+  const process = useCallback((requests: FeedRequestRow[], notes: (FeedNoteRow & { attachmentUrl?: string | null })[]) => {
     rawRequests.current = requests
     const built = [...buildEvents(requests, typeMap), ...buildNoteEvents(notes)]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -230,7 +239,7 @@ export function useFeed(
       supabase
         .from('staff_notes')
         .select(`
-          id, body, created_at,
+          id, body, created_at, attachment_path, attachment_type, attachment_name,
           resident:residents (id, display_name, room:rooms (id, name, unit_id)),
           author:user_profiles!staff_notes_author_id_fkey (id, full_name)
         `)
@@ -252,7 +261,27 @@ export function useFeed(
       return room?.unit_id === unitId
     })
 
-    process(filteredRequests, filteredNotes)
+    const attachmentPaths = filteredNotes
+      .map(n => n.attachment_path)
+      .filter((p): p is string => !!p)
+
+    const signedUrls: Record<string, string> = {}
+    if (attachmentPaths.length > 0) {
+      const { data: signed } = await supabase.storage
+        .from('staff-note-attachments')
+        .createSignedUrls(attachmentPaths, 3600)
+
+      for (const s of signed ?? []) {
+        if (s.signedUrl && !s.error) signedUrls[s.path ?? ''] = s.signedUrl
+      }
+    }
+
+    const notesWithAttachments = filteredNotes.map(n => ({
+      ...n,
+      attachmentUrl: n.attachment_path ? signedUrls[n.attachment_path] : undefined,
+    }))
+
+    process(filteredRequests, notesWithAttachments)
     setLoading(false)
   }, [unitId, process])
 

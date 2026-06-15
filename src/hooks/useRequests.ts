@@ -53,7 +53,7 @@ interface UseRequestsResult {
   setSoundEnabled: (v: boolean) => void
   updateStatus: (id: string, status: RequestStatus) => Promise<void>
   reassign:     (requestId: string, newUserId: string, newUserName?: string) => Promise<void>
-  addStaffNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean) => Promise<void>
+  addStaffNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean, attachment?: File | null) => Promise<void>
   clearResolved: () => void
 }
 
@@ -391,12 +391,30 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
   }
 
   // ── Staff note — caregiver-written note, optionally shared to the family feed ──
-  const addStaffNote = async (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean) => {
+  const addStaffNote = async (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean, attachment?: File | null) => {
     const trimmed = body.trim()
     if (!trimmed) return
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+
+    let attachmentPath: string | null = null
+    let attachmentType: string | null = null
+    let attachmentName: string | null = null
+
+    if (attachment && tenantId) {
+      const ext = attachment.name.split('.').pop() || 'bin'
+      const path = `${tenantId}/${residentId}/${crypto.randomUUID()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('staff-note-attachments')
+        .upload(path, attachment, { contentType: attachment.type })
+
+      if (!uploadError) {
+        attachmentPath = path
+        attachmentType = attachment.type
+        attachmentName = attachment.name
+      }
+    }
 
     const { data, error } = await supabase
       .from('staff_notes')
@@ -406,6 +424,9 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
         author_id: user.id,
         body: trimmed,
         visible_to_family: visibleToFamily,
+        attachment_path: attachmentPath,
+        attachment_type: attachmentType,
+        attachment_name: attachmentName,
       })
       .select('body')
       .single()

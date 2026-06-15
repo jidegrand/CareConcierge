@@ -260,8 +260,8 @@ export default function BayMapPage() {
         <AddNoteModal
           residentName={noteBay.residentName ?? noteBay.label}
           onClose={() => setNoteBay(null)}
-          onSubmit={async (body, visibleToFamily) => {
-            await addStaffNote(noteBay.residentId as string, null, body, visibleToFamily)
+          onSubmit={async (body, visibleToFamily, attachment) => {
+            await addStaffNote(noteBay.residentId as string, null, body, visibleToFamily, attachment)
             setNoteConfirmation(noteBay.label)
             setNoteBay(null)
             window.setTimeout(() => setNoteConfirmation(null), 3000)
@@ -380,7 +380,7 @@ function BayDetailPanel({ bay, bays, tenantId, residentProfilesEnabled, canManag
   residentProfilesEnabled: boolean
   canManageResidents: boolean
   canAddNote: boolean
-  onAddNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean) => Promise<void>
+  onAddNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean, attachment?: File | null) => Promise<void>
   onClose: () => void
   onUpdateStatus: (id: string, status: 'acknowledged' | 'resolved') => Promise<void>
 }) {

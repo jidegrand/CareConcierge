@@ -431,6 +431,24 @@ function TimelineItem({ event: e, isLast }: { event: FeedEvent; isLast: boolean 
                 </p>
               )}
 
+              {/* Note attachment */}
+              {e.kind === 'note' && e.attachmentUrl && (
+                e.attachmentType?.startsWith('image/') ? (
+                  <a href={e.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mt-2">
+                    <img src={e.attachmentUrl} alt={e.attachmentName ?? 'Attachment'}
+                      className="max-h-48 rounded-lg border border-[var(--border)] object-cover" />
+                  </a>
+                ) : (
+                  <a href={e.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-[var(--clinical-blue)] hover:underline">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    {e.attachmentName ?? 'Attachment'}
+                  </a>
+                )
+              )}
+
               {/* Elapsed time for ack/resolve */}
               {e.kind !== 'submitted' && e.kind !== 'note' && e.elapsed > 0 && (
                 <p className="text-xs text-[var(--text-muted)] mt-1">

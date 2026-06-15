@@ -15,7 +15,7 @@ interface RoomDetailProps {
   rooms: RoomOption[]
   canManage: boolean
   canAddNote: boolean
-  onAddNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean) => Promise<void>
+  onAddNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean, attachment?: File | null) => Promise<void>
 }
 
 function initials(name: string): string {
@@ -212,8 +212,8 @@ export default function RoomDetail({ roomId, roomLabel, tenantId, rooms, canMana
         <AddNoteModal
           residentName={currentResident.display_name}
           onClose={closeModal}
-          onSubmit={async (body, visibleToFamily) => {
-            await onAddNote(currentResident.id, null, body, visibleToFamily)
+          onSubmit={async (body, visibleToFamily, attachment) => {
+            await onAddNote(currentResident.id, null, body, visibleToFamily, attachment)
             setModal(null)
             setNoteSent(true)
             window.setTimeout(() => setNoteSent(false), 3000)
@@ -462,19 +462,46 @@ function DeactivateModal({ resident, error, onClose, onConfirm }: {
 }
 
 // ── Add note modal ───────────────────────────────────────────────────────────
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024 // 10MB
+
 export function AddNoteModal({ residentName, onClose, onSubmit }: {
   residentName: string
   onClose: () => void
-  onSubmit: (body: string, visibleToFamily: boolean) => Promise<void>
+  onSubmit: (body: string, visibleToFamily: boolean, attachment?: File | null) => Promise<void>
 }) {
   const [body, setBody] = useState('')
   const [visibleToFamily, setVisibleToFamily] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [attachment, setAttachment] = useState<File | null>(null)
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null)
+  const [attachmentError, setAttachmentError] = useState<string | null>(null)
+
+  const pickFile = (file: File | null) => {
+    setAttachmentError(null)
+
+    if (attachmentPreview) URL.revokeObjectURL(attachmentPreview)
+
+    if (!file) {
+      setAttachment(null)
+      setAttachmentPreview(null)
+      return
+    }
+
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      setAttachmentError('File must be smaller than 10MB')
+      setAttachment(null)
+      setAttachmentPreview(null)
+      return
+    }
+
+    setAttachment(file)
+    setAttachmentPreview(file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
+  }
 
   const submit = async () => {
     if (!body.trim()) return
     setBusy(true)
-    await onSubmit(body.trim(), visibleToFamily)
+    await onSubmit(body.trim(), visibleToFamily, attachment)
   }
 
   return (
@@ -488,6 +515,40 @@ export function AddNoteModal({ residentName, onClose, onSubmit }: {
             autoFocus
             maxLength={1000}
             className="w-full mt-1 text-sm px-3 py-2 rounded-lg border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--clinical-blue)] resize-none" />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-secondary)]">Attachment (optional)</label>
+          {attachment ? (
+            <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)]">
+              {attachmentPreview ? (
+                <img src={attachmentPreview} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-10 h-10 rounded bg-[var(--page-bg)] flex items-center justify-center flex-shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-muted)]">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+                  </svg>
+                </div>
+              )}
+              <span className="flex-1 min-w-0 text-xs text-[var(--text-secondary)] truncate">{attachment.name}</span>
+              <button type="button" onClick={() => pickFile(null)}
+                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] flex-shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <label className="mt-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] cursor-pointer hover:bg-[var(--page-bg)] transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              Add photo or file
+              <input type="file" accept="image/*,.pdf,.doc,.docx" className="hidden"
+                onChange={e => pickFile(e.target.files?.[0] ?? null)} />
+            </label>
+          )}
+          {attachmentError && <p className="mt-1 text-[11px] text-[var(--danger)]">{attachmentError}</p>}
         </div>
 
         <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">

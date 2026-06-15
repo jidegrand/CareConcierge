@@ -12,6 +12,9 @@ export interface FamilyActivityItem {
   timestamp: string
   statusColor: 'green' | 'amber' | 'gray'
   staffAttribution: string | null
+  attachmentUrl?: string | null
+  attachmentType?: string | null
+  attachmentName?: string | null
 }
 
 interface FamilyActivityRequest {
@@ -34,6 +37,9 @@ interface FamilyActivityNote {
   created_at: string
   author_name: string | null
   author_role_title: string | null
+  attachment_path: string | null
+  attachment_type: string | null
+  attachment_name: string | null
 }
 
 function formatStaffAttribution(name: string | null, roleTitle: string | null): string | null {
@@ -59,7 +65,7 @@ const formatMinutes = (seconds: number): string => {
   return remMinutes ? `${hours} hr ${remMinutes} min` : `${hours} hr`
 }
 
-function buildActivity(requests: FamilyActivityRequest[], notes: FamilyActivityNote[], requestTypeMap: Record<string, RequestTypeConfig>): FamilyActivityItem[] {
+function buildActivity(requests: FamilyActivityRequest[], notes: (FamilyActivityNote & { attachmentUrl?: string | null })[], requestTypeMap: Record<string, RequestTypeConfig>): FamilyActivityItem[] {
   const fromRequests: FamilyActivityItem[] = requests.map(r => {
     const config = requestTypeMap[r.type]
     const label = config?.label ?? r.type.replace(/_/g, ' ')
@@ -92,6 +98,9 @@ function buildActivity(requests: FamilyActivityRequest[], notes: FamilyActivityN
     timestamp: n.created_at,
     statusColor: 'green',
     staffAttribution: formatStaffAttribution(n.author_name, n.author_role_title),
+    attachmentUrl: n.attachmentUrl,
+    attachmentType: n.attachment_type,
+    attachmentName: n.attachment_name,
   }))
 
   return [...fromRequests, ...fromNotes]
@@ -126,7 +135,28 @@ export function useFamilyPortal(tenantId: string | undefined) {
 
     const requests = (requestsRes.data ?? []) as FamilyActivityRequest[]
     const notes = (notesRes.data ?? []) as FamilyActivityNote[]
-    setActivity(buildActivity(requests, notes, requestTypeMapRef.current))
+
+    const attachmentPaths = notes
+      .map(n => n.attachment_path)
+      .filter((p): p is string => !!p)
+
+    const signedUrls: Record<string, string> = {}
+    if (attachmentPaths.length > 0) {
+      const { data: signed } = await supabase.storage
+        .from('staff-note-attachments')
+        .createSignedUrls(attachmentPaths, 3600)
+
+      for (const s of signed ?? []) {
+        if (s.signedUrl && !s.error) signedUrls[s.path ?? ''] = s.signedUrl
+      }
+    }
+
+    const notesWithAttachments = notes.map(n => ({
+      ...n,
+      attachmentUrl: n.attachment_path ? signedUrls[n.attachment_path] : undefined,
+    }))
+
+    setActivity(buildActivity(requests, notesWithAttachments, requestTypeMapRef.current))
 
     const activeRequests = requests
       .filter(r => r.source === 'family' && (r.status === 'pending' || r.status === 'acknowledged'))
