@@ -6,7 +6,7 @@ import type { RequestTypeConfig } from '@/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type EventKind = 'submitted' | 'acknowledged' | 'resolved'
+export type EventKind = 'submitted' | 'acknowledged' | 'resolved' | 'note'
 
 export interface FeedEvent {
   id: string           // unique event id
@@ -21,6 +21,7 @@ export interface FeedEvent {
   actorName: string | null
   timestamp: string    // ISO
   elapsed: number      // seconds since previous event on same request
+  noteBody?: string    // note text, for kind === 'note'
 }
 
 export interface ActiveBay {
@@ -60,6 +61,18 @@ interface FeedRequestRow {
   }>
   acknowledger?: MaybeArray<{ id: string; full_name: string | null }>
   resolver?: MaybeArray<{ id: string; full_name: string | null }>
+}
+
+interface FeedNoteRow {
+  id: string
+  body: string
+  created_at: string
+  resident?: MaybeArray<{
+    id?: string
+    display_name?: string
+    room?: MaybeArray<{ id?: string; name?: string; unit_id?: string }>
+  }>
+  author?: MaybeArray<{ id: string; full_name: string | null }>
 }
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -134,6 +147,29 @@ function buildEvents(
   )
 }
 
+function buildNoteEvents(notes: FeedNoteRow[]): FeedEvent[] {
+  return notes.map(note => {
+    const resident = getSingle(note.resident)
+    const room     = getSingle(resident?.room)
+
+    return {
+      id:         `note-${note.id}`,
+      requestId:  '',
+      kind:       'note',
+      bay:        room?.name ?? 'Unknown',
+      roomId:     room?.id   ?? '',
+      type:       'staff_note',
+      label:      'Staff note',
+      icon:       '📝',
+      isUrgent:   false,
+      actorName:  getSingle(note.author)?.full_name ?? null,
+      timestamp:  note.created_at,
+      elapsed:    0,
+      noteBody:   note.body,
+    }
+  })
+}
+
 // ── Hook ──────────────────────────────────────────────────────────────────────
 export function useFeed(
   unitId: string | undefined,
@@ -148,9 +184,10 @@ export function useFeed(
   const [connected, setConnected] = useState(false)
   const rawRequests = useRef<FeedRequestRow[]>([])
 
-  const process = useCallback((requests: FeedRequestRow[]) => {
+  const process = useCallback((requests: FeedRequestRow[], notes: FeedNoteRow[]) => {
     rawRequests.current = requests
-    const built = buildEvents(requests, typeMap)
+    const built = [...buildEvents(requests, typeMap), ...buildNoteEvents(notes)]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     setEvents(built)
 
     // Active bays
@@ -178,27 +215,44 @@ export function useFeed(
     if (!unitId) return
     const today = new Date(); today.setHours(0, 0, 0, 0)
 
-    const { data } = await supabase
-      .from('requests')
-      .select(`
-        id, type, status, is_urgent,
-        created_at, acknowledged_at, resolved_at,
-        room:rooms (id, name, unit:units(id)),
-        acknowledger:user_profiles!requests_acknowledged_by_profile_fkey (id, full_name),
-        resolver:user_profiles!requests_resolved_by_profile_fkey (id, full_name)
-      `)
-      .gte('created_at', today.toISOString())
-      .order('created_at', { ascending: false })
+    const [requestsRes, notesRes] = await Promise.all([
+      supabase
+        .from('requests')
+        .select(`
+          id, type, status, is_urgent,
+          created_at, acknowledged_at, resolved_at,
+          room:rooms (id, name, unit:units(id)),
+          acknowledger:user_profiles!requests_acknowledged_by_profile_fkey (id, full_name),
+          resolver:user_profiles!requests_resolved_by_profile_fkey (id, full_name)
+        `)
+        .gte('created_at', today.toISOString())
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('staff_notes')
+        .select(`
+          id, body, created_at,
+          resident:residents (id, display_name, room:rooms (id, name, unit_id)),
+          author:user_profiles!staff_notes_author_id_fkey (id, full_name)
+        `)
+        .gte('created_at', today.toISOString())
+        .order('created_at', { ascending: false }),
+    ])
 
-    if (data) {
-      const rows = data as FeedRequestRow[]
-      const filtered = rows.filter(r => {
-        const room = getSingle(r.room)
-        const unit = getSingle(room?.unit)
-        return unit?.id === unitId
-      })
-      process(filtered)
-    }
+    const requestRows = (requestsRes.data ?? []) as FeedRequestRow[]
+    const filteredRequests = requestRows.filter(r => {
+      const room = getSingle(r.room)
+      const unit = getSingle(room?.unit)
+      return unit?.id === unitId
+    })
+
+    const noteRows = (notesRes.data ?? []) as FeedNoteRow[]
+    const filteredNotes = noteRows.filter(n => {
+      const resident = getSingle(n.resident)
+      const room     = getSingle(resident?.room)
+      return room?.unit_id === unitId
+    })
+
+    process(filteredRequests, filteredNotes)
     setLoading(false)
   }, [unitId, process])
 
@@ -209,6 +263,7 @@ export function useFeed(
     const channel = supabase
       .channel(`feed:unit:${unitId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, () => fetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_notes' }, () => fetch())
       .subscribe(s => setConnected(s === 'SUBSCRIBED'))
 
     return () => { supabase.removeChannel(channel); setConnected(false) }

@@ -55,6 +55,14 @@ const KIND_CFG: Record<EventKind, {
     badgeText: '#065F46',
     verb:      'Resolved',
   },
+  note: {
+    label:     'Staff note',
+    dot:       '#7C3AED',
+    line:      '#DDD6FE',
+    badge:     '#F5F3FF',
+    badgeText: '#6D28D9',
+    verb:      'Note added',
+  },
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -186,7 +194,7 @@ export default function PatientFeedPage() {
               Event Type
             </p>
             <div className="space-y-1">
-              {(['all', 'submitted', 'acknowledged', 'resolved'] as ('all' | EventKind)[]).map(k => (
+              {(['all', 'submitted', 'acknowledged', 'resolved', 'note'] as ('all' | EventKind)[]).map(k => (
                 <button key={k}
                   onClick={() => setFilterKind(k)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all ${
@@ -416,8 +424,15 @@ function TimelineItem({ event: e, isLast }: { event: FeedEvent; isLast: boolean 
                 <span className="text-sm font-semibold text-[var(--text-primary)]">{e.label}</span>
               </div>
 
+              {/* Note body */}
+              {e.kind === 'note' && e.noteBody && (
+                <p className="text-sm text-[var(--text-secondary)] mt-1 leading-relaxed">
+                  {e.noteBody}
+                </p>
+              )}
+
               {/* Elapsed time for ack/resolve */}
-              {e.kind !== 'submitted' && e.elapsed > 0 && (
+              {e.kind !== 'submitted' && e.kind !== 'note' && e.elapsed > 0 && (
                 <p className="text-xs text-[var(--text-muted)] mt-1">
                   {e.kind === 'acknowledged' ? 'Response time: ' : 'Handled in: '}
                   <span className="font-semibold" style={{ color: cfg.dot }}>
