@@ -15,7 +15,7 @@ interface RoomDetailProps {
   rooms: RoomOption[]
   canManage: boolean
   canAddNote: boolean
-  onAddNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean, attachment?: File | null) => Promise<void>
+  onAddNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean, attachment?: File | null) => Promise<{ error: string | null }>
 }
 
 function initials(name: string): string {
@@ -213,10 +213,12 @@ export default function RoomDetail({ roomId, roomLabel, tenantId, rooms, canMana
           residentName={currentResident.display_name}
           onClose={closeModal}
           onSubmit={async (body, visibleToFamily, attachment) => {
-            await onAddNote(currentResident.id, null, body, visibleToFamily, attachment)
+            const { error } = await onAddNote(currentResident.id, null, body, visibleToFamily, attachment)
+            if (error) return { error }
             setModal(null)
             setNoteSent(true)
             window.setTimeout(() => setNoteSent(false), 3000)
+            return { error: null }
           }}
         />
       )}
@@ -467,7 +469,7 @@ const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024 // 10MB
 export function AddNoteModal({ residentName, onClose, onSubmit }: {
   residentName: string
   onClose: () => void
-  onSubmit: (body: string, visibleToFamily: boolean, attachment?: File | null) => Promise<void>
+  onSubmit: (body: string, visibleToFamily: boolean, attachment?: File | null) => Promise<{ error: string | null }>
 }) {
   const [body, setBody] = useState('')
   const [visibleToFamily, setVisibleToFamily] = useState(true)
@@ -501,7 +503,12 @@ export function AddNoteModal({ residentName, onClose, onSubmit }: {
   const submit = async () => {
     if (!body.trim()) return
     setBusy(true)
-    await onSubmit(body.trim(), visibleToFamily, attachment)
+    setAttachmentError(null)
+    const { error } = await onSubmit(body.trim(), visibleToFamily, attachment)
+    if (error) {
+      setAttachmentError(error)
+      setBusy(false)
+    }
   }
 
   return (

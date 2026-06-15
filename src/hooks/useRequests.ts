@@ -53,7 +53,7 @@ interface UseRequestsResult {
   setSoundEnabled: (v: boolean) => void
   updateStatus: (id: string, status: RequestStatus) => Promise<void>
   reassign:     (requestId: string, newUserId: string, newUserName?: string) => Promise<void>
-  addStaffNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean, attachment?: File | null) => Promise<void>
+  addStaffNote: (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean, attachment?: File | null) => Promise<{ error: string | null }>
   clearResolved: () => void
 }
 
@@ -391,29 +391,31 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
   }
 
   // ── Staff note — caregiver-written note, optionally shared to the family feed ──
-  const addStaffNote = async (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean, attachment?: File | null) => {
+  const addStaffNote = async (residentId: string, requestId: string | null, body: string, visibleToFamily: boolean, attachment?: File | null): Promise<{ error: string | null }> => {
     const trimmed = body.trim()
-    if (!trimmed) return
+    if (!trimmed) return { error: null }
 
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) return { error: 'Not signed in.' }
 
     let attachmentPath: string | null = null
     let attachmentType: string | null = null
     let attachmentName: string | null = null
 
-    if (attachment && tenantId) {
+    if (attachment) {
+      if (!tenantId) return { error: 'Unable to upload attachment: missing tenant context.' }
+
       const ext = attachment.name.split('.').pop() || 'bin'
       const path = `${tenantId}/${residentId}/${crypto.randomUUID()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('staff-note-attachments')
         .upload(path, attachment, { contentType: attachment.type })
 
-      if (!uploadError) {
-        attachmentPath = path
-        attachmentType = attachment.type
-        attachmentName = attachment.name
-      }
+      if (uploadError) return { error: `Failed to upload attachment: ${uploadError.message}` }
+
+      attachmentPath = path
+      attachmentType = attachment.type
+      attachmentName = attachment.name
     }
 
     const { data, error } = await supabase
@@ -431,11 +433,15 @@ export function useRequests(unitId: string | undefined, tenantId: string | undef
       .select('body')
       .single()
 
-    if (!error && data && requestId) {
+    if (error) return { error: error.message }
+
+    if (data && requestId) {
       setRequests(prev => prev.map(r =>
         r.id === requestId ? { ...r, staffNote: { body: data.body } } : r
       ))
     }
+
+    return { error: null }
   }
 
   const clearResolved = () =>
