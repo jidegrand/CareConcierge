@@ -128,7 +128,14 @@ export default function QRSheetPage() {
       {/* Print styles injected into head */}
       <style>{`
         @media print {
-          body > *:not(#qr-print-root) { display: none !important; }
+          /* #qr-print-root isn't a direct child of <body> — React mounts
+             into #root, which #qr-print-root is nested inside — so hide
+             everything via visibility and reveal only the print target,
+             instead of display:none-ing "every other body child" (which
+             was matching and hiding #root itself). */
+          body * { visibility: hidden; }
+          #qr-print-root, #qr-print-root * { visibility: visible; }
+          #qr-print-root { position: absolute; left: 0; top: 0; width: 100%; }
           #qr-print-root .no-print { display: none !important; }
           #qr-print-root .print-sheet {
             display: grid !important;

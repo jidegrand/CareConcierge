@@ -54,6 +54,13 @@ export default function QRPanel({ tenantId }: Props) {
     <div>
       <style>{`
         @media print {
+          /* #qr-print-root isn't a direct child of <body> — it's nested inside
+             the admin layout's #root — so hide everything via visibility and
+             reveal only the print target, instead of trying to display:none
+             "every other body child" (which was hiding #root itself). */
+          body * { visibility: hidden; }
+          #qr-print-root, #qr-print-root * { visibility: visible; }
+          #qr-print-root { position: absolute; left: 0; top: 0; width: 100%; }
           .no-print { display: none !important; }
           .print-sheet {
             display: grid !important;
@@ -64,7 +71,6 @@ export default function QRPanel({ tenantId }: Props) {
           }
           .qr-tile { page-break-inside: avoid; border: 1px solid #ccc !important; }
           @page { margin: 12mm; size: A4; }
-          body > *:not(#qr-print-root) { display: none !important; }
         }
       `}</style>
 
