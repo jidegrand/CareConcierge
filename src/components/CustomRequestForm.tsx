@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { CUSTOM_REQUEST_TYPE_ID } from '@/lib/constants'
+import { useSpeechToText } from '@/hooks/useSpeechToText'
+import MicIcon from '@/components/MicIcon'
 
 const MAX_LENGTH = 500
 const MIN_LENGTH = 2
@@ -19,72 +21,17 @@ interface CustomRequestFormProps {
   onSubmitted: (request: CustomRequestRow) => void
 }
 
-// Minimal typing for the non-standard Web Speech API — not part of lib.dom.d.ts.
-interface SpeechRecognitionResultLike { [index: number]: { transcript: string } }
-interface SpeechRecognitionEventLike extends Event { results: ArrayLike<SpeechRecognitionResultLike> }
-interface SpeechRecognitionLike extends EventTarget {
-  lang: string
-  interimResults: boolean
-  continuous: boolean
-  start: () => void
-  stop: () => void
-  onstart: (() => void) | null
-  onend: (() => void) | null
-  onerror: (() => void) | null
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null
-}
-type SpeechRecognitionCtor = new () => SpeechRecognitionLike
-
-function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
-  if (typeof window === 'undefined') return null
-  const w = window as unknown as { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
-}
-
 export default function CustomRequestForm({ roomId, disabled, onSubmitted }: CustomRequestFormProps) {
   const [text, setText] = useState('')
-  const [isListening, setIsListening] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
-  const isVoiceSupported = getSpeechRecognitionCtor() !== null
-
-  const toggleVoice = () => {
-    if (isListening) {
-      recognitionRef.current?.stop()
-      return
-    }
-
-    const Ctor = getSpeechRecognitionCtor()
-    if (!Ctor) return
-
-    const recognition = new Ctor()
-    recognition.lang = 'en-US'
-    recognition.interimResults = true
-    recognition.continuous = true
-
-    recognition.onstart = () => setIsListening(true)
-
-    recognition.onresult = (event) => {
-      const liveTranscript = Array.from(event.results)
-        .map(result => result[0]?.transcript ?? '')
-        .join(' ')
-        .trim()
-      setText(liveTranscript)
-    }
-
-    recognition.onerror = () => setIsListening(false)
-    recognition.onend = () => setIsListening(false)
-
-    recognitionRef.current = recognition
-    recognition.start()
-  }
+  const { isListening, isSupported: isVoiceSupported, toggle: toggleVoice, stop: stopVoice } = useSpeechToText(setText)
 
   const handleSubmit = async () => {
     const trimmed = text.trim()
     if (trimmed.length < MIN_LENGTH || submitting || disabled) return
 
-    recognitionRef.current?.stop()
+    stopVoice()
     setSubmitting(true)
     setError(null)
 
@@ -171,16 +118,5 @@ export default function CustomRequestForm({ roomId, disabled, onSubmitted }: Cus
         )}
       </div>
     </div>
-  )
-}
-
-function MicIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" y1="19" x2="12" y2="23" />
-      <line x1="8" y1="23" x2="16" y2="23" />
-    </svg>
   )
 }

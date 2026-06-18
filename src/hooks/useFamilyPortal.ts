@@ -265,6 +265,31 @@ export function useFamilyPortal(tenantId: string | undefined) {
     return { success: true, requestId: (data as { id: string }).id }
   }, [resident, requestTypeMap, activeFamilyRequestTypes, fetchActivity])
 
+  // Open-ended (typed or spoken) request, separate from submitRequest since
+  // it isn't tied to a tile id and shouldn't be deduped by type — a family
+  // member may reasonably send several different custom messages in a row.
+  const submitCustomRequest = useCallback(async (text: string): Promise<SubmitRequestResult> => {
+    if (!resident) return { success: false, error: 'No resident found.' }
+    if (!resident.room_id) return { success: false, error: 'Resident is not currently assigned to a room.' }
+
+    const trimmed = text.trim()
+    if (trimmed.length < 2) return { success: false, error: 'Request is too short.' }
+
+    const { data, error: err } = await supabase.from('requests').insert({
+      room_id: resident.room_id,
+      resident_id: resident.id,
+      type: CUSTOM_REQUEST_TYPE_ID,
+      custom_text: trimmed.slice(0, 500),
+      is_urgent: false,
+      status: 'pending',
+      source: 'family',
+    }).select('id').single()
+
+    if (err) return { success: false, error: err.message }
+    await fetchActivity(resident.id)
+    return { success: true, requestId: (data as { id: string }).id }
+  }, [resident, fetchActivity])
+
   const inviteSibling = useCallback(async (input: {
     fullName: string
     email: string
@@ -314,6 +339,7 @@ export function useFamilyPortal(tenantId: string | undefined) {
     activeFamilyRequestTypes,
     activeFamilyRequestIds,
     submitRequest,
+    submitCustomRequest,
     cancelRequest,
     inviteSibling,
     refresh: fetchAll,

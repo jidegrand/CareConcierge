@@ -6,6 +6,7 @@ import { useFamilyChat } from '@/hooks/useFamilyChat'
 import { useDarkMode } from '@/hooks/useDarkMode'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
 import FamilyChatModal from '@/components/FamilyChatModal'
+import FamilyCustomRequestForm from '@/components/FamilyCustomRequestForm'
 import { formatResidentShortName } from '@/lib/constants'
 
 interface InviteSiblingResult {
@@ -108,7 +109,7 @@ function ChevronIcon({ collapsed }: { collapsed: boolean }) {
 export default function FamilyDashboardPage() {
   const { profile, signOut } = useAuth()
   const { tenantId, tenantName } = useTenantContext()
-  const { loading, error, familyMember, resident, requestTypes, activity, activeFamilyRequestTypes, activeFamilyRequestIds, submitRequest, cancelRequest, inviteSibling } = useFamilyPortal(tenantId)
+  const { loading, error, familyMember, resident, requestTypes, activity, activeFamilyRequestTypes, activeFamilyRequestIds, submitRequest, submitCustomRequest, cancelRequest, inviteSibling } = useFamilyPortal(tenantId)
   const [submittingId, setSubmittingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [activeRequestModal, setActiveRequestModal] = useState<{ requestId: string; label: string } | null>(null)
@@ -335,6 +336,13 @@ export default function FamilyDashboardPage() {
               </div>
             </div>
           )}
+
+          {/* Custom (open-ended) request — typed or spoken */}
+          <FamilyCustomRequestForm
+            disabled={submittingId !== null}
+            onSubmit={submitCustomRequest}
+            onSubmitted={(requestId, text) => setActiveRequestModal({ requestId, label: text })}
+          />
 
           {/* Activity, grouped by date */}
           <div ref={activitySectionRef}>
