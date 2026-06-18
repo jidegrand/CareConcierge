@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { buildRequestTypeMap } from '@/lib/constants'
+import { buildRequestTypeMap, requestDisplayLabel, CUSTOM_REQUEST_TYPE_ID } from '@/lib/constants'
 import { buildAppUrl } from '@/lib/tenant'
 import { getInviteAuthorizationHeaders, getInviteFunctionError, formatInviteEmailError } from '@/lib/invites'
 import type { FamilyMember, Resident, RequestTypeConfig } from '@/types'
@@ -20,6 +20,7 @@ export interface FamilyActivityItem {
 interface FamilyActivityRequest {
   id: string
   type: string
+  custom_text: string | null
   status: 'pending' | 'acknowledged' | 'resolved'
   is_urgent: boolean
   source: 'patient' | 'staff' | 'family' | null
@@ -67,10 +68,14 @@ const formatMinutes = (seconds: number): string => {
 
 function buildActivity(requests: FamilyActivityRequest[], notes: (FamilyActivityNote & { attachmentUrl?: string | null })[], requestTypeMap: Record<string, RequestTypeConfig>): FamilyActivityItem[] {
   const fromRequests: FamilyActivityItem[] = requests.map(r => {
-    const config = requestTypeMap[r.type]
-    const label = config?.label ?? r.type.replace(/_/g, ' ')
+    const isCustom = r.type === CUSTOM_REQUEST_TYPE_ID && !!r.custom_text
+    const label = requestDisplayLabel(r, requestTypeMap)
     const isFamily = r.source === 'family'
-    const text = isFamily ? `Your request: ${label}` : `${label} requested`
+    const text = isFamily
+      ? `Your request: ${label}`
+      : isCustom
+        ? `Custom request: ${label}`
+        : `${label} requested`
 
     let detail: string | null = null
     let statusColor: FamilyActivityItem['statusColor'] = 'gray'
