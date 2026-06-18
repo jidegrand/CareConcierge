@@ -124,8 +124,22 @@ export default function HandoverReportModal({
       {/* Print styles — hides everything except the report */}
       <style>{`
         @media print {
-          body > * { display: none !important; }
-          #handover-print-root { display: block !important; position: static !important; background: white !important; }
+          /* #handover-print-root isn't a direct child of <body> — it's
+             nested inside the modal backdrop, itself inside #root — so
+             "display:none everything, display:block the target" doesn't
+             work: an ancestor's display:none can't be overridden by a
+             descendant. Hide via visibility instead and reveal the target. */
+          body * { visibility: hidden; }
+          #handover-print-root, #handover-print-root * { visibility: visible; }
+          #handover-print-root {
+            position: fixed !important;
+            left: 0; top: 0; width: 100%;
+            max-height: none !important;
+            background: white !important;
+          }
+          #handover-print-root, #handover-print-root > div {
+            overflow: visible !important;
+          }
           .no-print { display: none !important; }
         }
       `}</style>
