@@ -145,7 +145,7 @@ export default function HandoverReportModal({
       `}</style>
 
       {/* Backdrop */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center no-print"
+      <div id="handover-backdrop" className="fixed inset-0 z-50 flex items-center justify-center"
         style={{ background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(2px)' }}
         onClick={e => { if (e.target === e.currentTarget) onClose() }}>
 
