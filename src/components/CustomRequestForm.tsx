@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { CUSTOM_REQUEST_TYPE_ID } from '@/lib/constants'
 import { useSpeechToText } from '@/hooks/useSpeechToText'
 import MicIcon from '@/components/MicIcon'
+import CloseIcon from '@/components/CloseIcon'
 
 const MAX_LENGTH = 500
 const MIN_LENGTH = 2
@@ -58,6 +59,12 @@ export default function CustomRequestForm({ roomId, disabled, onSubmitted }: Cus
     onSubmitted(data as CustomRequestRow)
   }
 
+  const handleClear = () => {
+    stopVoice()
+    setText('')
+    setError(null)
+  }
+
   return (
     <div className="px-5 mb-6">
       <div
@@ -70,20 +77,33 @@ export default function CustomRequestForm({ roomId, disabled, onSubmitted }: Cus
           Type or speak a request that isn't covered above.
         </p>
 
-        <textarea
-          value={text}
-          onChange={event => setText(event.target.value)}
-          disabled={disabled || submitting}
-          maxLength={MAX_LENGTH}
-          placeholder="Describe what you need (e.g. &quot;My IV pump is beeping&quot;)"
-          rows={3}
-          className="w-full rounded-2xl border px-4 py-3 text-sm resize-none outline-none disabled:opacity-60"
-          style={{
-            background: 'var(--patient-surface-alt)',
-            borderColor: 'var(--patient-card-border)',
-            color: 'var(--patient-text)',
-          }}
-        />
+        <div className="relative">
+          <textarea
+            value={text}
+            onChange={event => setText(event.target.value)}
+            disabled={disabled || submitting}
+            maxLength={MAX_LENGTH}
+            placeholder="Describe what you need (e.g. &quot;My IV pump is beeping&quot;)"
+            rows={3}
+            className="w-full rounded-2xl border px-4 py-3 pr-10 text-sm resize-none outline-none disabled:opacity-60"
+            style={{
+              background: 'var(--patient-surface-alt)',
+              borderColor: 'var(--patient-card-border)',
+              color: 'var(--patient-text)',
+            }}
+          />
+          {text && (
+            <button
+              type="button"
+              onClick={handleClear}
+              disabled={submitting}
+              aria-label="Clear request text"
+              className="absolute top-2.5 right-2.5 flex h-6 w-6 items-center justify-center rounded-full transition-colors disabled:opacity-50"
+              style={{ background: 'var(--patient-card-border)', color: 'var(--patient-text-muted)' }}>
+              <CloseIcon size={13} />
+            </button>
+          )}
+        </div>
 
         <div className="mt-3 flex items-center gap-3">
           <button

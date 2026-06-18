@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSpeechToText } from '@/hooks/useSpeechToText'
 import MicIcon from '@/components/MicIcon'
+import CloseIcon from '@/components/CloseIcon'
 
 const MAX_LENGTH = 500
 const MIN_LENGTH = 2
@@ -43,21 +44,39 @@ export default function FamilyCustomRequestForm({ disabled, onSubmit, onSubmitte
     onSubmitted(result.requestId, trimmed.slice(0, MAX_LENGTH))
   }
 
+  const handleClear = () => {
+    stopVoice()
+    setText('')
+    setError(null)
+  }
+
   return (
     <div>
       <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)] mb-3">
         Need something else?
       </p>
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-        <textarea
-          value={text}
-          onChange={event => setText(event.target.value)}
-          disabled={disabled || submitting}
-          maxLength={MAX_LENGTH}
-          placeholder="Type or speak a request that isn't covered above"
-          rows={3}
-          className="w-full rounded-xl border border-[var(--border)] bg-[var(--page-bg)] px-3 py-2.5 text-sm text-[var(--text-primary)] resize-none outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]/20 focus:border-[var(--clinical-blue)] disabled:opacity-60"
-        />
+        <div className="relative">
+          <textarea
+            value={text}
+            onChange={event => setText(event.target.value)}
+            disabled={disabled || submitting}
+            maxLength={MAX_LENGTH}
+            placeholder="Type or speak a request that isn't covered above"
+            rows={3}
+            className="w-full rounded-xl border border-[var(--border)] bg-[var(--page-bg)] px-3 py-2.5 pr-9 text-sm text-[var(--text-primary)] resize-none outline-none focus:ring-2 focus:ring-[var(--clinical-blue)]/20 focus:border-[var(--clinical-blue)] disabled:opacity-60"
+          />
+          {text && (
+            <button
+              type="button"
+              onClick={handleClear}
+              disabled={submitting}
+              aria-label="Clear request text"
+              className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50">
+              <CloseIcon size={13} />
+            </button>
+          )}
+        </div>
 
         <div className="mt-3 flex items-center gap-3">
           <button
