@@ -1,6 +1,6 @@
 import type { PatientLanguage } from './patientI18n'
 
-const SPEECH_LOCALE: Record<PatientLanguage, string> = {
+export const SPEECH_LOCALE: Record<PatientLanguage, string> = {
   en: 'en-US', es: 'es-ES', fr: 'fr-FR', zh: 'zh-CN',
   pa: 'pa-IN', yue: 'zh-HK', ar: 'ar-SA', tl: 'fil-PH',
 }
