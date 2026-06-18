@@ -33,6 +33,20 @@ export const formatResidentShortName = (displayName: string): string => {
   return `${parts.slice(0, -1).join(' ')} ${last[0]}.`
 }
 
+// Open-ended requests (typed or spoken, not matched to a tile) are stored
+// with this type id and their full text in `custom_text`.
+export const CUSTOM_REQUEST_TYPE_ID = 'custom'
+
+// Resolves the text to show for a request: the full custom text for
+// open-ended requests, otherwise the tile's configured label.
+export const requestDisplayLabel = (
+  request: { type: string; custom_text?: string | null },
+  typeMap: Record<string, { label: string }>
+): string => {
+  if (request.type === CUSTOM_REQUEST_TYPE_ID && request.custom_text) return request.custom_text
+  return typeMap[request.type]?.label ?? request.type
+}
+
 export const timeAgo = (dateStr: string): string => {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
   if (seconds < 60) return `${seconds}s ago`

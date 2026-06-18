@@ -89,6 +89,7 @@ export interface Request {
   id: string
   room_id: string
   type: RequestType
+  custom_text?: string | null
   status: RequestStatus
   is_urgent: boolean
   created_at: string

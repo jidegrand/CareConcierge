@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { timeAgo } from '@/lib/constants'
+import { timeAgo, requestDisplayLabel } from '@/lib/constants'
 import type { Request, RequestTypeConfig } from '@/types'
 import type { StaffEvent } from '@/hooks/useRequests'
 
@@ -60,7 +60,7 @@ export default function HandoverReportModal({
     if (openItems.length > 0) {
       lines.push('OPEN REQUESTS — REQUIRES HANDOVER (oldest first)')
       for (const r of openItems) {
-        const label    = requestTypeMap[r.type]?.label ?? r.type
+        const label    = requestDisplayLabel(r, requestTypeMap)
         const bay      = r.room?.name ?? '—'
         const age      = timeAgo(r.created_at)
         const assignee = r.acknowledger?.full_name
@@ -79,7 +79,7 @@ export default function HandoverReportModal({
     if (resolved.length > 0) {
       lines.push('RESOLVED THIS SHIFT')
       for (const r of resolved) {
-        const label    = requestTypeMap[r.type]?.label ?? r.type
+        const label    = requestDisplayLabel(r, requestTypeMap)
         const bay      = r.room?.name ?? '—'
         const resolver = r.resolver?.full_name ?? '—'
         const time     = r.resolved_at ? fmtTime(r.resolved_at) : '—'
@@ -232,7 +232,7 @@ export default function HandoverReportModal({
                   </thead>
                   <tbody>
                     {openItems.map((r, i) => {
-                      const label    = requestTypeMap[r.type]?.label ?? r.type
+                      const label    = requestDisplayLabel(r, requestTypeMap)
                       const bay      = r.room?.name ?? '—'
                       const assignee = r.acknowledger?.full_name
                       return (
@@ -301,7 +301,7 @@ export default function HandoverReportModal({
                   </thead>
                   <tbody>
                     {resolved.map((r, i) => {
-                      const label    = requestTypeMap[r.type]?.label ?? r.type
+                      const label    = requestDisplayLabel(r, requestTypeMap)
                       const bay      = r.room?.name ?? '—'
                       const resolver = r.resolver?.full_name
                       const waitSec  = r.resolved_at

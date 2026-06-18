@@ -18,9 +18,10 @@ import {
 } from '@/lib/patientI18n'
 import { supabase } from '@/lib/supabase'
 import { playPatientReceipt } from '@/lib/sounds'
-import { formatResidentShortName } from '@/lib/constants'
+import { CUSTOM_REQUEST_TYPE_ID, formatResidentShortName } from '@/lib/constants'
 import { speakPatientConfirmation } from '@/lib/speech'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
+import CustomRequestForm, { type CustomRequestRow } from '@/components/CustomRequestForm'
 import { PRODUCT_NAME } from '@/lib/brand'
 
 type TabId = 'requests' | 'services' | 'fun' | 'info'
@@ -306,6 +307,19 @@ export default function PatientPage() {
     setActiveRequest({ id: live.id, type: 'nurse', baseLabel: nurseBaseLabel, time: new Date(live.created_at), status: live.status })
   }
 
+  // Custom (open-ended) requests insert directly via CustomRequestForm —
+  // this just folds the result into the same active-request tracking the
+  // tile flow uses, so status updates/realtime/cancel all work the same way.
+  const handleCustomRequestSubmitted = (row: CustomRequestRow) => {
+    setActiveRequestsByType(prev => ({
+      ...prev,
+      [CUSTOM_REQUEST_TYPE_ID]: { id: row.id, type: row.type, status: row.status, created_at: row.created_at },
+    }))
+    setActiveTypeSet(prev => new Set(prev).add(CUSTOM_REQUEST_TYPE_ID))
+    playPatientReceipt()
+    setActiveRequest({ id: row.id, type: row.type, baseLabel: row.custom_text, time: new Date(row.created_at), status: row.status })
+  }
+
   const cancelRequest = async () => {
     if (!room || !activeRequest) return
 
@@ -581,6 +595,13 @@ export default function PatientPage() {
                   {submitError}
                 </div>
               )}
+
+              {/* ── Custom (open-ended) request — typed or spoken ───── */}
+              <CustomRequestForm
+                roomId={room.id}
+                disabled={submitting || cancelingRequest}
+                onSubmitted={handleCustomRequestSubmitted}
+              />
             </>
           )}
 
@@ -691,7 +712,10 @@ function RequestStatusModal({
 }) {
   const { type, baseLabel, status } = request
   const copy = getPatientCopy(language)
-  const label = resolveRequestLabel(language, type, baseLabel)
+  // Custom requests show the resident's own text verbatim — running it
+  // through translation could mis-map a short message that happens to
+  // match a known tile alias (e.g. typing just "water" as custom text).
+  const label = type === CUSTOM_REQUEST_TYPE_ID ? baseLabel : resolveRequestLabel(language, type, baseLabel)
   const canCancel = status === 'pending' || status === 'acknowledged'
   const acknowledgementNote = status === 'acknowledged'
   const resolved = status === 'resolved'

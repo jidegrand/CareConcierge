@@ -7,7 +7,7 @@ import { useTenantContext } from '@/hooks/useTenantContext'
 import { useAuth } from '@/hooks/useAuth'
 import { usePrefs } from '@/hooks/usePrefs'
 import { useOverdueAlerts } from '@/hooks/useOverdueAlerts'
-import { timeAgo, formatResidentShortName } from '@/lib/constants'
+import { timeAgo, formatResidentShortName, requestDisplayLabel, CUSTOM_REQUEST_TYPE_ID } from '@/lib/constants'
 import { supabase } from '@/lib/supabase'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
 import StaffChatPanel from '@/components/StaffChatPanel'
@@ -599,7 +599,6 @@ function PendingCard({
   duplicateCount: number
   onAcknowledge: () => void
 }) {
-  const config     = typeMap[request.type]
   const ageSeconds = (Date.now() - new Date(request.created_at).getTime()) / 1000
   const isApproaching = !isOverdue && ageSeconds >= responseTargetSec
   const bayLabel   = roomLabel(request)
@@ -642,6 +641,15 @@ function PendingCard({
             </span>
           )}
 
+          {/* Custom (open-ended) request badge */}
+          {request.type === CUSTOM_REQUEST_TYPE_ID && (
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+              style={{ background: '#FEF3C7', color: '#92400E' }}
+              title="Typed or spoken request — not a predefined tile">
+              Custom
+            </span>
+          )}
+
           {/* Overdue badge — highest priority */}
           {isOverdue && (
             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
@@ -669,8 +677,8 @@ function PendingCard({
           )}
         </div>
 
-        <p className="text-sm font-bold mb-1.5" style={{ color: '#111827' }}>
-          {config?.label ?? request.type}
+        <p className="text-sm font-bold mb-1.5 line-clamp-3" style={{ color: '#111827' }}>
+          {requestDisplayLabel(request, typeMap)}
         </p>
         <p className="flex items-center gap-1 text-xs" style={{ color: '#9CA3AF' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -710,7 +718,6 @@ function InProgressCard({
   onResolve: (note?: string) => void
   onReassign: (newUserId: string, newUserName: string) => void
 }) {
-  const config   = typeMap[request.type]
   const bayLabel = roomLabel(request)
   const residentName = residentShortName(request)
   const [showPicker, setShowPicker] = useState(false)
@@ -787,10 +794,19 @@ function InProgressCard({
               Family
             </span>
           )}
+
+          {/* Custom (open-ended) request badge */}
+          {request.type === CUSTOM_REQUEST_TYPE_ID && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+              style={{ background: '#FEF3C7', color: '#92400E' }}
+              title="Typed or spoken request — not a predefined tile">
+              Custom
+            </span>
+          )}
         </div>
 
-        <p className="text-sm font-bold mb-1.5" style={{ color: '#111827' }}>
-          {config?.label ?? request.type}
+        <p className="text-sm font-bold mb-1.5 line-clamp-3" style={{ color: '#111827' }}>
+          {requestDisplayLabel(request, typeMap)}
         </p>
 
         <p className="flex items-center gap-1 text-xs mb-1" style={{ color: isLongWait ? '#D97706' : STATUS_COLORS.inProgress.text }}>
@@ -913,7 +929,6 @@ function ResolvedRow({
   request: Request
   typeMap: Record<string, RequestTypeConfig>
 }) {
-  const config   = typeMap[request.type]
   const bayLabel = roomLabel(request)
   const residentName = residentShortName(request)
   const resolverName = (request as Request & {
@@ -930,14 +945,21 @@ function ResolvedRow({
       <span className="text-xs font-bold w-14 flex-shrink-0" style={{ color: STATUS_COLORS.resolved.text }}>
         {bayLabel}
       </span>
-      <span className="flex-1 text-sm font-medium truncate" style={{ color: '#111827' }}>
-        {config?.label ?? request.type}
+      <span className="flex-1 text-sm font-medium truncate" style={{ color: '#111827' }} title={requestDisplayLabel(request, typeMap)}>
+        {requestDisplayLabel(request, typeMap)}
         {residentName && <span className="text-[var(--text-muted)] font-normal"> · {residentName}</span>}
         {request.source === 'family' && (
           <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
             style={{ background: '#EDE9FE', color: '#6D28D9' }}
             title="Submitted by a family member">
             Family
+          </span>
+        )}
+        {request.type === CUSTOM_REQUEST_TYPE_ID && (
+          <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
+            style={{ background: '#FEF3C7', color: '#92400E' }}
+            title="Typed or spoken request — not a predefined tile">
+            Custom
           </span>
         )}
         {request.staffNote && (
