@@ -21,7 +21,6 @@ import { playPatientReceipt } from '@/lib/sounds'
 import { formatResidentShortName } from '@/lib/constants'
 import { speakPatientConfirmation } from '@/lib/speech'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
-import VoiceRequestSection from '@/components/VoiceRequestSection'
 import { PRODUCT_NAME } from '@/lib/brand'
 
 type TabId = 'requests' | 'services' | 'fun' | 'info'
@@ -114,10 +113,6 @@ export default function PatientPage() {
       ...item,
       translatedLabel: getRequestLabel(item.id, item.label),
     }))
-  const voiceRequestOptions = [
-    { id: 'nurse', label: getRequestLabel('nurse', nurseBaseLabel), baseLabel: nurseBaseLabel, urgent: true },
-    ...commonRequests.map(req => ({ id: req.id, label: req.translatedLabel, baseLabel: req.label, urgent: req.urgent })),
-  ]
 
   // Load active types for this room + subscribe to realtime changes
   useEffect(() => {
@@ -309,18 +304,6 @@ export default function PatientPage() {
     setActiveTypeSet(prev => new Set(prev).add('nurse'))
     playPatientReceipt()
     setActiveRequest({ id: live.id, type: 'nurse', baseLabel: nurseBaseLabel, time: new Date(live.created_at), status: live.status })
-  }
-
-  const handleVoiceConfirm = (typeId: string, baseLabel: string, urgent: boolean) => {
-    if (activeTypeSet.has(typeId)) {
-      openActiveRequest(typeId, baseLabel)
-      return
-    }
-    if (typeId === 'nurse') {
-      handleCallNurse()
-      return
-    }
-    submitRequest(typeId, baseLabel, urgent)
   }
 
   const cancelRequest = async () => {
@@ -539,14 +522,6 @@ export default function PatientPage() {
                   )}
                 </button>
               </div>
-
-              {/* ── Voice request ── speak instead of tapping ─────── */}
-              <VoiceRequestSection
-                language={language}
-                options={voiceRequestOptions}
-                disabled={submitting || cancelingRequest}
-                onConfirm={handleVoiceConfirm}
-              />
 
               {/* ── Section label ── */}
               <div className="px-5 flex items-center justify-between mb-3">

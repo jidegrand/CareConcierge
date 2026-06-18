@@ -888,39 +888,6 @@ export const resolveRequestLabel = (
   return translateRequestTypeLabel(language, type, fallbackLabel)
 }
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-// Best-effort mapping from a raw speech-to-text transcript to one of the
-// patient's available request types. Reuses KNOWN_REQUEST_LABELS (built for
-// custom-type label translation) as the keyword list so voice matching stays
-// in sync with the same aliases already maintained for that purpose.
-// Word-boundary matching avoids false hits like "service" containing "ice".
-// English-only: the alias keywords are English, so this only resolves
-// reliably when the patient speaks English regardless of the UI language.
-export const matchSpokenRequestType = (
-  transcript: string,
-  available: Array<{ id: string; label: string }>
-): string | null => {
-  const norm = normalizeLabel(transcript)
-  if (!norm) return null
-
-  for (const item of available) {
-    const idNorm = normalizeLabel(item.id)
-    const labelNorm = normalizeLabel(item.label)
-    if (idNorm && new RegExp(`\\b${escapeRegExp(idNorm)}\\b`).test(norm)) return item.id
-    if (labelNorm && new RegExp(`\\b${escapeRegExp(labelNorm)}\\b`).test(norm)) return item.id
-  }
-
-  for (const [alias, key] of Object.entries(KNOWN_REQUEST_LABELS)) {
-    if (!new RegExp(`\\b${escapeRegExp(alias)}\\b`).test(norm)) continue
-    const canonicalLabel = normalizeLabel(REQUEST_LABELS.en[key])
-    const match = available.find(item => normalizeLabel(item.id) === key || normalizeLabel(item.label) === canonicalLabel)
-    if (match) return match.id
-  }
-
-  return null
-}
-
 export const formatFeedbackThanks = (language: PatientLanguage, rating: number) => {
   switch (language) {
     case 'es':
