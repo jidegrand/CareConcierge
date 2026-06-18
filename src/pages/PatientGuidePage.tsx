@@ -56,8 +56,18 @@ export default function PatientGuidePage() {
           </div>
         </Card>
 
-        {/* Step 3 — Submit */}
-        <Card step={3} color="blue" title="Patient submits a request">
+        {/* Step 3 — Custom request */}
+        <Card step={3} color="blue" title="Can't find what you need? Type or speak it">
+          <p className="text-gray-600 text-sm leading-relaxed mb-4">
+            Below the request buttons is a <strong>"Need something else?"</strong> box for anything that doesn't fit a tile — like "My IV pump is beeping" or "I need an extra pillow." Type it in, or tap the microphone and say it out loud; your words appear as text automatically. Tap <strong>Send Request</strong> when you're ready.
+          </p>
+          <Tip>
+            Voice input works in most phone browsers but isn't supported everywhere. If the microphone button is unavailable, you can still type your request — staff see the full text either way.
+          </Tip>
+        </Card>
+
+        {/* Step 4 — Submit */}
+        <Card step={4} color="blue" title="Patient submits a request">
           <p className="text-gray-600 text-sm leading-relaxed mb-4">
             When a request button is tapped, it is sent to staff immediately. The page switches to a live status screen — no confirmation needed, no waiting to find out if it was received.
           </p>
@@ -71,8 +81,8 @@ export default function PatientGuidePage() {
           </Tip>
         </Card>
 
-        {/* Step 4 — Urgent */}
-        <Card step={4} color="red" title="For urgent help — press Call Nurse">
+        {/* Step 5 — Urgent */}
+        <Card step={5} color="red" title="For urgent help — press Call Nurse">
           <p className="text-gray-600 text-sm leading-relaxed">
             At the top of the page there is a large red <strong>Call Nurse</strong> button. Use this for urgent assistance, pain relief, or any situation that needs immediate attention. It alerts staff right away.
           </p>
@@ -90,8 +100,8 @@ export default function PatientGuidePage() {
           </div>
         </Card>
 
-        {/* Step 5 — Track */}
-        <Card step={5} color="blue" title="Track your request in real time">
+        {/* Step 6 — Track */}
+        <Card step={6} color="blue" title="Track your request in real time">
           <p className="text-gray-600 text-sm leading-relaxed">
             After tapping a request, you'll see a live status screen. It automatically updates as staff respond — no need to refresh.
           </p>
@@ -141,8 +151,8 @@ export default function PatientGuidePage() {
           </div>
         </Card>
 
-        {/* Step 6 — Cancel */}
-        <Card step={6} color="gray" title="Changed your mind? Cancel the request">
+        {/* Step 7 — Cancel */}
+        <Card step={7} color="gray" title="Changed your mind? Cancel the request">
           <p className="text-gray-600 text-sm leading-relaxed">
             If you no longer need assistance, tap <strong>Cancel request</strong> on the status screen. This removes the request so staff can focus on others who need help.
           </p>
@@ -152,7 +162,7 @@ export default function PatientGuidePage() {
         </Card>
 
         {/* Language note */}
-        <Card step={7} color="gray" title="Change the language">
+        <Card step={8} color="gray" title="Change the language">
           <p className="text-gray-600 text-sm leading-relaxed">
             Tap the <strong>Language</strong> selector at the top right of the page to switch the request labels to your preferred language. Your choice is remembered for next time.
           </p>

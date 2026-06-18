@@ -322,6 +322,10 @@ export default function AdminGuidePage() {
               <Note>
                 <strong>Family Portal Requests</strong> appear as a 4-across grid of <strong>Quick Requests</strong> on each family member's dashboard. Requests sent from there are tagged with a "from family" source so staff can tell them apart from patient-initiated requests. Editing or hiding a Common Request has no effect on Family Portal Requests, and vice versa — they're independent lists.
               </Note>
+
+              <Note>
+                <strong>Custom (open-ended) requests:</strong> Both the patient page and the family portal also show a <strong>"Need something else?"</strong> box where someone can type — or speak, via the microphone button — a request that doesn't fit any tile. This isn't a configurable request type and can't be hidden or deleted; it's always available alongside whatever tiles you've set up here. On the dashboard, these appear with a yellow <strong>Custom</strong> badge and the full message in place of a label.
+              </Note>
             </GuideSection>
 
             {/* QR Codes */}

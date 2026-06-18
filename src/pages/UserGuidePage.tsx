@@ -190,6 +190,9 @@ export default function UserGuidePage() {
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 <strong>Overdue alerts:</strong> Cards with an orange pulsing border have exceeded the configured response target. Prioritise these first.
               </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <strong>Custom requests:</strong> Patients and family members can also type or speak an open-ended request that doesn't fit a tile (e.g. "My IV pump is beeping"). These show with a yellow <strong>Custom</strong> badge and display the full message in place of a tile label, so you see exactly what was asked for — they're acknowledged and resolved the same way as any other request.
+              </div>
             </GuideSection>
 
             {/* Staff Chat */}
@@ -276,6 +279,9 @@ export default function UserGuidePage() {
               <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
                 <strong>Request received confirmation:</strong> Submitting a quick request opens a "Received" confirmation on the family member's dashboard, mirroring the patient acknowledgment screen. From there they can <strong>Cancel request</strong> if it's no longer needed, or <strong>Dismiss</strong> to close the confirmation and keep tracking it in Today's Activity.
               </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <strong>Custom requests:</strong> Below the Quick Requests grid, family members also have a <strong>"Need something else?"</strong> box to type or speak an open-ended request that isn't covered by a tile. It submits the same way as a quick request — it shows up in your queue with a <strong>Custom</strong> badge and the full message — and now also appears with its full text (not just "custom requested") in the family member's own Activity feed.
+              </div>
             </GuideSection>
 
             {/* Family Messages */}
@@ -361,6 +367,12 @@ export default function UserGuidePage() {
               <Step n={4} title="Patient cancels a request">
                 If the patient no longer needs help, they can tap <strong>Cancel request</strong> on the status screen before it is resolved.
               </Step>
+              <Step n={5} title="Patient sends a custom request">
+                Below the request tiles is a <strong>"Need something else?"</strong> box. Patients can type a description or tap the microphone to speak it — the transcribed text fills the box automatically, and they tap <strong>Send Request</strong> to submit. This is for anything that doesn't fit a predefined tile.
+              </Step>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                <strong>Browser support:</strong> Voice input relies on the device's browser supporting the Web Speech API (most mobile Chrome and Safari browsers do). If it isn't supported, the mic button shows a note and the patient can still type their request — nothing else on the page is affected.
+              </div>
             </GuideSection>
 
             {/* Settings */}
