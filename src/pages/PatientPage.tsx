@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
 
 const Entertainment = lazy(() => import('@/pages/Entertainment/Entertainment'))
 import { useParams } from 'react-router-dom'
@@ -19,9 +19,11 @@ import {
 import { supabase } from '@/lib/supabase'
 import { playPatientReceipt } from '@/lib/sounds'
 import { CUSTOM_REQUEST_TYPE_ID, formatResidentShortName } from '@/lib/constants'
+import { type ActivityFeedItem, summarizeRequestProgress } from '@/lib/activityFeed'
 import { speakPatientConfirmation } from '@/lib/speech'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
 import CustomRequestForm, { type CustomRequestRow } from '@/components/CustomRequestForm'
+import ActivityFeedList from '@/components/ActivityFeedList'
 import { PRODUCT_NAME } from '@/lib/brand'
 
 type TabId = 'requests' | 'services' | 'fun' | 'info'
@@ -39,6 +41,15 @@ interface ActiveRequestRow {
   type:       string
   status:     'pending' | 'acknowledged'
   created_at: string
+}
+
+interface FeedRequestRow {
+  id:          string
+  type:        string
+  custom_text: string | null
+  status:      'pending' | 'acknowledged' | 'resolved'
+  created_at:  string
+  resolved_at: string | null
 }
 
 const PATIENT_IDLE_TIMEOUT_MS = 60 * 60 * 1000
@@ -77,6 +88,7 @@ export default function PatientPage() {
   const [submitError,  setSubmitError]  = useState<string | null>(null)
   // Set of request type IDs that already have a pending/acknowledged request for this room
   const [activeTypeSet, setActiveTypeSet] = useState<Set<string>>(new Set())
+  const [feedRows, setFeedRows] = useState<FeedRequestRow[]>([])
   const { theme, toggleTheme } = usePatientTheme()
   const { voiceEnabled, toggleVoice } = usePatientVoice()
   const copy = getPatientCopy(language)
@@ -115,6 +127,16 @@ export default function PatientPage() {
       translatedLabel: getRequestLabel(item.id, item.label),
     }))
 
+  // Translated at render time (not inside the fetch effect) so changing
+  // language re-labels the feed immediately, same as activeRequest above.
+  const activityFeed: ActivityFeedItem[] = useMemo(() => feedRows.map(row => {
+    const isCustom = row.type === CUSTOM_REQUEST_TYPE_ID && !!row.custom_text
+    const label = isCustom ? row.custom_text! : getRequestLabel(row.type)
+    const text = isCustom ? `Custom request: ${label}` : `${label} requested`
+    const { detail, statusColor } = summarizeRequestProgress(row)
+    return { id: row.id, text, detail, timestamp: row.created_at, statusColor }
+  }), [feedRows, language, requestTypes])
+
   // Load active types for this room + subscribe to realtime changes
   useEffect(() => {
     if (!room) return
@@ -145,7 +167,25 @@ export default function PatientPage() {
       if (!nextByType.nurse) setCallPressed(false)
     }
 
+    // Recent history (all statuses) for this room's resident — powers the
+    // "Recent Activity" feed, mirroring the family portal's activity feed.
+    // Scoped by resident_id rather than room_id so a new resident assigned
+    // to the same bay doesn't see a previous occupant's request history.
+    const residentId = room.resident?.id
+    const loadActivityFeed = async () => {
+      if (!residentId) { setFeedRows([]); return }
+      const { data } = await supabase
+        .from('requests')
+        .select('id, type, custom_text, status, created_at, resolved_at')
+        .eq('resident_id', residentId)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      setFeedRows((data ?? []) as FeedRequestRow[])
+    }
+
     loadActiveTypes()
+    loadActivityFeed()
 
     const channel = supabase
       .channel(`patient-room-active:${room.id}`)
@@ -173,6 +213,7 @@ export default function PatientPage() {
           }
 
           void loadActiveTypes()
+          void loadActivityFeed()
         }
       )
       .subscribe()
@@ -180,6 +221,7 @@ export default function PatientPage() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         void loadActiveTypes()
+        void loadActivityFeed()
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -189,6 +231,7 @@ export default function PatientPage() {
     // never arrives.
     const pollInterval = window.setInterval(() => {
       void loadActiveTypes()
+      void loadActivityFeed()
     }, 15_000)
 
     return () => {
@@ -602,6 +645,27 @@ export default function PatientPage() {
                 disabled={submitting || cancelingRequest}
                 onSubmitted={handleCustomRequestSubmitted}
               />
+
+              {/* ── Recent activity — only for rooms with an assigned resident ── */}
+              {room.resident && (
+                <div className="px-5 mb-5">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] mb-3" style={{ color: 'var(--patient-text-muted)' }}>
+                    Recent Activity
+                  </p>
+                  <ActivityFeedList
+                    items={activityFeed}
+                    emptyMessage="No activity yet."
+                    theme={{
+                      surface: 'var(--patient-card-bg-1)',
+                      border: 'var(--patient-card-border)',
+                      textPrimary: 'var(--patient-text)',
+                      textSecondary: 'var(--patient-text-secondary)',
+                      textMuted: 'var(--patient-text-muted)',
+                      accent: 'var(--patient-accent)',
+                    }}
+                  />
+                </div>
+              )}
             </>
           )}
 

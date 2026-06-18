@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenantContext } from '@/hooks/useTenantContext'
-import { useFamilyPortal, type FamilyActivityItem } from '@/hooks/useFamilyPortal'
+import { useFamilyPortal } from '@/hooks/useFamilyPortal'
 import { useFamilyChat } from '@/hooks/useFamilyChat'
 import { useDarkMode } from '@/hooks/useDarkMode'
 import RequestTypeIcon from '@/components/RequestTypeIcon'
 import FamilyChatModal from '@/components/FamilyChatModal'
 import FamilyCustomRequestForm from '@/components/FamilyCustomRequestForm'
+import ActivityFeedList from '@/components/ActivityFeedList'
 import { formatResidentShortName } from '@/lib/constants'
 
 interface InviteSiblingResult {
@@ -61,51 +62,6 @@ function formatActivityTime(iso: string): string {
   return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`
 }
 
-function formatActivityClock(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-}
-
-function activityDateLabel(iso: string): string {
-  const date = new Date(iso)
-  const now = new Date()
-
-  if (date.toDateString() === now.toDateString()) return 'Today'
-
-  const yesterday = new Date(now)
-  yesterday.setDate(now.getDate() - 1)
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
-
-  return date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })
-}
-
-function groupActivityByDate(activity: FamilyActivityItem[]): { label: string; items: FamilyActivityItem[] }[] {
-  const groups: { label: string; items: FamilyActivityItem[] }[] = []
-
-  for (const item of activity) {
-    const label = activityDateLabel(item.timestamp)
-    const current = groups[groups.length - 1]
-    if (current && current.label === label) {
-      current.items.push(item)
-    } else {
-      groups.push({ label, items: [item] })
-    }
-  }
-
-  return groups
-}
-
-function ChevronIcon({ collapsed }: { collapsed: boolean }) {
-  return (
-    <svg
-      width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-      strokeLinecap="round" strokeLinejoin="round"
-      className={`flex-shrink-0 text-[var(--text-muted)] transition-transform ${collapsed ? '-rotate-90' : ''}`}
-    >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  )
-}
-
 export default function FamilyDashboardPage() {
   const { profile, signOut } = useAuth()
   const { tenantId, tenantName } = useTenantContext()
@@ -120,10 +76,8 @@ export default function FamilyDashboardPage() {
   const { unreadCount } = useFamilyChat(resident?.id, showChat)
   const { dark, toggle: toggleDark } = useDarkMode()
   const [activitySeenAt, setActivitySeenAt] = useState<string | null>(null)
-  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set())
   const activitySectionRef = useRef<HTMLDivElement>(null)
   const initializedSeenRef = useRef(false)
-  const collapseInitializedRef = useRef(false)
 
   // First time activity loads for this resident: adopt any previously stored
   // "seen" timestamp, or (on a brand-new device) treat current activity as
@@ -142,23 +96,6 @@ export default function FamilyDashboardPage() {
   }, [resident, activity])
 
   const hasNewActivity = activity.length > 0 && !!activitySeenAt && new Date(activity[0].timestamp) > new Date(activitySeenAt)
-
-  // Collapse everything except "Today" by default, once activity first loads.
-  useEffect(() => {
-    if (collapseInitializedRef.current || activity.length === 0) return
-    collapseInitializedRef.current = true
-    const groups = groupActivityByDate(activity)
-    setCollapsedDates(new Set(groups.filter(g => g.label !== 'Today').map(g => g.label)))
-  }, [activity])
-
-  const toggleDateGroup = (label: string) => {
-    setCollapsedDates(prev => {
-      const next = new Set(prev)
-      if (next.has(label)) next.delete(label)
-      else next.add(label)
-      return next
-    })
-  }
 
   const handleBellClick = () => {
     if (resident && activity.length > 0) {
@@ -349,73 +286,7 @@ export default function FamilyDashboardPage() {
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)] mb-3">
               Activity
             </p>
-            {activity.length === 0 ? (
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl">
-                <p className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">No activity yet.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {groupActivityByDate(activity).map(group => {
-                  const collapsed = collapsedDates.has(group.label)
-                  return (
-                    <div key={group.label} className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => toggleDateGroup(group.label)}
-                        className="w-full flex items-center justify-between gap-2 px-4 py-2.5"
-                      >
-                        <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">
-                          {group.label}
-                          <span className="ml-1.5 font-normal text-[var(--text-muted)]">({group.items.length})</span>
-                        </span>
-                        <ChevronIcon collapsed={collapsed} />
-                      </button>
-                      {!collapsed && (
-                        <div className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
-                          {group.items.map(item => (
-                            <div key={item.id} className="flex items-start gap-3 px-4 py-3">
-                              <span
-                                className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${
-                                  item.statusColor === 'green' ? 'bg-emerald-500'
-                                    : item.statusColor === 'amber' ? 'bg-amber-500'
-                                    : 'bg-gray-300'
-                                }`}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[13px] text-[var(--text-primary)] leading-snug">
-                                  {item.text}
-                                  {item.detail && <span className="text-[var(--text-muted)]"> — {item.detail}</span>}
-                                </p>
-                                {item.attachmentUrl && (
-                                  item.attachmentType?.startsWith('image/') ? (
-                                    <a href={item.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mt-1.5">
-                                      <img src={item.attachmentUrl} alt={item.attachmentName ?? 'Attachment'}
-                                        className="max-h-40 rounded-lg border border-[var(--border)] object-cover" />
-                                    </a>
-                                  ) : (
-                                    <a href={item.attachmentUrl} target="_blank" rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1.5 mt-1.5 text-xs font-semibold text-[var(--clinical-blue)] hover:underline">
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
-                                      </svg>
-                                      {item.attachmentName ?? 'Attachment'}
-                                    </a>
-                                  )
-                                )}
-                                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                                  {item.staffAttribution && `— ${item.staffAttribution}, `}
-                                  {formatActivityClock(item.timestamp)}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            <ActivityFeedList items={activity} />
           </div>
         </div>
       </div>

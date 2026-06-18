@@ -1,21 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buildRequestTypeMap, requestDisplayLabel, CUSTOM_REQUEST_TYPE_ID } from '@/lib/constants'
+import { type ActivityFeedItem, summarizeRequestProgress } from '@/lib/activityFeed'
 import { buildAppUrl } from '@/lib/tenant'
 import { getInviteAuthorizationHeaders, getInviteFunctionError, formatInviteEmailError } from '@/lib/invites'
 import type { FamilyMember, Resident, RequestTypeConfig } from '@/types'
 
-export interface FamilyActivityItem {
-  id: string
-  text: string
-  detail: string | null
-  timestamp: string
-  statusColor: 'green' | 'amber' | 'gray'
-  staffAttribution: string | null
-  attachmentUrl?: string | null
-  attachmentType?: string | null
-  attachmentName?: string | null
-}
+export type FamilyActivityItem = ActivityFeedItem
 
 interface FamilyActivityRequest {
   id: string
@@ -58,14 +49,6 @@ interface SubmitRequestResult extends MutationResult {
   requestId?: string
 }
 
-const formatMinutes = (seconds: number): string => {
-  const minutes = Math.max(1, Math.round(seconds / 60))
-  if (minutes < 60) return `${minutes} min`
-  const hours = Math.floor(minutes / 60)
-  const remMinutes = minutes % 60
-  return remMinutes ? `${hours} hr ${remMinutes} min` : `${hours} hr`
-}
-
 function buildActivity(requests: FamilyActivityRequest[], notes: (FamilyActivityNote & { attachmentUrl?: string | null })[], requestTypeMap: Record<string, RequestTypeConfig>): FamilyActivityItem[] {
   const fromRequests: FamilyActivityItem[] = requests.map(r => {
     const isCustom = r.type === CUSTOM_REQUEST_TYPE_ID && !!r.custom_text
@@ -77,21 +60,10 @@ function buildActivity(requests: FamilyActivityRequest[], notes: (FamilyActivity
         ? `Custom request: ${label}`
         : `${label} requested`
 
-    let detail: string | null = null
-    let statusColor: FamilyActivityItem['statusColor'] = 'gray'
-    let staffAttribution: string | null = null
-    if (r.status === 'resolved' && r.resolved_at) {
-      const seconds = (new Date(r.resolved_at).getTime() - new Date(r.created_at).getTime()) / 1000
-      detail = `resolved in ${formatMinutes(seconds)}`
-      statusColor = 'green'
-      staffAttribution = formatStaffAttribution(r.resolved_by_name, r.resolved_by_role_title)
-    } else if (r.status === 'acknowledged') {
-      detail = 'in progress'
-      statusColor = 'amber'
-    } else {
-      detail = 'pending'
-      statusColor = 'amber'
-    }
+    const { detail, statusColor } = summarizeRequestProgress(r)
+    const staffAttribution = r.status === 'resolved'
+      ? formatStaffAttribution(r.resolved_by_name, r.resolved_by_role_title)
+      : null
 
     return { id: `request-${r.id}`, text, detail, timestamp: r.created_at, statusColor, staffAttribution }
   })
